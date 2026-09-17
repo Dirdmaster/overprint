@@ -64,8 +64,8 @@ const modelSummary = computed(() =>
         :key="`${missing.reference}-${missing.reason}`"
         class="mb-1"
       >
-        <strong>{{ missing.reference }}</strong>
-        — {{ missing.reason }}
+        <strong>{{ missing.reference }}:</strong>
+        {{ missing.reason }}
       </p>
       <button
         v-if="models.glb"
