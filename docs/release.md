@@ -20,6 +20,8 @@ Production uses Cloudflare Pages Git integration at `https://overprint.ink`. Git
 
 The website build publishes the custom PCM feed at `https://overprint.ink/pcm/repository.json`. Before each plugin release, bump both plugin version files and validate the generated feed and ZIP. Users refresh PCM to receive updates; manual ZIP installation remains available.
 
+After publishing a plugin ZIP on GitHub Releases, update `packages/kicad/release.json` with its version, download URL and SHA-256. The PCM feed uses GitHub when the built ZIP matches that checksum. Unreleased or modified builds keep their local download, so development and standalone builds work without a GitHub release.
+
 ## Build the hosted alpha from the source candidate
 
 Build from a fresh extraction, not the working directory: the latter contains

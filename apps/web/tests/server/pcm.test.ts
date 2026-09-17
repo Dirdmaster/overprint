@@ -31,3 +31,26 @@ test('PCM feed hashes and sizes match the downloadable package and keep archive 
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+for (const matching of [true, false]) {
+  test(`PCM uses GitHub only when the built archive matches the release: ${matching}`, () => {
+    const directory = mkdtempSync(join(tmpdir(), 'overprint-pcm-release-'))
+    try {
+      const metadata = { author: { name: 'Overprint' }, versions: [{ version: '0.1.11' }] }
+      const archive = zipSync({ 'metadata.json': strToU8(JSON.stringify(metadata)) })
+      const digest = createHash('sha256').update(archive).digest('hex')
+      const release = {
+        version: '0.1.11',
+        url: 'https://github.com/Dirdmaster/overprint/releases/download/v0.1.0-alpha.1/overprint-kicad-0.1.11.zip',
+        sha256: matching ? digest : 'different-build',
+      }
+      writePcmRepository(archive, pathToFileURL(`${directory}/`), undefined, undefined, release)
+      const version = JSON.parse(readFileSync(join(directory, 'packages.json'), 'utf8')).packages[0].versions[0]
+      assert.equal(version.download_sha256, digest)
+      if (matching) assert.equal(version.download_url, release.url)
+      else assert.ok(version.download_url.startsWith('https://overprint.ink/pcm/'))
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+}
