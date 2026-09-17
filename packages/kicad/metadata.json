@@ -1,0 +1,23 @@
+{
+  "$schema": "https://go.kicad.org/pcm/schemas/v2",
+  "name": "Overprint",
+  "description": "Connect KiCad to Overprint for multicolor silkscreen.",
+  "description_full": "Open and sync your KiCad boards in Overprint, including available 3D models. Add artwork in the editor, then export for JLCPCB.",
+  "identifier": "weavers.overprint",
+  "type": "plugin",
+  "author": {
+    "name": "Weavers",
+    "contact": {}
+  },
+  "resources": {},
+  "license": "MIT",
+  "versions": [
+    {
+      "version": "0.1.12",
+      "status": "development",
+      "kicad_version": "10.0",
+      "kicad_version_max": "10.99",
+      "runtime": "swig"
+    }
+  ]
+}

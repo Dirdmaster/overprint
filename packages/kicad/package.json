@@ -1,0 +1,10 @@
+{
+  "name": "@overprint/kicad",
+  "version": "0.1.12",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "python3 build.py --output dist/overprint-kicad.zip",
+    "test": "node scripts/test.mjs"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "kicad": {
+    "setup": {
+      "description": "Install the KiCad 10 plugin through Plugin and Content Manager (PCM).",
+      "stepsLabel": "KiCad setup steps",
+      "guide": "Setup guide",
+      "manualNote": "For the currently supported PCM procedure, see the {manual}.",
+      "manual": "KiCad manual",
+      "steps": {
+        "repository": {
+          "title": "Add the Overprint repository",
+          "description": "In KiCad’s project manager, open Plugin and Content Manager → Manage… → +. Paste this URL, click OK, then Save."
+        },
+        "install": {
+          "title": "Install through PCM",
+          "description": "Select Overprint from the repository list. Find Overprint, click Install, then Apply Pending Changes."
+        },
+        "restart": {
+          "title": "Restart the PCB Editor",
+          "description": "Save your work, close all PCB Editor windows, then reopen your board in KiCad 10. The plugin starts automatically."
+        },
+        "scan": {
+          "title": "Open your board in Overprint",
+          "description": "Click Scan for boards in Overprint and select your board. Later, use Sync to refresh it while keeping your artwork."
+        }
+      },
+      "repositoryUrl": "PCM repository URL",
+      "copyUrl": "Copy URL",
+      "copied": "Copied",
+      "copyFallback": "Select the URL and copy it manually.",
+      "screenshotAlt": "KiCad’s Add Repository dialog with the Overprint repository URL entered.",
+      "fallback": "Prefer installing from a file? Download the ZIP, then choose Install from File… in PCM."
+    },
+    "import": {
+      "close": "Close import",
+      "dropHint": "Drop your board export here",
+      "chooseExport": "Choose board export",
+      "showSetup": "Exporting from KiCad?",
+      "opening": "Opening board…",
+      "failed": "Unable to open this board."
+    }
+  }
+}
