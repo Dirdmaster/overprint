@@ -1,0 +1,36 @@
+{
+  "name": "overprint",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "bun@1.3.14",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "start": "turbo run build --filter=@overprint/web && bun run --cwd apps/web start",
+    "build": "turbo run build",
+    "build:cloudflare": "turbo run build:cloudflare --filter=@overprint/web",
+    "prepare:plugin": "turbo run build --filter=@overprint/kicad && bun run --cwd apps/web prepare:plugin",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test --filter=@overprint/web",
+    "test:server": "turbo run test:server",
+    "test:kicad": "turbo run test --filter=@overprint/kicad",
+    "test:cloudflare": "turbo run test:cloudflare",
+    "test:standalone": "turbo run test:standalone",
+    "preview:cloudflare": "bun run --cwd apps/web preview:cloudflare",
+    "package:source": "python3 scripts/package_source.py",
+    "preview": "bun run --cwd apps/web preview",
+    "format": "bun run --cwd apps/web format",
+    "format:check": "bun run --cwd apps/web format:check",
+    "prepare": "node scripts/install-hooks.mjs",
+    "hooks:install": "lefthook install",
+    "test:ops": "python3 -m unittest discover -s scripts/tests -p \"test_*.py\""
+  },
+  "devDependencies": {
+    "lefthook": "^2.1.14",
+    "turbo": "^2.5.0"
+  }
+}

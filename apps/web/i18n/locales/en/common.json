@@ -1,0 +1,27 @@
+{
+  "common": {
+    "alpha": "Alpha",
+    "importPcb": "Import PCB",
+    "openProject": "Open project",
+    "saveProject": "Save project",
+    "kicadSetup": "KiCad setup",
+    "downloadPlugin": "Download plugin",
+    "chooseFile": "Choose file",
+    "backToEditor": "← Back to editor",
+    "theme": {
+      "useSystem": "Use system theme",
+      "switchToLight": "Switch to light mode",
+      "switchToDark": "Switch to dark mode",
+      "shortcut": "{action} (⌘/Ctrl+D)"
+    },
+    "source": "Source",
+    "downloadSource": "Download source code (MIT)",
+    "xProfile": "Dirdmaster on X",
+    "githubRepository": "Overprint on GitHub",
+    "seo": {
+      "title": "Overprint — Multicolor silkscreen for KiCad",
+      "description": "Make your board less boring. Multicolor silkscreen for KiCad + JLCPCB with Overprint, an open-source PCB artwork editor.",
+      "imageAlt": "Overprint. Make your board less boring. Multicolor silkscreen for KiCad and JLCPCB."
+    }
+  }
+}

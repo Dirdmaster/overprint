@@ -1,0 +1,23 @@
+{
+  "$schema": "https://go.kicad.org/pcm/schemas/v2",
+  "name": "Overprint Export",
+  "description": "Export the open PCB for Overprint's artwork editor.",
+  "description_full": "Read-only alpha exporter for KiCad 10. Exports both board sides, native Gerbers and drills, and available component models. The local sync server starts automatically; paired requests capture unsaved changes. Import the package into Overprint to add artwork and generate the full-color manufacturing ZIP.",
+  "identifier": "casa.vallee.overprint",
+  "type": "plugin",
+  "author": {
+    "name": "Weavers",
+    "contact": {}
+  },
+  "resources": {},
+  "license": "MIT",
+  "versions": [
+    {
+      "version": "0.1.11",
+      "status": "development",
+      "kicad_version": "10.0",
+      "kicad_version_max": "10.99",
+      "runtime": "swig"
+    }
+  ]
+}

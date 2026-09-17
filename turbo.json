@@ -1,0 +1,78 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "globalDependencies": [
+    "LICENSE"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".output/standalone/**",
+        "dist/**",
+        "public/downloads/overprint-kicad.zip",
+        "public/pcm/**"
+      ],
+      "passThroughEnv": [
+        "PATH"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "public/downloads/overprint-source.zip"
+      ]
+    },
+    "build:cloudflare": {
+      "dependsOn": [
+        "build",
+        "^build"
+      ],
+      "outputs": [
+        ".output/cloudflare/**",
+        "public/downloads/overprint-kicad.zip",
+        "public/pcm/**"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "public/downloads/overprint-source.zip"
+      ]
+    },
+    "dev": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "typecheck": {
+      "cache": false
+    },
+    "test": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false,
+      "passThroughEnv": [
+        "CI",
+        "KICAD_PYTHON",
+        "OVERPRINT_TEST_URL",
+        "OVERPRINT_TEST_PORT"
+      ]
+    },
+    "test:server": {
+      "cache": false
+    },
+    "test:cloudflare": {
+      "dependsOn": [
+        "build:cloudflare"
+      ],
+      "cache": false
+    },
+    "test:standalone": {
+      "dependsOn": [
+        "build"
+      ],
+      "cache": false
+    }
+  }
+}

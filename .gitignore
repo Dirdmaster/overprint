@@ -1,0 +1,48 @@
+# Local settings and credentials
+.DS_Store
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+.wrangler/
+!.env.example
+*.log
+
+# Nuxt and package-manager output
+node_modules/
+.nuxt/
+.output/
+.cache/
+dist/
+coverage/
+*.tsbuildinfo
+
+__pycache__/
+*.pyc
+
+# Browser test output
+test-results/
+playwright-report/
+/apps/web/public/downloads/
+
+# Turborepo task cache
+.turbo/
+
+/apps/web/public/pcm/
+
+# Local development research, raw media, and hardware experiments
+/.scratch/
+/hardware/
+/media/
+/artifacts/
+
+# Agent instructions and local tooling (keep on disk, outside Git)
+AGENTS.md
+CLAUDE.md
+/.agents/
+/.codex/
+/docs/agents/
+
+# Local third-party reference assets, excluded from public source
+/apps/web/tests/fixtures/bow.svg
+/apps/web/public/guides/jlcpcb/

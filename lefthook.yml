@@ -1,0 +1,11 @@
+pre-commit:
+  commands:
+    vue-format:
+      root: apps/web/
+      glob: "apps/web/**/*.vue"
+      run: bunx --no-install prettier --check {staged_files}
+
+pre-push:
+  commands:
+    quality:
+      run: bun run typecheck && bun run test:server && bun run test:ops

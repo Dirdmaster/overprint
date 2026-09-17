@@ -1,0 +1,32 @@
+{
+  "editor": {
+    "welcome": {
+      "label": "Welcome to Overprint",
+      "scan": "Scan for boards",
+      "description": "A silkscreen editor for your KiCad boards.",
+      "dropHint": "or drop your board export here"
+    },
+    "projectMenu": "Project menu",
+    "projectActions": "Project actions",
+    "actions": "Editor actions",
+    "label": "PCB editor",
+    "chooseProject": "Choose project file",
+    "sync": "Sync",
+    "openFromKicad": "Open from KiCad",
+    "tools": {
+      "label": "Canvas tools",
+      "select": "Select (V / M)",
+      "hand": "Hand (hold Space)",
+      "paint": "Live paint (K)"
+    },
+    "openOptions": "More ways to open a board",
+    "replaceBoard": {
+      "title": "Open another board?",
+      "description": "Save this project locally if you want to pick it up later. Opening another board replaces the current project and its browser autosave. Your artwork won’t carry over.",
+      "cancel": "Cancel",
+      "open": "Open board"
+    },
+    "currentBoard": "Current board",
+    "syncSucceeded": "Last sync successful"
+  }
+}
