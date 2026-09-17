@@ -1,4 +1,4 @@
-# Overprint — KiCad 10 alpha
+# Overprint: KiCad 10 alpha
 
 ## Install with a repository URL
 

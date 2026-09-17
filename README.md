@@ -8,7 +8,7 @@ Your circuit stays in KiCad. Overprint handles the artwork.
 
 **[Open Overprint](https://overprint.ink)** · [Install the KiCad plugin](https://overprint.ink/setup) · [Report a bug](https://github.com/Dirdmaster/overprint/issues)
 
-![Overprint — make your board less boring](apps/web/public/brand/social-card.png)
+![Overprint: make your board less boring](apps/web/public/brand/social-card.png)
 
 ## What you can do
 
@@ -58,10 +58,10 @@ There’s no account or cloud project storage. **Download ZIP** stays local. **S
 
 Run `bun run dev` instead of `bun start` for development. Bun manages dependencies and tasks; Node.js runs the local HTTP server.
 
-- [Contributing](CONTRIBUTING.md) — setup, checks and pull requests.
-- [Codebase guide](docs/codebase.md) — where things live and how they fit together.
-- [Hosting](docs/hosting.md) — standalone and Cloudflare Pages.
-- [DevOps](docs/devops.md) — CI, deployment and releases.
+- [Contributing](CONTRIBUTING.md): setup, checks and pull requests.
+- [Codebase guide](docs/codebase.md): where things live and how they fit together.
+- [Hosting](docs/hosting.md): standalone and Cloudflare Pages.
+- [DevOps](docs/devops.md): CI, deployment and releases.
 
 ## License
 
