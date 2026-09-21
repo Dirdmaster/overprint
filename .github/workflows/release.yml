@@ -2,7 +2,7 @@ name: Draft release
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v*', 'kicad-v*']
 
 permissions:
   contents: read
@@ -39,5 +39,11 @@ jobs:
       - name: Create a draft for review
         run: |
           flags=()
-          if [[ "$RELEASE_TAG" == *-* ]]; then flags+=(--prerelease); fi
-          gh release create "$RELEASE_TAG" release-assets/* --verify-tag --draft --generate-notes --title "$RELEASE_TAG" "${flags[@]}"
+          version_tag="${RELEASE_TAG#kicad-}"
+          if [[ "$version_tag" == *-* ]]; then flags+=(--prerelease); fi
+          if [[ -f release-assets/RELEASE-NOTES.md ]]; then
+            flags+=(--notes-file release-assets/RELEASE-NOTES.md)
+          else
+            flags+=(--generate-notes)
+          fi
+          gh release create "$RELEASE_TAG" release-assets/* --verify-tag --draft --title "$RELEASE_TAG" "${flags[@]}"

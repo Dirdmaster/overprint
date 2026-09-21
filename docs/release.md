@@ -2,6 +2,32 @@
 
 See [DevOps setup](devops.md) for tagged draft releases and CI deployment. `scripts/prepare_release.py` automates the clean extraction and matching source/plugin assets described below.
 
+## Versioning and changelogs
+
+Changesets collects release notes committed with each change. Run `bun run changeset`
+and select the affected package and patch/minor/major intent. Use an empty changeset
+for maintenance with no user-visible release. Private packages remain private to npm;
+both the web app and KiCad plugin are versioned for our own delivery channels.
+
+Run `bun run version:packages` to prepare versions. This wraps Changesets, updates
+the plugin's PCM metadata and refreshes `bun.lock`. It consumes pending notes and
+generates a `CHANGELOG.md` in each affected workspace. Repeating it without new
+notes does nothing. Commit generated files together and review them before tagging.
+
+While the web version is `X.Y.Z-alpha.N`, each version batch advances only `N`.
+Patch/minor/major intent still groups the changelog entries. The plugin keeps normal
+numeric semantic versions. Workspace-wide `changeset pre` mode is intentionally
+unsupported because it would put the plugin into the web prerelease channel.
+Promoting the web app to a stable version is a separate, reviewed release decision:
+update its version and lockfile and add a matching changelog entry consolidating
+the alpha notes. Once stable, ordinary Changesets semantic versioning applies.
+
+Web releases use `v<web-version>`. Plugin-only releases use `kicad-v<plugin-version>`.
+Each tag must match its package version. Both retain the verified source/plugin
+asset bundle. Tagged drafts use the corresponding package's changelog entry;
+legacy versions with no changelog retain GitHub's generated notes. When a changelog
+exists but the tagged version is missing, preparation fails rather than using stale notes.
+
 ## Build a source candidate
 
 ```sh

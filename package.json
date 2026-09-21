@@ -27,9 +27,12 @@
     "format:check": "bun run --cwd apps/web format:check",
     "prepare": "node scripts/install-hooks.mjs",
     "hooks:install": "lefthook install",
+    "changeset": "node node_modules/@changesets/cli/bin.js",
+    "version:packages": "node scripts/version-packages.mjs",
     "test:ops": "python3 -m unittest discover -s scripts/tests -p \"test_*.py\""
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.3",
     "lefthook": "^2.1.14",
     "turbo": "^2.5.0"
   }
