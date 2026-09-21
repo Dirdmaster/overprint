@@ -10,7 +10,7 @@ python3 scripts/package_source.py
 
 The script packages the **committed HEAD**, ignoring uncommitted work. Output is `dist/overprint-source-<commit>.zip`. File order, ZIP timestamps and permissions are fixed; the same commit produces the same archive. `SOURCE-MANIFEST.json` records the commit and SHA-256 hashes.
 
-Included: application and relay source, KiCad plugin source/icons, original test fixtures, required configuration, selected documentation, license and notices. Excluded: Git history, `.scratch`, private board/artwork references, generated models, environment files and third-party JLCPCB guide screenshots. The source-build guide uses original SVG diagrams when screenshots are absent.
+Included: application and relay source, KiCad plugin source/icons, original test fixtures, required configuration, selected documentation, license and notices. Excluded: Git history, `.scratch`, private board/artwork references, generated models, and environment files. The four JLCPCB guide screenshots are included.
 
 Unzip into a clean directory, then run the README build/check commands. `bun run build` also builds `apps/web/public/downloads/overprint-kicad.zip`.
 
@@ -24,8 +24,7 @@ After publishing a plugin ZIP on GitHub Releases, update `packages/kicad/release
 
 ## Build the hosted alpha from the source candidate
 
-Build from a fresh extraction, not the working directory: the latter contains
-local guide screenshots which are intentionally excluded from redistribution.
+Build from a fresh extraction to verify the packaged source and guide images.
 After running `python3 scripts/package_source.py`, substitute its exact archive
 name below and choose a new empty extraction directory:
 
@@ -47,5 +46,4 @@ ZIP's SHA-256 against the package script's output. Rebuild from a new candidate
 when application code changes; do not combine a new binary with an old archive.
 
 Use `apps/web/.output/cloudflare` from this extracted directory for Pages deployment.
-The standalone output also includes the same source download. The original
-instruction diagrams are used because this extraction has no JLC screenshots.
+The standalone output also includes the same source download. The guide screenshots are included in both outputs.

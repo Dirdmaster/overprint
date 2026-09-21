@@ -15,4 +15,4 @@ See the installed packages for their full license notices.
 
 The code license grants no trademark rights to Overprint or Weavers branding. X, GitHub and KiCad names and marks belong to their respective owners.
 
-The setup guide includes a screenshot of KiCad’s interface. Original guide diagrams and the social-card layout are covered by MIT.
+The setup guide includes a screenshot of KiCad’s interface. The order guide includes JLCPCB interface screenshots, which retain their original ownership. Original guide diagrams and the social-card layout are covered by MIT.
