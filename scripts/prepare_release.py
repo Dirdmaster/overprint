@@ -16,10 +16,20 @@ def validate_versions(web, plugin, metadata, tag=''):
     plugin_version = metadata['versions'][0]['version']
     if plugin['version'] != plugin_version:
         raise ValueError('KiCad package.json and metadata.json versions must match')
-    if tag and (not re.fullmatch(r'v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?', tag)
-                or tag != f"v{web['version']}"):
-        raise ValueError('Release tag must be v followed by apps/web/package.json version')
+    if tag and tag not in (f"v{web['version']}", f"kicad-v{plugin_version}"):
+        raise ValueError('Release tag must match the web v<version> or plugin kicad-v<version>')
+    if tag and not re.fullmatch(r'(?:kicad-)?v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?', tag):
+        raise ValueError('Invalid release tag')
     return web['version'], plugin_version
+
+
+def release_notes(changelog, version):
+    """Extract exactly one Changesets version entry, preserving its subsections."""
+    match = re.search(r'^## ' + re.escape(version) + r'\s*\n(.*?)(?=^## |\Z)',
+                      changelog, re.MULTILINE | re.DOTALL)
+    if not match:
+        raise ValueError(f'Changelog does not contain release {version}')
+    return match.group(1).strip() + '\n'
 
 
 def prepare(directory, tag=''):
@@ -47,6 +57,12 @@ def prepare(directory, tag=''):
     manifest = {'commit': revision, 'webVersion': web_version,
                 'pluginVersion': plugin_version, 'tag': tag or None}
     (assets / 'RELEASE-METADATA.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    if tag:
+        plugin_release = tag.startswith('kicad-')
+        changelog = source / ('packages/kicad/CHANGELOG.md' if plugin_release else 'apps/web/CHANGELOG.md')
+        if changelog.exists():
+            version = plugin_version if plugin_release else web_version
+            (assets / 'RELEASE-NOTES.md').write_text(release_notes(changelog.read_text(), version))
     sums = ''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n'
                    for path in sorted(assets.iterdir()))
     (assets / 'SHA256SUMS').write_text(sums)

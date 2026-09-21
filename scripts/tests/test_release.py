@@ -10,7 +10,7 @@ import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import package_source
-from prepare_release import validate_versions
+from prepare_release import release_notes, validate_versions
 
 
 class ReleaseTests(unittest.TestCase):
@@ -23,6 +23,8 @@ class ReleaseTests(unittest.TestCase):
                      'apps/web/.prettierrc.json', 'apps/web/i18n/schema.ts',
                      'scripts/install-hooks.mjs', 'SECURITY.md', '.github/workflows/ci.yml',
                      'apps/web/public/guides/kicad/add-repository.png',
+                     '.changeset/config.json', '.changeset/example.md',
+                     'scripts/version-packages.mjs',
                      *[f'apps/web/public/guides/jlcpcb/{name}.png'
                        for name in ('settings', 'multicolor', 'open-viewer', 'viewer')]]:
             self.assertTrue(package_source.included(path), path)
@@ -32,11 +34,20 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(validate_versions({'version': '0.2.0-alpha.1'},
                          {'version': '0.1.6'}, metadata, 'v0.2.0-alpha.1'),
                          ('0.2.0-alpha.1', '0.1.6'))
-        for tag in ['main', 'v0.2.1', 'v0.2.0;echo bad']:
+        self.assertEqual(validate_versions({'version': '0.2.0-alpha.1'},
+                         {'version': '0.1.6'}, metadata, 'kicad-v0.1.6'),
+                         ('0.2.0-alpha.1', '0.1.6'))
+        for tag in ['main', 'v0.2.1', 'v0.2.0;echo bad', 'kicad-v0.1.5']:
             with self.assertRaises(ValueError):
                 validate_versions({'version': '0.2.0'}, {'version': '0.1.6'}, metadata, tag)
         with self.assertRaises(ValueError):
             validate_versions({'version': '0.2.0'}, {'version': '0.1.5'}, metadata)
+
+    def test_release_notes_only_include_the_tagged_version(self):
+        changelog = '# @overprint/web\n\n## 0.1.0-alpha.2\n\n### Patch Changes\n\n- Fix sync.\n\n## 0.1.0-alpha.1\n\n- Old change.\n'
+        self.assertEqual(release_notes(changelog, '0.1.0-alpha.2'), '### Patch Changes\n\n- Fix sync.\n')
+        with self.assertRaises(ValueError):
+            release_notes(changelog, '0.1.0')
 
     def test_archive_is_deterministic_and_manifest_matches_bytes(self):
         files = {'README.md': b'example', 'apps/web/package.json': b'{}',
