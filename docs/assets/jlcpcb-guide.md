@@ -1,7 +1,7 @@
 # JLCPCB export guide images
 
-The export dialog uses `JlcGuideDiagram.vue` for its four setup steps. Optional local screenshots in `apps/web/public/guides/jlcpcb/` replace these diagrams when present. Those screenshots are ignored by Git and excluded from source releases.
+The four screenshots in `apps/web/public/guides/jlcpcb/` ship with the app and source releases. They show board settings, multicolor silkscreen, the Gerber Viewer button, and the color preview. The viewer-button arrow is drawn by the dialog.
 
-The guide links to [JLCPCB’s multicolor silkscreen instructions](https://jlcpcb.com/help/article/how-to-design-multi-color-silkscreen-using-easyeda).
+Settings screenshots are adapted from [JLCPCB’s multicolor silkscreen instructions](https://jlcpcb.com/help/article/how-to-design-multi-color-silkscreen-using-easyeda). Quote and viewer screenshots were captured from JLCPCB during setup. JLCPCB interface images retain their original ownership.
 
-The finish setting is **1 microinch** of gold (`1U″`), not 1 micrometre. See [JLCPCB’s finish notation](https://jlcpcb.com/help/article/in-what-cases-will-there-be-charged-extra).
+The finish setting is **1 microinch** of gold (`1U″`), not 1 micrometre.

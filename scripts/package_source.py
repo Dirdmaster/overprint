@@ -18,7 +18,10 @@ def included(name):
              'turbo.json', '.gitignore', 'lefthook.yml', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/devops.md',
              'docs/codebase.md', 'docs/export.md', 'docs/live-paint.md', 'docs/layers.md', 'docs/hosting.md', 'docs/privacy.md', 'docs/release.md', 'docs/assets/jlcpcb-guide.md'}
     prefixes = ('apps/web/', 'packages/kicad/', 'scripts/', '.github/')
-    return (name in roots or name.startswith(prefixes)) and name not in {'apps/web/tests/fixtures/bow.svg'} and (not name.startswith('apps/web/public/guides/') or name == 'apps/web/public/guides/kicad/add-repository.png')
+    guide_images = {'apps/web/public/guides/kicad/add-repository.png',
+                    *{f'apps/web/public/guides/jlcpcb/{step}.png'
+                      for step in ('settings', 'multicolor', 'open-viewer', 'viewer')}}
+    return (name in roots or name.startswith(prefixes)) and name not in {'apps/web/tests/fixtures/bow.svg'} and (not name.startswith('apps/web/public/guides/') or name in guide_images)
 
 
 def build_source():
@@ -28,7 +31,7 @@ def build_source():
     manifest = {
         'commit': revision,
         'files': {name: hashlib.sha256(data).hexdigest() for name, data in files.items()},
-        'excluded': ['Git history', 'private .scratch material', 'unreviewed bow artwork', 'third-party JLCPCB guide screenshots', 'credentials and generated build output'],
+        'excluded': ['Git history', 'private .scratch material', 'unreviewed bow artwork', 'credentials and generated build output'],
     }
     files['SOURCE-MANIFEST.json'] = (json.dumps(manifest, indent=2) + '\n').encode()
     files['RELEASE-CANDIDATE.md'] = b'''# Source release

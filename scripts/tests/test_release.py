@@ -17,13 +17,14 @@ class ReleaseTests(unittest.TestCase):
     def test_private_material_is_excluded_and_required_tooling_included(self):
         for path in ['.scratch/board.svg', 'hardware/private.kicad_pcb',
                      'media/movie.png', '.env', 'apps/web/tests/fixtures/bow.svg',
-                     'apps/web/public/guides/jlcpcb/settings.png',
-                     'apps/web/public/guides/jlcpcb/open-viewer.png']:
+                     'apps/web/public/guides/jlcpcb/private-reference.png']:
             self.assertFalse(package_source.included(path), path)
         for path in ['lefthook.yml', 'CONTRIBUTING.md', 'docs/devops.md',
                      'apps/web/.prettierrc.json', 'apps/web/i18n/schema.ts',
                      'scripts/install-hooks.mjs', 'SECURITY.md', '.github/workflows/ci.yml',
-                     'apps/web/public/guides/kicad/add-repository.png']:
+                     'apps/web/public/guides/kicad/add-repository.png',
+                     *[f'apps/web/public/guides/jlcpcb/{name}.png'
+                       for name in ('settings', 'multicolor', 'open-viewer', 'viewer')]]:
             self.assertTrue(package_source.included(path), path)
 
     def test_versions_and_release_tags(self):
@@ -39,7 +40,10 @@ class ReleaseTests(unittest.TestCase):
 
     def test_archive_is_deterministic_and_manifest_matches_bytes(self):
         files = {'README.md': b'example', 'apps/web/package.json': b'{}',
-                 '.scratch/private.svg': b'private'}
+                 '.scratch/private.svg': b'private',
+                 **{f'apps/web/public/guides/jlcpcb/{name}.png':
+                    (package_source.ROOT / f'apps/web/public/guides/jlcpcb/{name}.png').read_bytes()
+                    for name in ('settings', 'multicolor', 'open-viewer', 'viewer')}}
         def git(*args):
             if args[0] == 'rev-parse':
                 return b'0123456789abcdef\n'
@@ -54,6 +58,9 @@ class ReleaseTests(unittest.TestCase):
                 with zipfile.ZipFile(archive) as output:
                     manifest = json.loads(output.read('overprint/SOURCE-MANIFEST.json'))
                     self.assertNotIn('overprint/.scratch/private.svg', output.namelist())
+                    for name in ('settings', 'multicolor', 'open-viewer', 'viewer'):
+                        path = f'apps/web/public/guides/jlcpcb/{name}.png'
+                        self.assertEqual(output.read(f'overprint/{path}'), files[path])
                     for name, digest in manifest['files'].items():
                         self.assertEqual(hashlib.sha256(output.read(f'overprint/{name}')).hexdigest(), digest)
 

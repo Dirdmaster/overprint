@@ -13,7 +13,35 @@ const packageBytes = () => {
   manifest.fabrication = { version: 1, copperLayers: 2, originMm: [0,0], files: Object.keys(native) }
   return Buffer.from(zipSync({ ...files, ...native, 'manifest.json': strToU8(JSON.stringify(manifest)) }))
 }
-test('source builds use original guide diagrams when screenshots are omitted', async ({ page }) => {
+test('order guide displays all four screenshots', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
+  await page.getByLabel('Choose board export').setInputFiles({ name: 'native.overprint-board', mimeType: 'application/zip', buffer: packageBytes() })
+  await page.getByRole('button', { name: 'Send to JLCPCB', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Pause guide' }).click()
+  for (const [index, name] of ['settings', 'multicolor', 'open-viewer', 'viewer'].entries()) {
+    const response = await page.request.get(`/guides/jlcpcb/${name}.png`)
+    expect(response.ok()).toBe(true)
+    expect(response.headers()['content-type']).toContain('image/png')
+    await dialog.getByRole('button', { name: new RegExp(`^${index + 1} `) }).click()
+    if (index === 2) {
+      await expect(dialog.locator('svg image')).toHaveAttribute('href', `/guides/jlcpcb/${name}.png`)
+      await expect(dialog.locator('svg image')).toBeVisible()
+      await dialog.locator('svg image').evaluate(async (element) => {
+        const image = new Image()
+        image.src = element.getAttribute('href')!
+        await image.decode()
+      })
+    } else {
+      const image = dialog.locator(`img[src="/guides/jlcpcb/${name}.png"]`)
+      await expect(image).toBeVisible()
+      await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0)
+    }
+    await page.screenshot({ path: `test-results/release/guide-${name}.png` })
+  }
+})
+test('guide falls back to diagrams when screenshot requests fail', async ({ page }) => {
   await page.clock.install()
   await page.route('**/guides/jlcpcb/*.png', route => route.fulfill({ status: 404, body: '' }))
   await page.goto('/')

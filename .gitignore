@@ -43,6 +43,10 @@ CLAUDE.md
 /.codex/
 /docs/agents/
 
-# Local third-party reference assets, excluded from public source
+# Local reference artwork, excluded from public source
 /apps/web/tests/fixtures/bow.svg
-/apps/web/public/guides/jlcpcb/
+/apps/web/public/guides/jlcpcb/*
+!/apps/web/public/guides/jlcpcb/settings.png
+!/apps/web/public/guides/jlcpcb/multicolor.png
+!/apps/web/public/guides/jlcpcb/open-viewer.png
+!/apps/web/public/guides/jlcpcb/viewer.png
