@@ -12,6 +12,30 @@ Bun manages dependencies, Turbo orders workspace tasks, Lefthook runs local hook
 
 Native KiCad API tests still require KiCad 10 and must be run for plugin changes.
 
+## Release PR automation
+
+After CI succeeds on the latest `main`, the Release PR workflow runs Changesets
+and opens or updates `chore/release-versions` when a package version changes.
+Documentation-only and empty changesets do not create a release PR on their own.
+If all pending release changes are removed, automation closes the obsolete release PR.
+The PR contains changelogs, package versions, matching KiCad metadata and `bun.lock`.
+It requires the ordinary verification checks and maintainer review.
+
+GitHub must allow Actions to create pull requests (Settings > Actions > General >
+Workflow permissions). Keep the default token permissions read-only; the release
+job requests only contents, pull requests and Actions write access. It uses the
+repository's built-in token, with no PAT or npm credential.
+
+Because pushes from that token do not trigger another PR workflow, the release
+job explicitly dispatches `ci.yml` on the generated branch. Those checks attach
+to its commit and cannot deploy production. If dispatch fails, rerun CI manually
+on `chore/release-versions` before merging. The generated bot PR is exempt from
+the contributor changeset-presence check because it consumes the pending notes.
+
+After merging the reviewed release PR, a maintainer creates the matching tag.
+The tag workflow verifies the committed artifact bundle and creates a draft
+with its package changelog notes. Publication remains a deliberate maintainer action.
+
 Actions are pinned by commit. Dependabot proposes weekly action updates. Bun dependencies use the committed lockfile and frozen installs; review dependency updates before committing their lockfile changes.
 
 ## Current deployment
@@ -34,7 +58,9 @@ The build comes from the committed-source allowlist, excluding local reference m
 
 ## Draft a release
 
-Update `apps/web/package.json` to the release version. If the plugin changes, update both `packages/kicad/package.json` and `packages/kicad/metadata.json` to the same plugin version. Web and plugin versions may differ.
+Merge the reviewed Changesets release PR. Its versions, changelogs, KiCad metadata
+and lockfile must agree; web and plugin versions may differ. For a local release
+preparation, run `bun run version:packages` and put the result through a PR.
 
 After the version changes are reviewed, committed and merged, create and push a matching tag, for example:
 
@@ -48,6 +74,10 @@ The tag workflow reruns verification, rejects mismatched versions, and creates a
 - Curated source ZIP with its commit/hash manifest.
 - Versioned KiCad PCM plugin ZIP.
 - Release metadata and SHA-256 checksums.
+
+For a plugin-only release, use `kicad-v<plugin-version>` instead of `v<web-version>`.
+Release tags must be new; do not move an existing tag. See [release preparation](release.md)
+for the web alpha policy and package-specific changelog selection.
 
 Tags with a prerelease suffix produce prerelease drafts. Review generated notes and limitations before publishing. Tagging does not deploy the website; `main` controls deployment. A workflow retry does not overwrite an existing release: inspect the existing draft first.
 
