@@ -22,6 +22,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22.18.0'
@@ -32,6 +33,15 @@ jobs:
         with:
           python-version: '3.12'
       - run: bun install --frozen-lockfile
+      - name: Check contributor release notes
+        if: >-
+          github.event_name == 'pull_request' &&
+          !(github.head_ref == 'chore/release-versions' &&
+            github.event.pull_request.user.login == 'github-actions[bot]' &&
+            github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: bun run changeset status --since "$BASE_SHA"
       - run: bun run format:check
       - run: bun run typecheck
       - run: bun run test:server
