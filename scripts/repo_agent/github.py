@@ -26,14 +26,25 @@ class GitHub:
         self.expires = 0
         self.http = build_opener(SafeRedirect())
 
-    def _request(self, path, token, data=None, limit=5 * 1024 * 1024, binary=False):
+    def _request(self, path, token, data=None, limit=5 * 1024 * 1024, binary=False, deadline=None):
+        deadline = deadline or time.monotonic() + 30
+        if time.monotonic() >= deadline:
+            raise TimeoutError('GitHub operation deadline exceeded')
         request = Request('https://api.github.com/' + path, data=None if data is None else json.dumps(data).encode(),
                           headers={'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json',
                                    'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28',
                                    'User-Agent': 'overprint-repo-agent'})
         try:
-            with self.http.open(request, timeout=30) as response:
-                raw = response.read(limit + 1)
+            with self.http.open(request, timeout=min(10, max(0.1, deadline - time.monotonic()))) as response:
+                chunks = bytearray()
+                while len(chunks) <= limit:
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError('GitHub operation deadline exceeded')
+                    chunk = response.read1(min(65536, limit + 1 - len(chunks)))
+                    if not chunk:
+                        break
+                    chunks.extend(chunk)
+                raw = bytes(chunks)
                 if len(raw) > limit:
                     raise ValueError('GitHub response exceeded size limit')
                 return raw if binary else json.loads(raw)
@@ -52,22 +63,23 @@ class GitHub:
                                    input=payload, capture_output=True, check=True, timeout=10).stdout
         return (payload + b'.' + encode(signature)).decode()
 
-    def access_token(self):
+    def access_token(self, deadline=None):
         if not self.token or time.time() >= self.expires:
             result = self._request(f'app/installations/{self.config.installation_id}/access_tokens', self._jwt(),
                                    {'repository_ids': [self.config.repository_id],
-                                    'permissions': {'contents': 'read', 'issues': 'read'}})
+                                    'permissions': {'contents': 'read', 'issues': 'read'}}, deadline=deadline)
             self.token = result['token']
             self.expires = time.time() + 3000
         return self.token
 
-    def get(self, suffix):
-        return self._request(f'repos/{self.config.repository}/{suffix}', self.access_token())
+    def get(self, suffix, deadline=None):
+        return self._request(f'repos/{self.config.repository}/{suffix}', self.access_token(deadline), deadline=deadline)
 
-    def pages(self, suffix, max_pages=20):
+    def pages(self, suffix, max_pages=20, deadline=None):
+        deadline = deadline or time.monotonic() + 30
         result = []
         for page in range(1, max_pages + 1):
-            rows = self.get(f'{suffix}?per_page=100&page={page}')
+            rows = self.get(f'{suffix}?per_page=100&page={page}', deadline=deadline)
             if not isinstance(rows, list):
                 raise ValueError('Expected GitHub list')
             result.extend(rows)
@@ -76,19 +88,21 @@ class GitHub:
         raise ValueError('Issue history exceeds configured pagination limit')
 
     def authorized_issue(self, job):
-        issue = self.get(f'issues/{job["issue_number"]}')
+        deadline = time.monotonic() + 20
+        issue = self.get(f'issues/{job["issue_number"]}', deadline=deadline)
         if (issue.get('id') != job['issue_id'] or issue.get('state') != 'open' or
                 'pull_request' in issue or self.config.assignee_id not in [x['id'] for x in issue.get('assignees', [])]):
             raise ValueError('Issue assignment is no longer authorized')
         # Verify the actor behind the latest assignment, not just the current assignee.
         # This also catches missed revocation webhooks and non-owner reassignment.
-        events = self.pages(f'issues/{job["issue_number"]}/events')
+        events = self.pages(f'issues/{job["issue_number"]}/events', deadline=deadline)
         relevant = [event for event in events if event.get('event') in ('assigned', 'unassigned') and
                     (event.get('assignee') or {}).get('id') == self.config.assignee_id]
         if not relevant:
             raise ValueError('Cannot establish assignment provenance')
         latest = max(relevant, key=lambda event: event['id'])
-        if (latest['event'] != 'assigned' or (latest.get('actor') or {}).get('id') != self.config.owner_id or
+        closed_after_assignment = any(event.get('event') == 'closed' and event['id'] > latest['id'] for event in events)
+        if (closed_after_assignment or latest['event'] != 'assigned' or (latest.get('actor') or {}).get('id') != self.config.owner_id or
                 latest.get('created_at') != job['assigned_at']):
             raise ValueError('Assignment provenance changed; reassign to retry')
         return issue

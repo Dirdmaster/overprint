@@ -4,11 +4,15 @@ from pathlib import Path
 import sys
 import tarfile
 import tempfile
+import subprocess
+import threading
+import time
+from unittest.mock import patch
 from types import SimpleNamespace
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from repo_agent.worker import extract_snapshot, docker_command, Worker
+from repo_agent.worker import extract_snapshot, docker_command, Worker, DockerRunner
 from repo_agent.controller import Controller, Policy
 from repo_agent.github import GitHub, SafeRedirect
 from repo_agent.config import Config, secret
@@ -70,7 +74,7 @@ class WorkerTests(unittest.TestCase):
         fixture = SnapshotTests().archive('repo/file.txt')
         github = SimpleNamespace(authorized_issue=lambda job: {}, context=lambda job: {'issue': {}},
                                  source=lambda: ('b' * 40, fixture))
-        runner = SimpleNamespace(run=lambda job, folder, active: 'Evidence from file.txt' if active() else '')
+        runner = SimpleNamespace(run=lambda job, folder, active, verify=None: 'Evidence from file.txt' if active() else '')
         worker = Worker(self.config(), self.controller, github, runner)
         self.assertTrue(worker.run_once())
         job = self.controller.jobs()[0]
@@ -86,7 +90,7 @@ class WorkerTests(unittest.TestCase):
         fixture = SnapshotTests().archive('repo/file.txt')
         github = SimpleNamespace(authorized_issue=lambda job: {}, context=lambda job: {},
                                  source=lambda: ('b' * 40, fixture))
-        def run(job, folder, active):
+        def run(job, folder, active, verify=None):
             self.deliver(self.event(action='unassigned', stamp='2026-09-21T12:00:01Z'))
             self.assertFalse(active())
             return 'Must not complete'
@@ -113,8 +117,8 @@ class ProvenanceTests(unittest.TestCase):
         issue = {'id': 1001, 'state': 'open', 'assignees': [{'id': 999}]}
         event = {'id': 11, 'event': 'assigned', 'actor': {'id': 789},
                  'assignee': {'id': 999}, 'created_at': '2026-09-21T12:00:00Z'}
-        api.get = lambda suffix: issue
-        api.pages = lambda suffix: [event]
+        api.get = lambda suffix, **kwargs: issue
+        api.pages = lambda suffix, **kwargs: [event]
         job = {'issue_id': 1001, 'issue_number': 42, 'assigned_at': '2026-09-21T12:00:00Z'}
         self.assertEqual(api.authorized_issue(job), issue)
         event['actor']['id'] = 2
@@ -124,7 +128,11 @@ class ProvenanceTests(unittest.TestCase):
         event['created_at'] = '2026-09-21T12:00:01Z'
         with self.assertRaises(ValueError):
             api.authorized_issue(job)
-        api.pages = lambda suffix: []
+        event['created_at'] = job['assigned_at']
+        api.pages = lambda suffix, **kwargs: [event, {'id': 12, 'event': 'closed'}, {'id': 13, 'event': 'reopened'}]
+        with self.assertRaises(ValueError):
+            api.authorized_issue(job)
+        api.pages = lambda suffix, **kwargs: []
         with self.assertRaises(ValueError):
             api.authorized_issue(job)
 
@@ -138,7 +146,59 @@ class ProvenanceTests(unittest.TestCase):
             redirect.redirect_request(req, None, 302, '', {}, 'https://attacker.invalid/')
 
 
+class DeadlineTests(unittest.TestCase):
+    def test_blocked_provenance_does_not_block_container_deadline(self):
+        # A fake external Docker executable behaves like a running container.
+        # Real subprocess pipes and the runner watchdog still execute here.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            executable = root / 'docker'
+            executable.write_text(f"#!{sys.executable}\nimport sys,time\nif sys.argv[1] == 'run': time.sleep(30)\n")
+            executable.chmod(0o755)
+            config = SimpleNamespace(worker_image='sha256:' + 'a' * 64, model='test', timeout_seconds=0.2)
+            blocked = threading.Event()
+            started = time.monotonic()
+            try:
+                with patch.dict('os.environ', {'PATH': str(root)}):
+                    with self.assertRaises(TimeoutError):
+                        DockerRunner(config).run({'id': 'deadline'}, root, lambda: True,
+                                                 smoke=True, verify=lambda: blocked.wait(10))
+                self.assertLess(time.monotonic() - started, 3)
+            finally:
+                blocked.set()
+
+
 class DeploymentTests(unittest.TestCase):
+    def test_fatal_worker_loop_exits_unsuccessfully_but_sigterm_is_clean(self):
+        scripts = Path(__file__).resolve().parents[1]
+        program = r"""
+import os, signal, sys, tempfile
+from pathlib import Path
+from types import SimpleNamespace
+sys.path.insert(0, sys.argv[1])
+from repo_agent import __main__ as service
+from repo_agent.controller import Controller, Policy
+with tempfile.TemporaryDirectory() as folder:
+    key = Path(folder) / 'key'
+    key.write_text('synthetic-key')
+    key.chmod(0o600)
+    config = SimpleNamespace(state_dir=folder, codex_key_file=str(key), port=0)
+    controller = Controller(Path(folder) / 'db', Policy(1,2,3,4), b'secret')
+    service.DockerRunner = lambda config: SimpleNamespace(cleanup=lambda: None)
+    def run_once(stop):
+        if sys.argv[2] == 'failure':
+            raise OSError('synthetic queue failure')
+        os.kill(os.getpid(), signal.SIGTERM)
+        return False
+    service.Worker = lambda *args: SimpleNamespace(run_once=run_once)
+    service.serve(config, controller, SimpleNamespace(preflight=lambda: None))
+"""
+        failed = subprocess.run([sys.executable, '-c', program, str(scripts), 'failure'], capture_output=True, timeout=10)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn(b'Worker loop failed', failed.stderr)
+        stopped = subprocess.run([sys.executable, '-c', program, str(scripts), 'stop'], capture_output=True, timeout=10)
+        self.assertEqual(stopped.returncode, 0, stopped.stderr.decode())
+
     def test_example_is_disabled_until_configured(self):
         example = Path(__file__).resolve().parents[1] / 'repo_agent/deploy/config.example.json'
         with self.assertRaises(ValueError):

@@ -7,6 +7,7 @@ import shutil
 import selectors
 import subprocess
 import tarfile
+import threading
 import time
 
 
@@ -86,11 +87,23 @@ class DockerRunner:
         for ident in result.stdout.split():
             subprocess.run(['docker', 'rm', '-f', ident], capture_output=True, check=True, timeout=15)
 
-    def run(self, job, folder, active, smoke=False):
+    def run(self, job, folder, active, smoke=False, verify=None):
         name = f'overprint-agent-{job["id"]}'
         command = docker_command(self.config, job, folder, smoke)
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         deadline = time.monotonic() + self.config.timeout_seconds
+        stop_verifying = threading.Event()
+        verification_failed = threading.Event()
+        def verifier():
+            while not stop_verifying.is_set():
+                try:
+                    verify()
+                except Exception:
+                    verification_failed.set()
+                    return
+                stop_verifying.wait(15)
+        if verify is not None:
+            threading.Thread(target=verifier, daemon=True).start()
         output = bytearray()
         errors = bytearray()
         poller = selectors.DefaultSelector()
@@ -98,8 +111,8 @@ class DockerRunner:
         poller.register(process.stderr, selectors.EVENT_READ, errors)
         try:
             while poller.get_map():
-                if not active():
-                    raise ValueError('Job authorization revoked')
+                if not active() or verification_failed.is_set():
+                    raise ValueError('Job authorization revoked or could not be verified')
                 if time.monotonic() >= deadline:
                     raise TimeoutError('Analysis deadline exceeded')
                 for key, _ in poller.select(timeout=1):
@@ -113,8 +126,8 @@ class DockerRunner:
             process.wait(timeout=5)
             if process.returncode:
                 raise RuntimeError('Worker container failed: ' + errors.decode(errors='replace')[-4000:])
-            if not active():
-                raise ValueError('Job authorization revoked')
+            if not active() or verification_failed.is_set():
+                raise ValueError('Job authorization revoked or could not be verified')
             lines = output.decode().splitlines()
             if not lines or not lines[-1].startswith('OVERPRINT_REPORT_JSON='):
                 raise ValueError('Missing worker report')
@@ -123,6 +136,7 @@ class DockerRunner:
                 raise ValueError('Invalid worker report')
             return report
         finally:
+            stop_verifying.set()
             poller.close()
             process.stdout.close()
             process.stderr.close()
@@ -148,15 +162,10 @@ class Worker:
             return False
         folder = Path(self.config.state_dir) / 'jobs' / job['id']
         folder.mkdir(parents=True, mode=0o700)
-        last_check = 0.0
         def active():
-            nonlocal last_check
-            if stopping() or not self.controller.active(job['id']):
-                return False
-            if time.monotonic() - last_check >= 15:
-                self.github.authorized_issue(job)
-                last_check = time.monotonic()
-            return True
+            return not stopping() and self.controller.active(job['id'])
+        def verify():
+            return self.github.authorized_issue(job)
         try:
             if not active():
                 raise ValueError('Job cancelled')
@@ -173,7 +182,8 @@ class Worker:
             (folder / 'input' / 'context.json').write_text(encoded)
             if not active():
                 raise ValueError('Job cancelled during preparation')
-            report = self.runner.run(job, folder, active)
+            verify()
+            report = self.runner.run(job, folder, active, verify=verify)
             self.github.authorized_issue(job)
             if not active():
                 raise ValueError('Job cancelled before completion')

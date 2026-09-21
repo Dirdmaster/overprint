@@ -48,13 +48,15 @@ def serve(config, controller, github):
             for name in ('source', 'input', 'output'):
                 shutil.rmtree(folder / name, ignore_errors=True)
         stopping = threading.Event()
+        failures = []
         worker = Worker(config, controller, github, runner)
         def loop():
             while not stopping.is_set():
                 try:
                     if not worker.run_once(stopping.is_set):
                         stopping.wait(2)
-                except Exception:
+                except Exception as exc:
+                    failures.append(exc)
                     # A controller-level failure must stop accepting new assignments.
                     stopping.set()
                     server.shutdown()
@@ -72,6 +74,8 @@ def serve(config, controller, github):
                 stopping.set()
                 thread.join(timeout=35)
                 runner.cleanup()
+            if failures:
+                raise RuntimeError('Worker loop failed; restarting service') from failures[0]
 
 
 def main():

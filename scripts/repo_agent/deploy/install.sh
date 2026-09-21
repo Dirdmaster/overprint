@@ -42,4 +42,4 @@ if [[ ! -e /etc/overprint-agent/webhook-secret ]]; then
 fi
 install -o root -g root -m 0644 "$source_dir/deploy/overprint-agent.service" /etc/systemd/system/overprint-agent.service
 systemctl daemon-reload
-echo 'Installed, disabled. Configure App identity, secrets, model and immutable worker image, then run check.'
+echo 'Installed; not started. Existing enablement is unchanged. Configure identity, secrets, model and image, then run check.'
