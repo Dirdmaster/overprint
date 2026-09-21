@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from repo_agent.worker import extract_snapshot, docker_command, Worker
 from repo_agent.controller import Controller, Policy
 from repo_agent.github import GitHub, SafeRedirect
+from repo_agent.config import Config, secret
 import test_repo_agent as assignment
 
 
@@ -135,6 +136,27 @@ class ProvenanceTests(unittest.TestCase):
         self.assertIsNone(result.get_header('Authorization'))
         with self.assertRaises(ValueError):
             redirect.redirect_request(req, None, 302, '', {}, 'https://attacker.invalid/')
+
+
+class DeploymentTests(unittest.TestCase):
+    def test_example_is_disabled_until_configured(self):
+        example = Path(__file__).resolve().parents[1] / 'repo_agent/deploy/config.example.json'
+        with self.assertRaises(ValueError):
+            Config.load(example)
+
+    def test_secrets_must_be_owner_only_regular_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'key'
+            path.write_text('synthetic-test-key')
+            path.chmod(0o644)
+            with self.assertRaises(ValueError):
+                secret(path)
+            path.chmod(0o600)
+            self.assertEqual(secret(path), 'synthetic-test-key')
+            link = Path(directory) / 'link'
+            link.symlink_to(path)
+            with self.assertRaises(ValueError):
+                secret(link)
 
 
 if __name__ == '__main__':

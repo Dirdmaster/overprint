@@ -1,0 +1,16 @@
+{
+  "repository": "Dirdmaster/overprint",
+  "repository_id": 1374425873,
+  "installation_id": 0,
+  "owner_id": 48012615,
+  "assignee_id": 0,
+  "app_id": 0,
+  "app_key_file": "/etc/overprint-agent/app.pem",
+  "webhook_secret_file": "/etc/overprint-agent/webhook-secret",
+  "codex_key_file": "/etc/overprint-agent/codex-key",
+  "state_dir": "/var/lib/overprint-agent",
+  "worker_image": "REPLACE_WITH_LOCAL_SHA256_IMAGE_ID",
+  "model": "",
+  "port": 8787,
+  "timeout_seconds": 900
+}

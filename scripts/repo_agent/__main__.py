@@ -19,11 +19,11 @@ from .server import WebhookServer
 from .worker import DockerRunner, Worker, initialize_snapshot
 
 
-def smoke(image):
+def smoke(image, directory=None):
     if not re.fullmatch(r'sha256:[a-f0-9]{64}', image):
         raise ValueError('Pass the immutable local image ID to --image')
     config = SimpleNamespace(worker_image=image, model='smoke-only', timeout_seconds=90)
-    with tempfile.TemporaryDirectory(prefix='overprint-agent-smoke-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='overprint-agent-smoke-', dir=directory) as temporary:
         folder = Path(temporary)
         for name in ('source', 'input'):
             (folder / name).mkdir()
@@ -97,7 +97,8 @@ def main():
         subprocess.run(['docker', 'image', 'inspect', config.worker_image],
                        stdout=subprocess.DEVNULL, check=True, timeout=15)
         print(json.dumps(github.preflight(), indent=2))
-        print('Read-only GitHub/identity/image checks passed. Run smoke next; no inference was tested.')
+        smoke(config.worker_image, directory=config.state_dir)
+        print('Identity, image and isolation checks passed. No inference was tested.')
     else:
         serve(config, controller, github)
 
