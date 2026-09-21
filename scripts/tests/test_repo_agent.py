@@ -111,6 +111,11 @@ class AssignmentTests(unittest.TestCase):
             server.server_close()
             thread.join()
 
+    def test_queue_cannot_be_reused_with_a_different_owner_policy(self):
+        self.deliver(self.event())
+        with self.assertRaises(ValueError):
+            Controller(Path(self.tmp.name) / 'queue.db', Policy(123, 456, 2, 999), b'secret')
+
     def test_untrusted_shapes_fail_closed(self):
         for value in ([], None, 'text', {'action': 'assigned'}):
             self.assertEqual(self.deliver(value)[0], 400)

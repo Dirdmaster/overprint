@@ -34,6 +34,7 @@ class Controller:
         database.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         with self._db() as db:
             db.executescript('''
+                CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS deliveries (id TEXT PRIMARY KEY, digest TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS issues (id INTEGER PRIMARY KEY, watermark TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS jobs (
@@ -43,6 +44,11 @@ class Controller:
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
             ''')
+            fingerprint = json.dumps(policy.__dict__, sort_keys=True)
+            previous = db.execute("SELECT value FROM metadata WHERE key='policy'").fetchone()
+            if previous and previous['value'] != fingerprint:
+                raise ValueError('Queue belongs to a different identity policy; use a new state directory')
+            db.execute("INSERT OR IGNORE INTO metadata VALUES ('policy',?)", (fingerprint,))
         database.chmod(0o600)
 
     @contextmanager
