@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useArtwork } from '../../composables/artwork/useArtwork'
+import ArtworkLayers from '../artwork/ArtworkLayers.vue'
+import BoardProperties from '../board/BoardProperties.vue'
+import KicadLayers from '../kicad/KicadLayers.vue'
 import { Plus, FolderPlus, ImagePlus } from '@lucide/vue'
 import type { BoardPackage } from '~/utils/boardPackage'
 const props = defineProps<{ board: BoardPackage; side: string }>()

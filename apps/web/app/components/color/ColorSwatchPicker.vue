@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ColorSpectrum from './ColorSpectrum.vue'
+import { ref, computed, nextTick, useTemplateRef } from 'vue'
 import { Check, ChevronDown } from '@lucide/vue'
 const color = defineModel<string>({ required: true })
 const props = defineProps<{
@@ -48,7 +50,9 @@ const navigate = (event: KeyboardEvent) => {
   }
   if ((event.target as HTMLElement)?.closest('input, [role="slider"]')) return
   const buttons = [...(panel.value?.querySelectorAll<HTMLButtonElement>('button') ?? [])]
-  const index = buttons.indexOf(document.activeElement as HTMLButtonElement)
+  const index = buttons.indexOf(
+    (panel.value?.getRootNode() as Document | ShadowRoot)?.activeElement as HTMLButtonElement
+  )
   const offset = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 6, ArrowUp: -6 }[event.key]
   if (offset === undefined) return
   event.preventDefault()

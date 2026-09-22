@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useCanvasTools } from '../../composables/canvas/useCanvasTools'
 import { Hand, MousePointer2, PaintBucket } from '@lucide/vue'
 const { selected, active } = useCanvasTools()
 </script>

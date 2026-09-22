@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import { useEditorState } from '../../composables/editor/editorState'
+const { root: editorRoot } = useEditorState()
+import { useLivePaint } from '../../composables/artwork/useLivePaint'
+import { useArtwork } from '../../composables/artwork/useArtwork'
+import ColorSwatchPicker from '../color/ColorSwatchPicker.vue'
+import { computed } from 'vue'
 import { Check, PaintBucket } from '@lucide/vue'
 import { isNativeSilk } from '~/utils/nativeSilk'
 defineOptions({ inheritAttrs: false })
@@ -64,7 +70,7 @@ const targetName = computed(() =>
       </button>
     </div>
   </div>
-  <Teleport to="body">
+  <Teleport :to="editorRoot || 'body'">
     <div
       v-if="pointer"
       aria-hidden="true"

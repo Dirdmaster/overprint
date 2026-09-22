@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useArtwork } from '../../composables/artwork/useArtwork'
+import { computed } from 'vue'
 import type { BoardPackage } from '~/utils/boardPackage'
 import { nativeSilkInks } from '~/utils/nativeSilk'
 const props = defineProps<{ board: BoardPackage; side: string }>()

@@ -1,11 +1,16 @@
+import { useEditorState, editorOwnsEvent, editorEventTarget } from '../editor/editorState'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { useEditorRef } from '../editor/editorState'
 export const useCanvasTools = () => {
-  const selected = useState<'select' | 'hand' | 'paint'>('canvas-tool', () => 'select')
-  const holdingSpace = useState('canvas-space', () => false)
-  const holdingMiddle = useState('canvas-middle', () => false)
+  const state = useEditorState()
+  const selected = useEditorRef<'select' | 'hand' | 'paint'>('canvas-tool', () => 'select')
+  const holdingSpace = useEditorRef('canvas-space', () => false)
+  const holdingMiddle = useEditorRef('canvas-middle', () => false)
   const active = computed(() => holdingSpace.value || holdingMiddle.value ? 'hand' : selected.value)
   const keyDown = (event: KeyboardEvent) => {
-    const target = event.target as HTMLElement | null
-    if (document.querySelector('dialog[open]') || target?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
+    if (!editorOwnsEvent(state, event)) return
+    const target = editorEventTarget(event)
+    if ((state.globalShortcuts ? document : state.root.value)?.querySelector('dialog[open]') || target?.closest('dialog, input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
     if (event.metaKey || event.ctrlKey || event.altKey) return
     if (event.code === 'Space') {
       // Preserve Space activation on normal controls, but use it for Hand on the canvas toolbar.

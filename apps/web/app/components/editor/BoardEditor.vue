@@ -1,7 +1,29 @@
 <script setup lang="ts">
+import { useArtwork } from '../../composables/artwork/useArtwork'
+import { useCanvasTools } from '../../composables/canvas/useCanvasTools'
+import { useComposition } from '../../composables/project/useComposition'
+import LivePaintControls from '../paint/LivePaintControls.vue'
+import LivePaintCanvas from '../paint/LivePaintCanvas.vue'
+import ArtworkCanvas from '../artwork/ArtworkCanvas.vue'
+import NativeSilkscreen from '../board/NativeSilkscreen.vue'
+import BoardModelPreview from '../board/BoardModelPreview.vue'
+import BoardViewControls from '../board/BoardViewControls.vue'
+import BoardReference from '../board/BoardReference.vue'
+import BoardZoomControls from '../board/BoardZoomControls.vue'
+import BoardInspector from './BoardInspector.vue'
+import CanvasTools from './CanvasTools.vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, useTemplateRef, useId } from 'vue'
 import { readArtwork } from '~/utils/artwork'
 import { isNativeSilk, nativeSilkId } from '~/utils/nativeSilk'
 import type { BoardPackage } from '~/utils/boardPackage'
+import {
+  useEditorState,
+  editorOwnsEvent,
+  editorEventTarget
+} from '../../composables/editor/editorState'
+const editorState = useEditorState()
+const boardId = useId()
+const editorRoot = editorState.root
 const modelView = ref(false)
 const modelPreview = useTemplateRef('modelPreview')
 const props = defineProps<{ board: BoardPackage }>()
@@ -43,7 +65,8 @@ const importGraphic = async (event: Event) => {
   input.value = ''
 }
 const artworkKey = (event: KeyboardEvent) => {
-  if ((event.target as HTMLElement)?.closest('input, textarea, select, [contenteditable], dialog'))
+  if (!editorOwnsEvent(editorState, event)) return
+  if (editorEventTarget(event)?.closest('input, textarea, select, [contenteditable], dialog'))
     return
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
     event.preventDefault()
@@ -185,6 +208,9 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
 
 <template>
   <section
+    ref="editorRoot"
+    tabindex="0"
+    @pointerdown.capture="editorRoot?.focus({ preventScroll: true })"
     class="relative flex min-h-0 w-full flex-1 flex-col gap-4"
     aria-label="Board workspace"
   >
@@ -217,14 +243,14 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
         @wheel.prevent="onWheel"
       >
         <defs>
-          <clipPath id="board-outline">
+          <clipPath :id="`${boardId}-board-outline`">
             <path
               :d="board.outline"
               fill-rule="evenodd"
               clip-rule="evenodd"
             />
           </clipPath>
-          <clipPath id="exposed-mask">
+          <clipPath :id="`${boardId}-exposed-mask`">
             <path
               v-for="(path, index) in board.layers[`${side}-mask`]"
               :key="index"
@@ -234,7 +260,7 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
             />
           </clipPath>
           <mask
-            id="board-holes"
+            :id="`${boardId}-board-holes`"
             maskUnits="userSpaceOnUse"
             :x="board.bounds.x"
             :y="board.bounds.y"
@@ -255,8 +281,8 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
         </defs>
         <g :transform="mirror">
           <g
-            clip-path="url(#board-outline)"
-            mask="url(#board-holes)"
+            :clip-path="`url(#${boardId}-board-outline)`"
+            :mask="`url(#${boardId}-board-holes)`"
             fill-rule="evenodd"
           >
             <path
@@ -269,7 +295,7 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
               :side="side"
             />
             <ArtworkCanvas :side="side" />
-            <g clip-path="url(#exposed-mask)">
+            <g :clip-path="`url(#${boardId}-exposed-mask)`">
               <BoardReference
                 :paths="board.layers[`${side}-copper`] ?? []"
                 :bounds="board.bounds"
@@ -297,7 +323,7 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
           />
         </g>
       </svg>
-      <LazyBoardModelPreview
+      <BoardModelPreview
         v-if="modelView"
         ref="modelPreview"
         :board="board"

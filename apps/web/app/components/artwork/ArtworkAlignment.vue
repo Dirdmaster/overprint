@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useArtwork } from '../../composables/artwork/useArtwork'
+import { ref, computed, watch } from 'vue'
 import {
   AlignHorizontalJustifyStart,
   AlignHorizontalJustifyCenter,

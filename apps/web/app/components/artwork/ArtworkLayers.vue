@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useLayerDrag } from '../../composables/artwork/useLayerDrag'
+import { useArtwork } from '../../composables/artwork/useArtwork'
+import ArtworkAlignment from './ArtworkAlignment.vue'
+import { computed, watch } from 'vue'
 import {
   Eye,
   EyeOff,

@@ -1,3 +1,5 @@
+import { useArtwork } from './useArtwork'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import type { Artwork } from '~/utils/artwork'
 
 type LayerDrop = { id: string | null; position: 'before' | 'after' | 'inside' }

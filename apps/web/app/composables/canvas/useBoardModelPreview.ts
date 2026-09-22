@@ -1,3 +1,5 @@
+import type { Ref } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { BoardPackage } from '~/utils/boardPackage'
 import type { Artwork } from '~/utils/artwork'
 import { decodeGlb } from '~/utils/boardModels'

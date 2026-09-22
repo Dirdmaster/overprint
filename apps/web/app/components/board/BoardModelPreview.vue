@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useBoardModelPreview } from '../../composables/canvas/useBoardModelPreview'
+import { useTemplateRef } from 'vue'
 import type { BoardPackage } from '~/utils/boardPackage'
 import type { Artwork } from '~/utils/artwork'
 const props = defineProps<{

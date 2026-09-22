@@ -1,3 +1,4 @@
+import { useArtwork } from './useArtwork'
 import { nativeSilkId, nativeSilkSettings } from '~/utils/nativeSilk'
 import type { Artwork } from '~/utils/artwork'
 

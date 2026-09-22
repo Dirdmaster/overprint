@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, shallowRef, watch, onMounted, onBeforeUnmount, useTemplateRef } from 'vue'
 import type { Artwork } from '~/utils/artwork'
 const props = defineProps<{ item: Artwork }>()
 const emit = defineEmits<{

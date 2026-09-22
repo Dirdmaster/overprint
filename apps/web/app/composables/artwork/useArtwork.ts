@@ -1,9 +1,11 @@
+import { computed } from 'vue'
+import { useEditorRef } from '../editor/editorState'
 import { artworkCount, artworkRows, MAX_ARTWORK_ITEMS, type Artwork } from '~/utils/artwork'
 import { isNativeSilk } from '~/utils/nativeSilk'
 export const useArtwork = () => {
-  const items = useState<Artwork[]>('artwork', () => [])
+  const items = useEditorRef<Artwork[]>('artwork', () => [])
   const canAdd = computed(() => artworkCount(items.value) < MAX_ARTWORK_ITEMS)
-  const selected = useState<string[]>('artwork-selected-ids', () => [])
+  const selected = useEditorRef<string[]>('artwork-selected-ids', () => [])
   const visibleGraphics = computed(() => ['front', 'back'].flatMap(side => artworkRows(items.value, side, true).filter(row => row.visible && !row.item.kind).map(row => row.item)))
   const selectionIds = computed(() => selected.value.filter(id => isNativeSilk(id) || items.value.some(item => item.id === id && (selected.value.length === 1 || visibleGraphics.value.some(graphic => graphic.id === id)))))
   // Existing single-object tools use the last selected graphic as their active target.
@@ -15,8 +17,8 @@ export const useArtwork = () => {
     const ids = selectedArtwork.value.filter(value => value.side === item.side).map(value => value.id)
     selected.value = ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]
   }
-  const past = useState<Artwork[][]>('artwork-past', () => [])
-  const future = useState<Artwork[][]>('artwork-future', () => [])
+  const past = useEditorRef<Artwork[][]>('artwork-past', () => [])
+  const future = useEditorRef<Artwork[][]>('artwork-future', () => [])
   const copy = (value: Artwork[]) => value.map(item => ({ ...item }))
   const checkpoint = () => { past.value = [...past.value.slice(-49), copy(items.value)]; future.value = [] }
   const undo = () => { const previous = past.value.at(-1); if (!previous) return; future.value.push(copy(items.value)); items.value = previous; past.value.pop() }

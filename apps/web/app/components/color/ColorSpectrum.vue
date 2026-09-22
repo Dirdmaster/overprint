@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, watch, onBeforeUnmount, useTemplateRef, reactive } from 'vue'
 import { hexToHsv, hsvToHex, normalizeHex } from '~/utils/paintColor'
 const color = defineModel<string>({ required: true })
 const hsv = reactive(hexToHsv(color.value))

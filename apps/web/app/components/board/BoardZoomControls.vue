@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 const props = defineProps<{ zoom: number; modelView: boolean }>()
 defineEmits<{ zoom: [factor: number]; fit: [] }>()
 const zoomPercent = computed(() => Math.round(props.zoom * 100))

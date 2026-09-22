@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useLivePaint } from '../../composables/artwork/useLivePaint'
+import { useNativeSilk } from '../../composables/artwork/useNativeSilk'
+import { useArtwork } from '../../composables/artwork/useArtwork'
+import ColorSwatchPicker from '../color/ColorSwatchPicker.vue'
+import { ref, computed } from 'vue'
 import {
   ChevronDown,
   ChevronRight,

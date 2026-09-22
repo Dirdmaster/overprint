@@ -1,4 +1,14 @@
 <script setup lang="ts">
+import {
+  useEditorState,
+  editorOwnsEvent,
+  editorEventTarget
+} from '../../composables/editor/editorState'
+const editorState = useEditorState()
+import { useLivePaint } from '../../composables/artwork/useLivePaint'
+import { useNativeSilk } from '../../composables/artwork/useNativeSilk'
+import { useArtwork } from '../../composables/artwork/useArtwork'
+import { shallowRef, computed, watch, onMounted, onBeforeUnmount, useTemplateRef, useId } from 'vue'
 import type { BoardPackage } from '~/utils/boardPackage'
 import { artworkRows } from '~/utils/artwork'
 import { createArtworkPaint, type ArtworkPaintHit } from '~/utils/artworkPaint'
@@ -63,7 +73,7 @@ const geometry = computed(() => ({
 let context: CanvasRenderingContext2D | null = null
 const hit = (x: number, y: number, inverse: DOMMatrix) => {
   if (!paintingArtwork.value && !props.silk) return
-  const element = document.elementFromPoint(x, y)
+  const element = (surface.value?.getRootNode() as Document | ShadowRoot)?.elementFromPoint(x, y)
   if (!element || !surface.value?.ownerSVGElement?.contains(element)) return
   const point = new DOMPoint(x, y).matrixTransform(inverse)
   context ??= document.createElement('canvas').getContext('2d')
@@ -241,10 +251,13 @@ const blur = () => {
   leave()
 }
 const key = (event: KeyboardEvent) => {
+  if (!editorOwnsEvent(editorState, event)) return
   if (
-    document.querySelector('dialog[open]') ||
-    (event.target as HTMLElement)?.closest(
-      'input, textarea, select, [contenteditable], [role="dialog"]'
+    (editorState.globalShortcuts ? document : editorState.root.value)?.querySelector(
+      'dialog[open]'
+    ) ||
+    editorEventTarget(event)?.closest(
+      'dialog, input, textarea, select, [contenteditable], [role="dialog"]'
     )
   )
     return
