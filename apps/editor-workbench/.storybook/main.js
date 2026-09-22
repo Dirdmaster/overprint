@@ -1,3 +1,4 @@
+import vue from '@vitejs/plugin-vue'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 export default {
@@ -11,6 +12,7 @@ export default {
     if (!fixture) throw new Error('Set OVERPRINT_BOARD_FIXTURE to an absolute BoardPackage JSON path. See apps/editor-workbench/README.md.')
     const board = JSON.parse(readFileSync(resolve(fixture), 'utf8'))
     config.plugins ||= []
+    config.plugins.push(vue())
     config.plugins.push({
       name: 'overprint-host-board',
       resolveId: id => id === 'virtual:overprint-board' ? '\0overprint-host-board' : undefined,

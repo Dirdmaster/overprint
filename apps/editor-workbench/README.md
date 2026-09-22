@@ -16,3 +16,5 @@ The host owns persistence. These stories save into memory and display a compact 
 Open **Frameworks → Docs** for setup and copyable framework integration code, or open the **Code** panel on a live story. Framework snippets are imported directly from the modules used to mount those stories, so the displayed code stays in sync with the running example.
 
 **Frameworks → Next.js** demonstrates an App Router client component and a server page. The server passes serializable board data; the client imports the editor after hydration and releases it on unmount. The live story exercises the same component in React Strict Mode. The example was also production-built locally with Next.js 16.3.6 against the editor tarball. Its save/restore buttons use host memory, not a persistence backend.
+
+**Frameworks → Nuxt** includes a typed `OverprintEditor.client.vue` and Nuxt 4 page setup, plus Nuxt 3 directory guidance. The story runs the same component through Vue; a separate local Nuxt 4.5.2 production build and typecheck validated the page integration against the editor tarball. Save/restore uses host memory.

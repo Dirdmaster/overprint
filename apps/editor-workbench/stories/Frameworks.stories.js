@@ -1,3 +1,7 @@
+import { createApp, h } from 'vue'
+import NuxtEditor from './examples/OverprintEditor.client.vue'
+import nuxtCode from './examples/OverprintEditor.client.vue?raw'
+import nuxtPage from './examples/nuxt-page.vue?raw'
 import { createElement, StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import NextEditor from './examples/next-editor'
@@ -30,6 +34,19 @@ export const NextJs = {
     const root = document.createElement('div')
     const app = createRoot(root)
     app.render(createElement(StrictMode, null, createElement(NextEditor, { board: makeBoard() })))
+    current = { root, destroy: () => app.unmount() }
+    return root
+  },
+}
+
+export const Nuxt = {
+  parameters: { docs: { source: { code: `<!-- app/components/OverprintEditor.client.vue -->\n${nuxtCode}\n\n${nuxtPage}`, language: 'html' } } },
+  render: () => {
+    current?.destroy()
+    const root = document.createElement('div')
+    const board = makeBoard()
+    const app = createApp({ render: () => h(NuxtEditor, { board }) })
+    app.mount(root)
     current = { root, destroy: () => app.unmount() }
     return root
   },

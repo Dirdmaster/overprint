@@ -46,3 +46,13 @@ The live story runs this same client component in React Strict Mode. The page ex
 <Source of={Frameworks.NextJs} />
 
 See the [Next.js client boundary documentation](https://nextjs.org/docs/app/api-reference/directives/use-client).
+
+## Nuxt
+
+Place the client component in `app/components/OverprintEditor.client.vue` and the page in `app/pages/index.vue` for Nuxt 4. For Nuxt 3's default layout, use `components/` and `pages/` instead. Supply your BoardPackage JSON in the page's `~/data/board.json`.
+
+The live story mounts the same Vue component. Nuxt's page uses auto-imports and `ClientOnly`; the editor initializes after mount. Board replacement resets the editor and its in-memory save. Unmounting disposes the controller and any pending initialization.
+
+<Source of={Frameworks.Nuxt} />
+
+See the [Nuxt client-component documentation](https://nuxt.com/docs/4.x/directory-structure/app/components#client-components).
