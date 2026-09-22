@@ -8,4 +8,5 @@ pre-commit:
 pre-push:
   commands:
     quality:
-      run: bun run typecheck && bun run test:server && bun run test:ops
+      use_stdin: true
+      run: python3 scripts/check_branch.py --push && bun run typecheck && bun run test:server && bun run test:ops

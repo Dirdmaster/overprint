@@ -24,6 +24,17 @@ The number identifies the issue. The automated release PR uses the persistent
 `chore/release-versions` branch. Keep commits independently reviewable and mention
 the issue, for example `fix(import): preserve SVG colors (#42)`.
 
+Lefthook rejects pushes whose source or destination branch does not follow this
+format, before running quality checks. Use a positive issue number and a lowercase,
+hyphen-separated description. Names such as `codex/my-task`, `feature/42-task`,
+and `fix/no-issue` are rejected. Rename a branch with
+`git branch -m fix/42-description`. `main` and `chore/release-versions` are the
+only exceptions; tags and branch deletions remain allowed.
+
+Required CI checks the PR branch name with the same validator, including when
+local hooks were skipped. Check a name manually with
+`python3 scripts/check_branch.py --branch fix/42-description`.
+
 Open a PR against `main` with `Closes #42` when it completes an issue, or `Refs #42`
 for partial work. Include validation and wait for required checks and maintainer
 review. Issues close when the completing PR merges; publication is tracked separately.
@@ -50,7 +61,7 @@ bunx --no-install playwright install chromium
 bun run test
 ```
 
-Lefthook installs during `bun install` in a Git checkout. Pre-commit checks staged Vue formatting; pre-push runs type, server and release-tooling checks. Use `bun run format` to format Vue files. Archives and CI skip hook installation.
+Lefthook installs during `bun install` in a Git checkout. Pre-commit checks staged Vue formatting; pre-push validates branch names before running type, server and release-tooling checks. Use `bun run format` to format Vue files. Archives and CI skip hook installation.
 
 For relay/runtime changes, also build and run `bun run test:standalone` and `bun run test:cloudflare`; see [hosting](docs/hosting.md). For plugin changes, run native tests following [the KiCad guide](packages/kicad/README.md).
 
