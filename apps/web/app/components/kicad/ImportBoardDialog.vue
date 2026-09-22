@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { kicadSetupSteps } from '~/utils/kicadSetup'
 import { BookOpen, ChevronDown, Upload, X } from '@lucide/vue'
-import { readBoardPackage, type BoardPackage } from '~/utils/boardPackage'
+import type { BoardPackage } from '~/utils/boardPackage'
+import { readBoardFile } from '~/utils/readBoardFile'
 const props = defineProps<{ confirmReplacement: () => Promise<boolean> }>()
 const { t } = useI18n()
 const emit = defineEmits<{ imported: [board: BoardPackage] }>()
 let request = 0
+let controller: AbortController | undefined
 const dialog = useTemplateRef('dialog')
 const picker = useTemplateRef('picker')
 const expanded = ref(false)
@@ -23,10 +25,16 @@ const show = (setup = false, trigger?: HTMLElement) => {
 const receiveFiles = async (files: FileList | null) => {
   const file = files?.[0]
   if (!file) return
+  controller?.abort()
   const current = ++request
+  if (files!.length !== 1) {
+    feedback.value = t('kicad.import.oneFile')
+    return
+  }
+  controller = new AbortController()
   feedback.value = t('kicad.import.opening')
   try {
-    const board = await readBoardPackage(file)
+    const board = await readBoardFile(file, controller.signal)
     if (current !== request) return
     const accepted = await props.confirmReplacement()
     if (current !== request) return
@@ -81,10 +89,12 @@ const resetDrag = () => {
 }
 const onClose = () => {
   request++
+  controller?.abort()
   resetDrag()
   returnFocus?.focus()
   returnFocus = undefined
 }
+onBeforeUnmount(() => controller?.abort())
 defineExpose({ show, receiveFiles })
 </script>
 
@@ -137,12 +147,13 @@ defineExpose({ show, receiveFiles })
       <input
         ref="picker"
         type="file"
-        accept=".overprint-board,.zip"
+        accept=".kicad_pcb,.overprint-board,.zip"
         class="hidden"
         :aria-label="$t('kicad.import.chooseExport')"
         @change="onFileChange"
       />
     </div>
+    <p class="mt-3 text-xs text-muted">{{ $t('kicad.import.localHint') }}</p>
     <p
       v-if="feedback"
       class="mt-4 text-sm text-muted"
