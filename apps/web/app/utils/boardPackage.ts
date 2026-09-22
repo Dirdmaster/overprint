@@ -4,6 +4,7 @@ import { validateFabrication, type Fabrication } from './fabrication'
 
 export type Polygon = { outer: number[][]; holes: number[][][] }
 export type BoardPackage = {
+  browserImport?: { warnings: string[] }
   syncSource?: { url: string; boardId: string }
   name: string
   fabrication?: Fabrication
