@@ -16,7 +16,12 @@ export default defineNuxtConfig({
   // Feature folders organize files; existing component names stay unprefixed.
   components: [{ path: '~/components', pathPrefix: false }],
   css: ['~/assets/css/main.css', '@fontsource/inter/400.css', '@fontsource/inter/500.css', '@fontsource/inter/600.css', '@fontsource/geist/600.css'],
-  vite: { plugins: [tailwindcss()] },
+  vite: {
+    plugins: [tailwindcss()],
+    // Worker-only dependencies must be ready before the first PCB drop;
+    // late discovery otherwise reloads the editor and interrupts extraction.
+    optimizeDeps: { include: ['clipper-lib'] },
+  },
   devtools: { enabled: false },
   nitro: {
     ...(target ? { output: { dir: fileURLToPath(new URL(`./.output/${target}`, import.meta.url)) } } : {}),
