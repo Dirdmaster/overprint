@@ -36,3 +36,13 @@ controller.destroy()
 ## Plain JavaScript
 
 <Source of={Frameworks.PlainJavaScript} />
+
+## Next.js (App Router)
+
+Pass serializable board data from the server page to this client component. It imports the editor after hydration and disposes it on unmount or board replacement. Save and restore here use host memory; connect them to your own persistence as needed.
+
+The live story runs this same client component in React Strict Mode. The page example shows where to mount it in a Next.js application.
+
+<Source of={Frameworks.NextJs} />
+
+See the [Next.js client boundary documentation](https://nextjs.org/docs/app/api-reference/directives/use-client).
