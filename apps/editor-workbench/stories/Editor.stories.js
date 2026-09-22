@@ -1,8 +1,10 @@
+import scenarioCode from './scenarios.js?raw'
 import { scenario } from './scenarios'
 import { expect, userEvent, waitFor } from 'storybook/test'
 let current
 export default {
   title: 'Editor',
+  parameters: { docs: { source: { code: scenarioCode, language: 'javascript' } } },
   args: { theme: 'light', side: 'front' },
   argTypes: {
     mode: { table: { disable: true } },

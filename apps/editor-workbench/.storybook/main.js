@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 export default {
-  stories: ['../stories/*.stories.js'],
+  stories: ['../stories/*.stories.js', '../stories/*.mdx'],
+  addons: ['@storybook/addon-docs'],
   framework: '@storybook/html-vite',
   core: { disableTelemetry: true },
   viteFinal(config) {

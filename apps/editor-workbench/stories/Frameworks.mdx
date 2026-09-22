@@ -1,0 +1,38 @@
+import { Meta, Source } from '@storybook/addon-docs/blocks'
+import * as Frameworks from './Frameworks.stories'
+
+<Meta of={Frameworks} />
+
+# Framework integration
+
+Each example below is the actual mounting code used by its live story. Select a story and open the **Code** panel to see and copy its source beside the editor.
+
+The host creates a controller from its board data and owns persistence. Mounting and unmounting the view is separate from destroying the controller.
+
+```js
+import { createEditor } from '@overprint/editor'
+import { mount } from './vue.js' // or react.js / vanilla.js below
+
+const controller = createEditor(board, { mask: '#161616' })
+const unmount = mount(document.querySelector('#editor'), controller)
+
+// Host save / restore:
+const saved = controller.getDocument()
+await controller.restore(saved)
+
+// When the host is finished with this editor:
+unmount()
+controller.destroy()
+```
+
+## Vue
+
+<Source of={Frameworks.Vue} />
+
+## React
+
+<Source of={Frameworks.React} />
+
+## Plain JavaScript
+
+<Source of={Frameworks.PlainJavaScript} />

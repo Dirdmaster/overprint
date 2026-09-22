@@ -1,3 +1,6 @@
+import reactCode from './examples/react.js?raw'
+import vueCode from './examples/vue.js?raw'
+import vanillaCode from './examples/vanilla.js?raw'
 import { scenario } from './scenarios'
 let current
 export default {
@@ -9,6 +12,6 @@ export default {
     return current.root
   },
 }
-export const React = { args: { framework: 'react' } }
-export const Vue = { args: { framework: 'vue' } }
-export const PlainJavaScript = { name: 'Plain JavaScript', args: { framework: 'vanilla' } }
+export const React = { args: { framework: 'react' }, parameters: { docs: { source: { code: reactCode, language: 'javascript' } } } }
+export const Vue = { args: { framework: 'vue' }, parameters: { docs: { source: { code: vueCode, language: 'javascript' } } } }
+export const PlainJavaScript = { name: 'Plain JavaScript', args: { framework: 'vanilla' }, parameters: { docs: { source: { code: vanillaCode, language: 'javascript' } } } }

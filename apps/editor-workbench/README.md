@@ -12,3 +12,5 @@ OVERPRINT_BOARD_FIXTURE=/absolute/path/board.json bun run --cwd apps/editor-work
 The same environment variable is required for the static `build:storybook` command. A static Storybook build includes that board's geometry, so review the fixture before publishing the build. This repository's LoRa development card snapshot is local only. Its dense raw KiCad source exceeds the current browser parser limit; the host-provided snapshot works in the full editor.
 
 The host owns persistence. These stories save into memory and display a compact document summary. They do not imply a server save. Changes to the editor require rebuilding `packages/editor` before refreshing Storybook.
+
+Open **Frameworks → Docs** for setup and copyable framework integration code, or open the **Code** panel on a live story. Framework snippets are imported directly from the modules used to mount those stories, so the displayed code stays in sync with the running example.
