@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useArtwork } from '../../composables/artwork/useArtwork'
+import { useCanvasView } from '../../composables/canvas/useCanvasView'
 import { useCanvasTools } from '../../composables/canvas/useCanvasTools'
 import { useComposition } from '../../composables/project/useComposition'
 import LivePaintControls from '../paint/LivePaintControls.vue'
@@ -24,7 +25,7 @@ import {
 const editorState = useEditorState()
 const boardId = useId()
 const editorRoot = editorState.root
-const modelView = ref(false)
+const { modelView, zoom, pan } = useCanvasView()
 const modelPreview = useTemplateRef('modelPreview')
 const props = withDefaults(defineProps<{ board: BoardPackage; canvasOnly?: boolean }>(), {
   canvasOnly: false
@@ -97,8 +98,6 @@ const removeModels = () => {
   compositionBoard.value = { ...props.board, models: undefined }
   modelView.value = false
 }
-const zoom = ref(1)
-const pan = ref({ x: 0, y: 0 })
 const { active, holdingMiddle } = useCanvasTools()
 const fit = () => {
   if (modelView.value) {
@@ -213,11 +212,18 @@ const changeZoom = (factor: number) => {
   }
   zoom.value = Math.min(10, Math.max(0.2, zoom.value * factor))
 }
+onMounted(() => {
+  editorState.viewport.value = { fit, zoomBy: changeZoom }
+})
+onBeforeUnmount(() => {
+  editorState.viewport.value = null
+})
 const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1.1)
 </script>
 
 <template>
   <section
+    part="canvas"
     ref="editorRoot"
     tabindex="0"
     @pointerdown.capture="editorRoot?.focus({ preventScroll: true })"

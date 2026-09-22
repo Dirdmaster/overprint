@@ -1,12 +1,9 @@
 import { useEditorState, editorOwnsEvent, editorEventTarget } from '../editor/editorState'
-import { computed, onMounted, onBeforeUnmount } from 'vue'
-import { useEditorRef } from '../editor/editorState'
+import { onMounted, onBeforeUnmount } from 'vue'
+import { useCanvasToolState } from './useCanvasToolState'
 export const useCanvasTools = () => {
   const state = useEditorState()
-  const selected = useEditorRef<'select' | 'hand' | 'paint'>('canvas-tool', () => 'select')
-  const holdingSpace = useEditorRef('canvas-space', () => false)
-  const holdingMiddle = useEditorRef('canvas-middle', () => false)
-  const active = computed(() => holdingSpace.value || holdingMiddle.value ? 'hand' : selected.value)
+  const { selected, holdingSpace, holdingMiddle, active } = useCanvasToolState()
   const keyDown = (event: KeyboardEvent) => {
     if (!editorOwnsEvent(state, event)) return
     const target = editorEventTarget(event)

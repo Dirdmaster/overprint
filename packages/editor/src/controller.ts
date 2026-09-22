@@ -1,4 +1,8 @@
 import { createApp, effectScope, ref, watch } from 'vue'
+import { useCanvasToolState } from '../../../apps/web/app/composables/canvas/useCanvasToolState'
+import { useCanvasView } from '../../../apps/web/app/composables/canvas/useCanvasView'
+import { useLivePaint } from '../../../apps/web/app/composables/artwork/useLivePaint'
+import { createControls, type EditorControls } from './controls'
 import { createEditorState, editorStateKey } from '../../../apps/web/app/composables/editor/editorState'
 import { useArtwork } from '../../../apps/web/app/composables/artwork/useArtwork'
 import { useComposition } from '../../../apps/web/app/composables/project/useComposition'
@@ -10,7 +14,7 @@ import type { BoardPackage } from '../../../apps/web/app/utils/boardPackage'
 
 export type EditorDocument = Composition
 export type EditorOptions = { side?: 'front' | 'back'; mask?: string }
-export interface EditorController {
+export interface EditorController extends EditorControls {
   getDocument(): EditorDocument
   subscribe(listener: () => void): () => void
   loadBoard(file: File): Promise<void>
@@ -34,7 +38,7 @@ const initialize = (board: BoardPackage, options: EditorOptions) => {
   const context = createApp({})
   context.provide(editorStateKey, state)
   const scope = effectScope()
-  const data = scope.run(() => context.runWithContext(() => ({ artwork: useArtwork(), composition: useComposition() })))!
+  const data = scope.run(() => context.runWithContext(() => ({ artwork: useArtwork(), composition: useComposition(), view: useCanvasView(), paint: useLivePaint(), tools: useCanvasToolState() })))!
   data.composition.openBoard(copy(board))
   data.composition.maskColor.value = options.mask || '#161616'
   data.composition.side.value = options.side || 'front'
@@ -54,6 +58,7 @@ export const createEditor = (board: BoardPackage, options: EditorOptions = {}): 
   const live = () => { if (!session.alive.value) throw new Error('This editor has been disposed.') }
   const reset = () => { request?.abort(); generation++ }
   const controller: EditorController = {
+    ...createControls(session),
     getDocument() {
       live()
       return copy({ version: 1, board: c.board.value!, artwork: a.items.value, side: c.side.value,

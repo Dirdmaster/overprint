@@ -15,7 +15,10 @@ const layerActions = [
 ] as const
 </script>
 <template>
-  <section class="border-b border-line pb-6">
+  <section
+    part="layers"
+    class="border-b border-line pb-6"
+  >
     <header class="flex h-12 items-center justify-between border-b border-line px-4">
       <h2 class="font-medium">Layers</h2>
       <div class="flex items-center text-muted">

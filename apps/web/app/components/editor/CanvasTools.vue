@@ -7,10 +7,12 @@ const { selected, active } = useCanvasTools()
 <template>
   <div
     class="flex flex-col gap-2 rounded-lg bg-surface p-1"
+    part="toolbar"
     role="toolbar"
     :aria-label="$t('editor.tools.label')"
   >
     <button
+      part="tool-button"
       :aria-label="$t('editor.tools.select')"
       :aria-pressed="active === 'select'"
       :title="$t('editor.tools.select')"
@@ -25,6 +27,7 @@ const { selected, active } = useCanvasTools()
       <kbd class="absolute bottom-0.5 right-1 text-[0.5rem]">V</kbd>
     </button>
     <button
+      part="tool-button"
       :aria-label="$t('editor.tools.hand')"
       :aria-pressed="active === 'hand'"
       :title="$t('editor.tools.hand')"
@@ -39,6 +42,7 @@ const { selected, active } = useCanvasTools()
       <kbd class="absolute bottom-0.5 right-1 text-[0.5rem]">␣</kbd>
     </button>
     <button
+      part="tool-button"
       :aria-label="$t('editor.tools.paint')"
       :aria-pressed="active === 'paint'"
       :title="$t('editor.tools.paint')"
