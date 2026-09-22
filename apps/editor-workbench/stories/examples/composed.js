@@ -51,7 +51,7 @@ export function mountComposedEditor(host, controller, { customToolbar = false, t
     update(controller.getState())
     cleanup.push(controller.subscribeState(update))
     header.append(toolbar)
-  } else part('toolbar', header)
+  } else part('toolbar', header).orientation = 'horizontal'
   part('view-controls', header)
   part('canvas', root)
   part('layers', sidebar)
