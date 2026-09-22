@@ -26,7 +26,9 @@ const boardId = useId()
 const editorRoot = editorState.root
 const modelView = ref(false)
 const modelPreview = useTemplateRef('modelPreview')
-const props = defineProps<{ board: BoardPackage }>()
+const props = withDefaults(defineProps<{ board: BoardPackage; canvasOnly?: boolean }>(), {
+  canvasOnly: false
+})
 const { items, canAdd, selection, checkpoint, undo, redo, removeSelected, destination } =
   useArtwork()
 const graphicPicker = useTemplateRef('graphicPicker')
@@ -124,7 +126,7 @@ const measure = () => {
   area.value = {
     width: canvas.width,
     height: canvas.height,
-    left: canvas.width >= 768 ? 80 : 24,
+    left: !props.canvasOnly && canvas.width >= 768 ? 80 : 24,
     right: overlaps ? panel.left - canvas.left - 24 : canvas.width - 24
   }
 }
@@ -227,11 +229,11 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
       class="relative min-h-128 min-w-0 flex-1 overflow-hidden md:min-h-0"
     >
       <CanvasTools
-        v-if="!modelView"
+        v-if="!canvasOnly && !modelView"
         class="absolute left-5 top-24 z-10"
       />
       <LivePaintControls
-        v-if="!modelView && active === 'paint'"
+        v-if="!canvasOnly && !modelView && active === 'paint'"
         class="absolute left-20 top-4 z-10"
       />
       <svg
@@ -343,6 +345,7 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
       />
     </div>
     <div
+      v-if="!canvasOnly"
       ref="inspector"
       class="mx-4 flex min-h-0 md:pointer-events-none md:absolute md:bottom-0 md:right-4 md:top-0 md:mx-0 md:w-76"
     >
