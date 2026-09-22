@@ -33,11 +33,13 @@
     },
     "import": {
       "close": "Close import",
-      "dropHint": "Drop your board export here",
+      "dropHint": "Drop a .kicad_pcb or board export here",
       "chooseExport": "Choose board export",
       "showSetup": "Exporting from KiCad?",
       "opening": "Opening board…",
-      "failed": "Unable to open this board."
+      "failed": "Unable to open this board.",
+      "localHint": "PCB files are processed in your browser. No plugin or upload needed. Use the plugin for native manufacturing files and 3D models.",
+      "oneFile": "Choose one PCB or board export at a time."
     }
   }
 }

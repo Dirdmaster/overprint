@@ -19,6 +19,7 @@ export const parseProject = async (text: string): Promise<Composition> => {
     const source = b.syncSource
     if (!source || typeof source.url !== 'string' || !/^http:\/\/127\.0\.0\.1:\d+$/.test(source.url) || typeof source.boardId !== 'string' || !source.boardId || source.boardId.length > 100) throw new Error('Invalid board sync identity.')
   }
+  if (b.browserImport !== undefined && (!b.browserImport || !Array.isArray(b.browserImport.warnings) || b.browserImport.warnings.length > 20 || !b.browserImport.warnings.every((warning: unknown) => typeof warning === 'string' && warning.length <= 500))) throw new Error('Invalid PCB import information.')
   if (b.models !== undefined) b.models = validateBoardModels(b.models)
   if (b.fabrication !== undefined) validateFabrication(b.fabrication)
   if (!Array.isArray(p.artwork) || p.artwork.length > MAX_ARTWORK_ITEMS + 2 || artworkCount(p.artwork) > MAX_ARTWORK_ITEMS || !['front','back'].includes(p.side) || typeof p.silk !== 'boolean' || typeof p.fabrication !== 'boolean' || !/^#[\da-f]{6}$/i.test(p.mask)) throw new Error('Invalid project settings.')

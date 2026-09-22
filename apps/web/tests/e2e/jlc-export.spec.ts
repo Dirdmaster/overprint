@@ -225,7 +225,7 @@ test('older board imports explain the required re-export', async ({ page }) => {
   await page.getByLabel('Choose board export').setInputFiles(fixture)
   await page.getByRole('button', { name: 'Send to JLCPCB', exact: true }).click()
   await page.getByRole('button', { name: 'Send ZIP', exact: true }).click()
-  await expect(page.getByRole('dialog')).toContainText('Re-export this PCB with plugin 0.1.3')
+  await expect(page.getByRole('dialog')).toContainText('This board has no native Gerbers or drill files.')
 })
 
 test('exports sharp artwork above native silk while preserving pad clearances', async ({ page }) => {

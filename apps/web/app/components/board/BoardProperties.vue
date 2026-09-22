@@ -33,6 +33,30 @@ const presets = [
         <LockKeyhole class="size-3.5 text-muted" />
       </div>
     </div>
+    <div
+      v-if="board.browserImport"
+      class="mt-4 space-y-2 text-xs text-muted"
+      role="note"
+      aria-label="PCB file import"
+    >
+      <p>
+        Imported locally from a KiCad PCB. Connect through the plugin for native Gerbers, drills,
+        and 3D models.
+      </p>
+      <details v-if="board.browserImport.warnings.length">
+        <summary class="cursor-pointer">
+          Import notes ({{ board.browserImport.warnings.length }})
+        </summary>
+        <ul class="mt-2 list-disc space-y-2 pl-4">
+          <li
+            v-for="warning in board.browserImport.warnings"
+            :key="warning"
+          >
+            {{ warning }}
+          </li>
+        </ul>
+      </details>
+    </div>
     <div class="mt-6 border-t border-line pt-4">
       <h3 class="mb-4 font-medium">Preview</h3>
       <div class="flex items-center justify-between gap-2">

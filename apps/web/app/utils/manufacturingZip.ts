@@ -61,7 +61,7 @@ export const renderInk = async (project: Composition, side: string, region = pro
 }
 
 export const makeManufacturingZip = async (project: Composition) => {
-  if (!project.board.fabrication) throw new Error('Re-export this PCB with plugin 0.1.3, then import it again. This board has no Gerbers or drill files.')
+  if (!project.board.fabrication) throw new Error('This board has no native Gerbers or drill files. Export it with the current KiCad plugin before manufacturing.')
   const fabrication = validateFabrication(project.board.fabrication)
   if (![2, 4].includes(fabrication.copperLayers)) throw new Error('The color test currently supports two- and four-layer boards.')
   const files: Record<string, Uint8Array> = Object.fromEntries(Object.entries(fabrication.files).map(([name, text]) => [name.slice(12), strToU8(text)]))

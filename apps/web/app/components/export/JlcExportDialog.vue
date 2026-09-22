@@ -73,7 +73,7 @@ const exportZip = async (send: boolean) => {
   if (busy.value || !board.value) return
   if (!board.value.fabrication) {
     feedback.value =
-      'Re-export this PCB with plugin 0.1.3, then import it again. This board has no Gerbers or drill files.'
+      'This board has no native Gerbers or drill files. Export it with the current KiCad plugin before manufacturing.'
     return
   }
   quoteUrl.value = ''
