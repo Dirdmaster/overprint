@@ -1,9 +1,9 @@
 import type { BoardPackage } from '../boardPackage'
 import { atom, child, children, flag, number, parseSExpr, type SExpr } from './sexpr.ts'
-import { circle, positive, transform, type Point, type Ring } from './geometry.ts'
-import { graphic, graphicPolygons, point, pointList, position, rotation, unsupported } from './shapes.ts'
+import { circle, transform, type Point, type Ring } from './geometry.ts'
+import { position, rotation, unsupported } from './shapes.ts'
 import { onLayer, padDrill, padMask, padShape } from './pads.ts'
-import { textPolygons } from './text.ts'
+import { createDrawingReader } from './drawings.ts'
 import { createBoardGeometry } from './boardGeometry.ts'
 
 /** Extract a saved PCB without dependencies on KiCad, network access, or DOM APIs. */
@@ -15,46 +15,8 @@ export const extractKicadBoard = (text: string, filename: string): BoardPackage 
   if (!Number.isInteger(version) || version < 20211014 || version > 20260206) throw new Error('Browser import supports KiCad 6–10 PCB files. Save this PCB in a supported version or use the plugin.')
   const setup = child(board, 'setup')
   const geometry = createBoardGeometry()
+  const { drawing, zone } = createDrawingReader(board, geometry)
   const world = (rings: Ring[], origin: Point, angle: number) => rings.map(r => r.map(p => transform(p, origin, angle)))
-  const title = child(board, 'title_block')
-  const globals: Record<string, string> = { TITLE: atom(child(title, 'title')), REVISION: atom(child(title, 'rev')), COMPANY: atom(child(title, 'company')), ISSUE_DATE: atom(child(title, 'date')) }
-  for (const property of children(board, 'property')) globals[atom(property)] = atom(property, 2)
-  const drawing = (node: SExpr, footprint: SExpr = []) => {
-    const layer = atom(child(node, 'layer'))
-    if (layer !== 'Edge.Cuts' && !geometry.supportsLayer(layer)) return
-    const kind = atom(node, 0), origin = position(footprint), angle = rotation(footprint)
-    if (['gr_text', 'fp_text', 'property'].includes(kind)) {
-      if (layer === 'Edge.Cuts') return unsupported('text on Edge.Cuts')
-      const variables = { ...globals }
-      for (const p of children(footprint, 'property')) variables[atom(p).toUpperCase()] = atom(p, 2)
-      for (const p of children(footprint, 'fp_text')) variables[atom(p).toUpperCase()] = atom(p, 2)
-      const textOrigin = transform(position(node), origin, angle)
-      let textAngle = rotation(node)
-      // KiCad keeps footprint labels upright; its boundary is (-90, 90].
-      if (footprint.length && !child(node, 'at').includes('unlocked')) {
-        while (textAngle > 90) textAngle -= 180
-        while (textAngle <= -90) textAngle += 180
-      }
-      geometry.addLayer(layer, world(textPolygons(node, variables), textOrigin, textAngle))
-      return
-    }
-    if (layer === 'Edge.Cuts') {
-      const shape = graphic(node), points = shape.points.map(p => transform(p, origin, angle))
-      geometry.addEdges([shape.closed ? [...points, points[0]!] : points])
-    } else geometry.addLayer(layer, world(graphicPolygons(node), origin, angle))
-  }
-  const zone = (node: SExpr, footprint: SExpr = []) => {
-    if (child(node, 'keepout').length) return
-    const relevant = [atom(child(node, 'layer')), ...child(node, 'layers').filter((v): v is string => typeof v === 'string')].filter(l => geometry.supportsLayer(l))
-    if (!relevant.length) return
-    const fills = children(node, 'filled_polygon')
-    if (!fills.length) { geometry.warn('Unfilled zones are omitted. Fill zones in KiCad and save the PCB before importing.'); return }
-    for (const fill of fills) {
-      const layer = atom(child(fill, 'layer')) || relevant[0]!
-      // Preserve bridged holes in saved fill contours; do not replace fills with zone boundaries.
-      geometry.addLayer(layer, world([positive(pointList(fill))], position(footprint), rotation(footprint)))
-    }
-  }
   const footprint = (node: SExpr) => {
     if (children(node, 'model').length) geometry.warn('Component 3D models are not included in a PCB file. Use the KiCad plugin for assembled previews.')
     for (const item of children(node)) {
