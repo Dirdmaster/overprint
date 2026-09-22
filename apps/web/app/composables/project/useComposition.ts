@@ -1,6 +1,6 @@
 import { useArtwork } from '../artwork/useArtwork'
 import { useEditorRef } from '../editor/editorState'
-import type { BoardPackage } from '~/utils/boardPackage'
+import type { BoardPackage } from '../../utils/boardPackage'
 
 export const useComposition = () => {
   const board = useEditorRef<BoardPackage | undefined>('composition-board', () => undefined)

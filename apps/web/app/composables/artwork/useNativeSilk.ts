@@ -1,6 +1,6 @@
 import { useArtwork } from './useArtwork'
-import { nativeSilkId, nativeSilkSettings } from '~/utils/nativeSilk'
-import type { Artwork } from '~/utils/artwork'
+import { nativeSilkId, nativeSilkSettings } from '../../utils/nativeSilk'
+import type { Artwork } from '../../utils/artwork'
 
 export const useNativeSilk = () => {
   const { items, checkpoint } = useArtwork()

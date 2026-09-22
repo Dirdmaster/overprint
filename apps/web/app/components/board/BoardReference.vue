@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BoardPackage } from '~/utils/boardPackage'
+import type { BoardPackage } from '../../utils/boardPackage'
 defineProps<{ paths: string[]; bounds: BoardPackage['bounds']; color: string }>()
 </script>
 

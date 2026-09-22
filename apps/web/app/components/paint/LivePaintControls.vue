@@ -6,7 +6,7 @@ import { useArtwork } from '../../composables/artwork/useArtwork'
 import ColorSwatchPicker from '../color/ColorSwatchPicker.vue'
 import { computed } from 'vue'
 import { Check, PaintBucket } from '@lucide/vue'
-import { isNativeSilk } from '~/utils/nativeSilk'
+import { isNativeSilk } from '../../utils/nativeSilk'
 defineOptions({ inheritAttrs: false })
 const { color, presets, pointer, adjacent } = useLivePaint()
 const { items, selection } = useArtwork()

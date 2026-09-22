@@ -13,9 +13,9 @@ import BoardZoomControls from '../board/BoardZoomControls.vue'
 import BoardInspector from './BoardInspector.vue'
 import CanvasTools from './CanvasTools.vue'
 import { ref, computed, watch, onMounted, onBeforeUnmount, useTemplateRef, useId } from 'vue'
-import { readArtwork } from '~/utils/artwork'
-import { isNativeSilk, nativeSilkId } from '~/utils/nativeSilk'
-import type { BoardPackage } from '~/utils/boardPackage'
+import { readArtwork } from '../../utils/artwork'
+import { isNativeSilk, nativeSilkId } from '../../utils/nativeSilk'
+import type { BoardPackage } from '../../utils/boardPackage'
 import {
   useEditorState,
   editorOwnsEvent,
@@ -31,14 +31,22 @@ const { items, canAdd, selection, checkpoint, undo, redo, removeSelected, destin
   useArtwork()
 const graphicPicker = useTemplateRef('graphicPicker')
 const graphicError = ref('')
+let mounted = true
+onBeforeUnmount(() => {
+  mounted = false
+})
 const importGraphic = async (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
+  const importBoard = compositionBoard.value
   try {
     if (!canAdd.value)
       throw new Error('This project already has 100 layers, folders, and graphics.')
     const graphic = await readArtwork(file)
+    if (!mounted || compositionBoard.value !== importBoard) return
+    if (!canAdd.value)
+      throw new Error('This project already has 100 layers, folders, and graphics.')
     const b = props.board.bounds
     const width = Math.min(b.width * 0.5, b.height * 0.5 * graphic.ratio)
     const height = width / graphic.ratio

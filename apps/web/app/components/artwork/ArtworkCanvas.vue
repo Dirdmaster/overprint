@@ -3,7 +3,7 @@ import { useArtwork } from '../../composables/artwork/useArtwork'
 import { useCanvasTools } from '../../composables/canvas/useCanvasTools'
 import ArtworkTransformHandles from './ArtworkTransformHandles.vue'
 import { computed, onMounted, onBeforeUnmount } from 'vue'
-import { artworkRows, type Artwork } from '~/utils/artwork'
+import { artworkRows, type Artwork } from '../../utils/artwork'
 const props = defineProps<{ side: string; interactive?: boolean }>()
 const { items, selectionIds, selectedArtwork, select, checkpoint } = useArtwork()
 const { active } = useCanvasTools()

@@ -9,11 +9,11 @@ import { useLivePaint } from '../../composables/artwork/useLivePaint'
 import { useNativeSilk } from '../../composables/artwork/useNativeSilk'
 import { useArtwork } from '../../composables/artwork/useArtwork'
 import { shallowRef, computed, watch, onMounted, onBeforeUnmount, useTemplateRef, useId } from 'vue'
-import type { BoardPackage } from '~/utils/boardPackage'
-import { artworkRows } from '~/utils/artwork'
-import { createArtworkPaint, type ArtworkPaintHit } from '~/utils/artworkPaint'
-import { createPaintRegions, paintRegionSource, type PaintRegion } from '~/utils/paintRegions'
-import { isNativeSilk, nativeSilkSettings } from '~/utils/nativeSilk'
+import type { BoardPackage } from '../../utils/boardPackage'
+import { artworkRows } from '../../utils/artwork'
+import { createArtworkPaint, type ArtworkPaintHit } from '../../utils/artworkPaint'
+import { createPaintRegions, paintRegionSource, type PaintRegion } from '../../utils/paintRegions'
+import { isNativeSilk, nativeSilkSettings } from '../../utils/nativeSilk'
 const props = defineProps<{ board: BoardPackage; side: string; silk: boolean }>()
 const emit = defineEmits<{ error: [message: string] }>()
 const { items, canAdd, selection, checkpoint, destination, descendants } = useArtwork()

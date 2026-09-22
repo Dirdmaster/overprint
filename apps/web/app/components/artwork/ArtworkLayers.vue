@@ -16,8 +16,8 @@ import {
   ChevronDown,
   ChevronRight
 } from '@lucide/vue'
-import { artworkRows } from '~/utils/artwork'
-import type { AlignmentBounds } from '~/utils/artworkAlignment'
+import { artworkRows } from '../../utils/artwork'
+import type { AlignmentBounds } from '../../utils/artworkAlignment'
 const props = defineProps<{ side: string; bounds: AlignmentBounds }>()
 const {
   items,

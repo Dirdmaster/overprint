@@ -14,7 +14,7 @@ import {
   Ruler,
   LockKeyhole
 } from '@lucide/vue'
-import { nativeSilkId, nativeSilkSettings } from '~/utils/nativeSilk'
+import { nativeSilkId, nativeSilkSettings } from '../../utils/nativeSilk'
 const props = defineProps<{ side: string }>()
 const silk = defineModel<boolean>('silk', { required: true })
 const fabrication = defineModel<boolean>('fabrication', { required: true })

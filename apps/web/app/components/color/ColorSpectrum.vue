@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount, useTemplateRef, reactive } from 'vue'
-import { hexToHsv, hsvToHex, normalizeHex } from '~/utils/paintColor'
+import { hexToHsv, hsvToHex, normalizeHex } from '../../utils/paintColor'
 const color = defineModel<string>({ required: true })
 const hsv = reactive(hexToHsv(color.value))
 const hex = ref(color.value.slice(1).toUpperCase())

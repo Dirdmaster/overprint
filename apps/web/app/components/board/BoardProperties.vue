@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ColorSwatchPicker from '../color/ColorSwatchPicker.vue'
 import { LockKeyhole } from '@lucide/vue'
-import type { BoardPackage } from '~/utils/boardPackage'
+import type { BoardPackage } from '../../utils/boardPackage'
 
 defineProps<{ board: BoardPackage }>()
 const mask = defineModel<string>('mask', { required: true })

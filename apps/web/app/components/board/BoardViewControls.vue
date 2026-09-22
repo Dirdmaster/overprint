@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { BoardModels } from '~/utils/boardModels'
+import type { BoardModels } from '../../utils/boardModels'
 
 const props = defineProps<{ models?: BoardModels }>()
 defineEmits<{ removeModels: [] }>()

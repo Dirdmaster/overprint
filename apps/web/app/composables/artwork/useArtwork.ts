@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { useEditorRef } from '../editor/editorState'
-import { artworkCount, artworkRows, MAX_ARTWORK_ITEMS, type Artwork } from '~/utils/artwork'
-import { isNativeSilk } from '~/utils/nativeSilk'
+import { artworkCount, artworkRows, MAX_ARTWORK_ITEMS, type Artwork } from '../../utils/artwork'
+import { isNativeSilk } from '../../utils/nativeSilk'
 export const useArtwork = () => {
   const items = useEditorRef<Artwork[]>('artwork', () => [])
   const canAdd = computed(() => artworkCount(items.value) < MAX_ARTWORK_ITEMS)
