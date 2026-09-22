@@ -73,7 +73,7 @@ for (const name of ['toolbar', 'canvas', 'layers']) {
 
 ```ts
 const update = () => {
-  paintButton.setAttribute('aria-pressed', String(controller.getState().tool === 'paint'))
+  paintButton.setAttribute('aria-pressed', String(controller.getState().activeTool === 'paint'))
 }
 update()
 const unsubscribe = controller.subscribeState(update)
