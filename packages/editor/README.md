@@ -39,3 +39,5 @@ No board data is uploaded and no storage is accessed by this package. File size 
 ## Local development
 
 Run `bun run --cwd packages/editor build` and `bun run --cwd packages/editor test` from the repository root. The build bundles the canonical editor source from `apps/web` and emits runtime chunks, the import worker, and TypeScript declarations into `dist`. Publish only the packaged output after the repository's preview and approval process.
+
+Shared app source has a local transpiler configuration in `apps/web/app/tsconfig.json`, so the library build does not read generated Nuxt project references. Application typechecking still uses the Nuxt project at `apps/web/tsconfig.json`.
