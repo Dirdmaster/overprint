@@ -1,3 +1,6 @@
+import { addons, useEffect } from 'storybook/preview-api'
+import { SNIPPET_RENDERED } from 'storybook/internal/docs-tools'
+import { frameworkSource } from './frameworks/source'
 import { makeBoard } from '../fixture'
 import { mountFrameworkPart } from './frameworks/mount'
 import './style.css'
@@ -14,7 +17,7 @@ export const componentStory = (name, args = {}, argTypes = {}, preview = false) 
     },
     beforeEach: () => destroy,
     render: (props, context) => {
-      const framework = context.parameters.componentFramework
+      const framework = context.globals.framework || 'next'
       if (current?.framework !== framework) destroy()
       if (!current) {
         const root = document.createElement('div')
@@ -22,6 +25,11 @@ export const componentStory = (name, args = {}, argTypes = {}, preview = false) 
         const mounted = mountFrameworkPart(framework, root, makeBoard(), name, props, preview)
         current = { root, mounted, framework }
       } else current.mounted.update(props)
+      const source = frameworkSource(framework, name, props, preview)
+      useEffect(() => {
+        const frame = requestAnimationFrame(() => addons.getChannel().emit(SNIPPET_RENDERED, { id: context.id, source: source.code, format: source.language }))
+        return () => cancelAnimationFrame(frame)
+      }, [context.id, source.code, source.language])
       return current.root
     },
   }

@@ -14,6 +14,7 @@ import vanillaCode from './examples/vanilla.js?raw'
 import { scenario } from './scenarios'
 let current
 export default {
+  globals: { framework: 'javascript' },
   title: 'Frameworks',
   beforeEach: () => () => current?.destroy(),
   render: args => {
@@ -22,11 +23,11 @@ export default {
     return current.root
   },
 }
-export const React = { args: { framework: 'react' }, parameters: { docs: { source: { code: reactCode, language: 'javascript' } } } }
-export const Vue = { args: { framework: 'vue' }, parameters: { docs: { source: { code: vueCode, language: 'javascript' } } } }
+export const React = { globals: { framework: 'react' }, args: { framework: 'react' }, parameters: { docs: { source: { code: reactCode, language: 'javascript' } } } }
+export const Vue = { globals: { framework: 'vue' }, args: { framework: 'vue' }, parameters: { docs: { source: { code: vueCode, language: 'javascript' } } } }
 export const PlainJavaScript = { name: 'Plain JavaScript', args: { framework: 'vanilla' }, parameters: { docs: { source: { code: vanillaCode, language: 'javascript' } } } }
 
-export const NextJs = {
+export const NextJs = { globals: { framework: 'next' },
   name: 'Next.js',
   parameters: { docs: { source: { code: `${nextCode}\n\n${nextPage}`, language: 'jsx' } } },
   render: () => {
@@ -39,7 +40,7 @@ export const NextJs = {
   },
 }
 
-export const Nuxt = {
+export const Nuxt = { globals: { framework: 'nuxt' },
   parameters: { docs: { source: { code: `<!-- app/components/OverprintEditor.client.vue -->\n${nuxtCode}\n\n${nuxtPage}`, language: 'html' } } },
   render: () => {
     current?.destroy()

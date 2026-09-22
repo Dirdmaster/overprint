@@ -5,6 +5,7 @@ import code from './examples/composed.js?raw'
 import css from './examples/composed.css?raw'
 let current
 export default {
+  globals: { framework: 'javascript' },
   title: 'Customization',
   args: { theme: 'light', customToolbar: false },
   argTypes: { theme: { control: 'inline-radio', options: ['light', 'dark'] } },

@@ -3,6 +3,7 @@ import { scenario } from './scenarios'
 import { expect, userEvent, waitFor } from 'storybook/test'
 let current
 export default {
+  globals: { framework: 'javascript' },
   title: 'Editor',
   parameters: { docs: { source: { code: scenarioCode, language: 'javascript' } } },
   args: { theme: 'light', side: 'front' },

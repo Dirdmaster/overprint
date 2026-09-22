@@ -18,3 +18,9 @@ Open **Frameworks → Docs** for setup and copyable framework integration code, 
 **Frameworks → Next.js** demonstrates an App Router client component and a server page. The server passes serializable board data; the client imports the editor after hydration and releases it on unmount. The live story exercises the same component in React Strict Mode. The example was also production-built locally with Next.js 16.3.6 against the editor tarball. Its save/restore buttons use host memory, not a persistence backend.
 
 **Frameworks → Nuxt** includes a typed `OverprintEditor.client.vue` and Nuxt 4 page setup, plus Nuxt 3 directory guidance. The story runs the same component through Vue; a separate local Nuxt 4.5.2 production build and typecheck validated the page integration against the editor tarball. Save/restore uses host memory.
+
+### Component framework selector
+
+The **Components** section has one story per component. Choose React, Vue, Next.js, Nuxt, or JavaScript from the global toolbar. The selection persists between component stories and updates both the mounted integration and the Code panel. Controls remain specific to the component. Switching frameworks starts a fresh example session; changing component props keeps the current session.
+
+Full-editor scenarios and framework-specific integration guides keep their declared implementation and lock the framework selector accordingly.
