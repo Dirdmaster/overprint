@@ -24,7 +24,9 @@ class ReleaseTests(unittest.TestCase):
                      'scripts/install-hooks.mjs', 'SECURITY.md', '.github/workflows/ci.yml',
                      'apps/web/public/guides/kicad/add-repository.png',
                      '.changeset/config.json', '.changeset/example.md',
-                     'scripts/version-packages.mjs',
+                     'scripts/version-packages.mjs', 'packages/editor/src/index.ts',
+                     'packages/editor/package.json', 'apps/editor-workbench/package.json',
+                     'apps/editor-workbench/.storybook/main.js',
                      *[f'apps/web/public/guides/jlcpcb/{name}.png'
                        for name in ('settings', 'multicolor', 'open-viewer', 'viewer')]]:
             self.assertTrue(package_source.included(path), path)

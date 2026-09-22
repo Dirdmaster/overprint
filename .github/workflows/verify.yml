@@ -56,6 +56,10 @@ jobs:
       - run: bunx --no-install playwright install --with-deps chromium
         working-directory: apps/web
       - run: bun run test
+      - name: Build and test the embeddable editor
+        run: |
+          bun run --cwd packages/editor build
+          bun run --cwd packages/editor test
       - name: Prepare committed source and versioned plugin assets
         run: python3 scripts/prepare_release.py --directory "$RUNNER_TEMP/candidate" --tag "$RELEASE_TAG"
       - name: Build clean source with its matching source download
@@ -85,5 +89,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-failures-${{ github.sha }}
-          path: apps/web/test-results
+          path: |
+            apps/web/test-results
+            packages/editor/test-results
           retention-days: 7

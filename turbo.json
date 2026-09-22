@@ -73,6 +73,13 @@
         "build"
       ],
       "cache": false
+    },
+    "@overprint/editor#build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/web/app/**",
+        "$TURBO_ROOT$/apps/web/i18n/**"
+      ]
     }
   }
 }

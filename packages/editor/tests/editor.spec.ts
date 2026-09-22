@@ -74,3 +74,16 @@ test('changing the controller property mounts the new editor state', async ({ pa
   await page.getByRole('button', { name: 'Add layer', exact: true }).click()
   expect(await page.evaluate(() => (window as any).controllers.map((c: any) => c.getDocument().artwork.length))).toEqual([0, 1])
 })
+
+test('the bundled worker imports a PCB and resets artwork without affecting another editor', async ({ page }) => {
+  await page.goto('/tests/index.html')
+  await page.locator('overprint-editor').first().getByRole('button', { name: 'Add layer', exact: true }).click()
+  const source = await (await import('node:fs/promises')).readFile(new URL('../../../apps/web/tests/fixtures/browser-import.kicad_pcb', import.meta.url), 'utf8')
+  const result = await page.evaluate(async source => {
+    const [first, second] = (window as any).controllers
+    const previous = second.getDocument()
+    await first.loadBoard(new File([source], 'Imported.kicad_pcb'))
+    return { name: first.getDocument().board.name, artwork: first.getDocument().artwork, isolated: JSON.stringify(second.getDocument()) === JSON.stringify(previous) }
+  }, source)
+  expect(result).toEqual({ name: 'Imported', artwork: [], isolated: true })
+})
