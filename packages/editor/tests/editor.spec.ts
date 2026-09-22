@@ -4,6 +4,7 @@ test('full editor layers and board properties round-trip through host documents'
   await page.goto('/tests/index.html')
   const first = page.locator('overprint-editor').first()
   await expect(first.getByRole('toolbar', { name: 'Canvas tools' })).toBeVisible()
+  await expect(first.locator('aside > footer')).toHaveCSS('border-top-style', 'solid')
   await first.getByRole('button', { name: 'Add folder', exact: true }).click()
   await first.getByRole('button', { name: 'Add layer', exact: true }).click()
   const doc = await page.evaluate(() => (window as any).controllers[0].getDocument())
