@@ -1,5 +1,6 @@
 """Exercise the installed Changesets CLI through Overprint's version command."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -10,6 +11,11 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class ChangesetsTests(unittest.TestCase):
     def setUp(self):
+        # Git hooks export repository-local settings. Fixture commands, including
+        # Changesets' own git subprocesses, must target the temporary repository.
+        local_vars = subprocess.check_output(
+            ['git', 'rev-parse', '--local-env-vars'], cwd=ROOT, text=True).splitlines()
+        self.env = {key: value for key, value in os.environ.items() if key not in local_vars}
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
@@ -41,7 +47,7 @@ class ChangesetsTests(unittest.TestCase):
         return json.loads((self.root / name).read_text())
 
     def run_command(self, *args):
-        result = subprocess.run(args, cwd=self.root, text=True, capture_output=True)
+        result = subprocess.run(args, cwd=self.root, env=self.env, text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return result.stdout
 
