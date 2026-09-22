@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { componentBoard } from '../../../apps/web/tests/fixtures/componentBoard'
 
 test('independent parts share tools, layers, side and history without affecting another editor', async ({ page }) => {
   await page.goto('/tests/index.html?parts')
@@ -76,4 +77,28 @@ test('rebind and disposal release independent controls', async ({ page }) => {
   await expect(page.locator('overprint-toolbar').getByRole('toolbar')).toBeVisible()
   await page.evaluate(() => (window as any).controllers[1].destroy())
   await expect(page.locator('overprint-toolbar').getByRole('toolbar')).toHaveCount(0)
+})
+
+
+test('canvas-only 3D uses its full width and board replacement resets an unmounted view', async ({ page }) => {
+  await page.goto('/tests/index.html?parts')
+  const fixture = componentBoard()
+  await page.evaluate(async ({ data, name }) => {
+    const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0))
+    const editor = (window as any).controllers[0]
+    await editor.loadBoard(new File([bytes], name))
+    editor.setView('3d')
+  }, { data: fixture.buffer.toString('base64'), name: fixture.name })
+  const preview = page.locator('overprint-canvas').getByLabel('Assembled preview', { exact: true })
+  await expect(preview).toBeVisible()
+  await expect(preview).toHaveCSS('right', '0px')
+  await page.locator('overprint-canvas').getByRole('img', { name: 'Demo board assembled 3D preview' }).waitFor()
+  await page.evaluate(() => document.querySelector('overprint-canvas')!.remove())
+  await page.evaluate(() => {
+    const editor = (window as any).controllers[0]
+    const board = editor.getDocument().board
+    delete board.models
+    editor.replaceBoard(board)
+  })
+  expect(await page.evaluate(() => (window as any).controllers[0].getState().view)).toBe('2d')
 })

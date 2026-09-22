@@ -18,7 +18,7 @@ defineExpose({ fit, zoom })
 
 <template>
   <div
-    class="absolute inset-0 md:right-84"
+    class="absolute inset-0"
     aria-label="Assembled preview"
   >
     <div

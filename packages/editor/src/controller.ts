@@ -106,6 +106,11 @@ export const createEditor = (board: BoardPackage, options: EditorOptions = {}): 
     setSide(side) { live(); if (!['front','back'].includes(side)) throw new Error('Invalid board side.'); c.side.value = side },
     destroy() { if (!session.alive.value) return; reset(); listeners.clear(); session.alive.value = false; session.scope.stop() },
   }
+  session.scope.run(() => watch(c.board, () => {
+    session.view.modelView.value = false
+    session.view.zoom.value = 1
+    session.view.pan.value = { x: 0, y: 0 }
+  }, { flush: 'sync' }))
   sessions.set(controller, session)
   session.scope.run(() => watch([a.items, c.board, c.side, c.silk, c.maskColor, c.components], () => {
     for (const listener of listeners) listener()

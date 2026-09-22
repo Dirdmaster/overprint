@@ -342,6 +342,7 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
       <BoardModelPreview
         v-if="modelView"
         ref="modelPreview"
+        :class="{ 'md:right-84': !canvasOnly }"
         :board="board"
         :artwork="items"
         :side="side"
