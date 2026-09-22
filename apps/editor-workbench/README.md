@@ -1,0 +1,14 @@
+# Editor workbench
+
+Storybook mounts the built `@overprint/editor` package, including the application's real tools, layer tree, Live Paint, board properties, and alignment controls. React, Vue, and plain JavaScript stories all consume the same Web Component API. The examples in `stories/mount.js` show framework lifecycles; `stories/scenarios.js` shows host save, restore, board replacement, and local PCB import.
+
+Supply a real board snapshot as an absolute path. Board fixtures are intentionally outside the package and are not committed with this workbench.
+
+```sh
+bun run --cwd packages/editor build
+OVERPRINT_BOARD_FIXTURE=/absolute/path/board.json bun run --cwd apps/editor-workbench storybook
+```
+
+The same environment variable is required for the static `build:storybook` command. A static Storybook build includes that board's geometry, so review the fixture before publishing the build. This repository's LoRa development card snapshot is local only. Its dense raw KiCad source exceeds the current browser parser limit; the host-provided snapshot works in the full editor.
+
+The host owns persistence. These stories save into memory and display a compact document summary. They do not imply a server save. Changes to the editor require rebuilding `packages/editor` before refreshing Storybook.
