@@ -15,12 +15,12 @@ onBeforeUnmount(() => { session.mounted = false })
 <template>
   <div v-if="alive" class="embedded-editor">
     <BoardEditor v-if="board" :board="board" />
-    <footer><a href="https://overprint.ink" target="_blank" rel="noopener noreferrer">Powered by Overprint</a></footer>
+    <footer class="embedded-attribution"><a href="https://overprint.ink" target="_blank" rel="noopener noreferrer">Powered by Overprint</a></footer>
   </div>
 </template>
 <style>
 :host { display: block; font-family: Inter, sans-serif; color: var(--ink); }
 .embedded-editor { display: flex; flex-direction: column; height: var(--overprint-height, 44rem); min-height: 32rem; background: var(--canvas); }
-footer { display: flex; align-items: center; min-height: 2.5rem; padding: 0 1rem; font-size: 0.75rem; color: var(--muted); }
-a { color: inherit; }
+.embedded-attribution { display: flex; align-items: center; min-height: 2.5rem; padding: 0 1rem; font-size: 0.75rem; color: var(--muted); }
+.embedded-attribution a { color: inherit; }
 </style>
