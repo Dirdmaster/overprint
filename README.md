@@ -44,6 +44,8 @@ Open **http://127.0.0.1:4317**.
 
 The [setup guide](https://overprint.ink/setup) includes a screenshot and a manual ZIP fallback.
 
+You can also **drop a `.kicad_pcb` file into Overprint** or select it through **Import PCB**. It is processed entirely in your browser, without a plugin or upload. See [browser import support and limits](docs/browser-pcb-import.md). Native manufacturing files and assembled 3D models still require the plugin.
+
 You can also export a file with **Tools → External Plugins → Export to Overprint** and import it manually.
 
 The [KiCad plugin guide](packages/kicad/README.md) covers live sync and 3D models.
