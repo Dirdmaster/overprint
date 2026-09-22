@@ -41,3 +41,6 @@ export const registerEditor = (): void => {
     )
   }
 }
+
+export type { EditorPresentation } from '../../../apps/web/app/utils/editorPresentation'
+export type { EditorElement } from './elements'

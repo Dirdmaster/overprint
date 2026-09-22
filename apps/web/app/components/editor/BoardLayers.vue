@@ -4,7 +4,15 @@ import ArtworkLayers from '../artwork/ArtworkLayers.vue'
 import KicadLayers from '../kicad/KicadLayers.vue'
 import { Plus, FolderPlus, ImagePlus } from '@lucide/vue'
 import type { BoardPackage } from '../../utils/boardPackage'
-const props = defineProps<{ board: BoardPackage; side: string }>()
+const props = withDefaults(
+  defineProps<{
+    board: BoardPackage
+    side: string
+    showImport?: boolean
+    showNativeLayers?: boolean
+  }>(),
+  { showImport: true, showNativeLayers: true }
+)
 const { create, canAdd } = useArtwork()
 defineEmits<{ importGraphic: [] }>()
 const silk = defineModel<boolean>('silk', { required: true })
@@ -37,6 +45,7 @@ const layerActions = [
           />
         </button>
         <button
+          v-if="showImport"
           title="Import graphic"
           aria-label="Import graphic"
           class="flex size-7 items-center justify-center rounded hover:bg-soft"
@@ -51,6 +60,7 @@ const layerActions = [
       :bounds="board.bounds"
     />
     <KicadLayers
+      v-if="showNativeLayers"
       :side="side"
       v-model:silk="silk"
       v-model:fabrication="fabrication"

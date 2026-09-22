@@ -2,7 +2,10 @@
 import { computed } from 'vue'
 import type { BoardModels } from '../../utils/boardModels'
 
-const props = defineProps<{ models?: BoardModels }>()
+const props = withDefaults(
+  defineProps<{ models?: BoardModels; showViewMode?: boolean; showBoardSide?: boolean }>(),
+  { showViewMode: true, showBoardSide: true }
+)
 defineEmits<{ removeModels: [] }>()
 const modelView = defineModel<boolean>('modelView', { required: true })
 const side = defineModel<string>('side', { required: true })
@@ -23,6 +26,7 @@ const modelSummary = computed(() =>
   <div
     class="grid grid-cols-2 gap-1 px-2 pt-2"
     role="group"
+    v-if="showViewMode"
     aria-label="Preview mode"
   >
     <button
@@ -45,7 +49,7 @@ const modelSummary = computed(() =>
     </button>
   </div>
   <details
-    v-if="models"
+    v-if="models && showViewMode"
     class="mx-2 mt-2 rounded-md bg-soft px-2 py-1.5 text-xs text-muted"
   >
     <summary class="cursor-pointer">
@@ -80,6 +84,7 @@ const modelSummary = computed(() =>
   <div
     class="grid grid-cols-2 gap-1 p-2"
     role="group"
+    v-if="showBoardSide"
     aria-label="Board side"
   >
     <button

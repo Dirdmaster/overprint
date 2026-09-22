@@ -98,3 +98,41 @@ overprint-layers::part(panel) { border-radius: 1rem; }
 ```
 
 `state.tool` is the selected tool; `state.activeTool` also reflects temporary hand navigation while Space or the middle mouse button is held.
+
+### Component props
+
+All elements accept reactive presentation properties. Set arrays and booleans as DOM properties (or Vue `.prop` bindings), not JSON strings in attributes. Changes apply without remounting the controller or clearing artwork. The full `overprint-editor` accepts the same props for its built-in parts.
+
+| Part | Props (defaults) |
+| --- | --- |
+| Toolbar | `tools` (`['select', 'hand', 'paint']`), `orientation` (`'vertical'`), `showShortcuts` (`true`) |
+| Palette | `presets` (standard swatches), `customColors` (`true`), `showPaintTarget` (`true`) |
+| Layers | `showImport` (`true`), `showNativeLayers` (`true`) |
+| View controls | `showViewMode` (`true`), `showBoardSide` (`true`) |
+| Canvas | `grid` (`true`) |
+
+```vue
+<overprint-toolbar
+  :controller.prop="controller"
+  :tools.prop="['select', 'paint']"
+  orientation="horizontal"
+  :show-shortcuts.prop="false"
+/>
+<overprint-palette
+  :controller.prop="controller"
+  :presets.prop="[{ name: 'Violet', color: '#7700ff' }]"
+  :custom-colors.prop="false"
+/>
+```
+
+In Vue/Nuxt, keep the existing custom-element compiler configuration. In React, pass these properties through the element ref as in the framework example. Plain JavaScript is typed through `HTMLElementTagNameMap`:
+
+```ts
+const toolbar = document.createElement('overprint-toolbar')
+toolbar.controller = controller
+toolbar.tools = ['select', 'paint']
+toolbar.orientation = 'horizontal'
+toolbar.showShortcuts = false
+```
+
+`EditorPresentation` and `EditorElement` are exported types. These props configure presentation, not permissions: hiding an action does not disable its keyboard shortcut or controller method. Custom `presets` change the displayed palette choices; canvas color-cycling shortcuts still use the standard palette. Color values should be six-digit hex strings. CSS tokens and `::part` remain available for visual styling.

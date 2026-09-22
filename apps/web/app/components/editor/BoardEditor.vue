@@ -16,6 +16,7 @@ import CanvasTools from './CanvasTools.vue'
 import { ref, computed, watch, onMounted, onBeforeUnmount, useTemplateRef, useId } from 'vue'
 import { readArtwork } from '../../utils/artwork'
 import { isNativeSilk, nativeSilkId } from '../../utils/nativeSilk'
+import type { EditorPresentation } from '../../utils/editorPresentation'
 import type { BoardPackage } from '../../utils/boardPackage'
 import {
   useEditorState,
@@ -27,9 +28,13 @@ const boardId = useId()
 const editorRoot = editorState.root
 const { modelView, zoom, pan } = useCanvasView()
 const modelPreview = useTemplateRef('modelPreview')
-const props = withDefaults(defineProps<{ board: BoardPackage; canvasOnly?: boolean }>(), {
-  canvasOnly: false
-})
+const props = withDefaults(
+  defineProps<{ board: BoardPackage; canvasOnly?: boolean; ui?: EditorPresentation }>(),
+  {
+    canvasOnly: false,
+    ui: () => ({})
+  }
+)
 const { items, canAdd, selection, checkpoint, undo, redo, removeSelected, destination } =
   useArtwork()
 const graphicPicker = useTemplateRef('graphicPicker')
@@ -235,10 +240,16 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
       class="relative min-h-128 min-w-0 flex-1 overflow-hidden md:min-h-0"
     >
       <CanvasTools
+        :tools="ui.tools"
+        :orientation="ui.orientation"
+        :show-shortcuts="ui.showShortcuts"
         v-if="!canvasOnly && !modelView"
         class="absolute left-5 top-24 z-10"
       />
       <LivePaintControls
+        :presets="ui.presets"
+        :custom-colors="ui.customColors"
+        :show-paint-target="ui.showPaintTarget"
         v-if="!canvasOnly && !modelView && active === 'paint'"
         class="absolute left-20 top-4 z-10"
       />
@@ -357,6 +368,7 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
       class="mx-4 flex min-h-0 md:pointer-events-none md:absolute md:bottom-0 md:right-4 md:top-0 md:mx-0 md:w-76"
     >
       <BoardInspector
+        :ui="ui"
         class="pointer-events-auto"
         :board="board"
         :side="side"
@@ -367,6 +379,8 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
       >
         <template #header>
           <BoardViewControls
+            :show-view-mode="ui.showViewMode"
+            :show-board-side="ui.showBoardSide"
             v-model:model-view="modelView"
             v-model:side="side"
             :models="board.models"

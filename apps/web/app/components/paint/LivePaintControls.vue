@@ -8,7 +8,16 @@ import { computed } from 'vue'
 import { Check, PaintBucket } from '@lucide/vue'
 import { isNativeSilk } from '../../utils/nativeSilk'
 defineOptions({ inheritAttrs: false })
-const { color, presets, pointer, adjacent } = useLivePaint()
+const props = withDefaults(
+  defineProps<{
+    presets?: { name: string; color: string }[]
+    customColors?: boolean
+    showPaintTarget?: boolean
+  }>(),
+  { customColors: true, showPaintTarget: true }
+)
+const { color, presets: defaultPresets, pointer, adjacent } = useLivePaint()
+const presets = computed(() => props.presets ?? defaultPresets)
 const { items, selection } = useArtwork()
 const targetName = computed(() =>
   isNativeSilk(selection.value)
@@ -29,7 +38,7 @@ const targetName = computed(() =>
       v-model="color"
       label="Fill color"
       :presets="presets"
-      custom
+      :custom="customColors"
     />
     <div
       class="flex flex-1 gap-1"
@@ -52,7 +61,10 @@ const targetName = computed(() =>
         />
       </button>
     </div>
-    <div class="flex w-full items-center gap-2 text-muted">
+    <div
+      v-if="showPaintTarget"
+      class="flex w-full items-center gap-2 text-muted"
+    >
       <span
         class="min-w-0 flex-1 truncate"
         :title="targetName"

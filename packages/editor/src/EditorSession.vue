@@ -9,9 +9,14 @@ import BoardZoomControls from '../../../apps/web/app/components/board/BoardZoomC
 import LivePaintControls from '../../../apps/web/app/components/paint/LivePaintControls.vue'
 import { editorStateKey } from '../../../apps/web/app/composables/editor/editorState'
 import { editorSession, type EditorController } from './controller'
+import type { EditorPresentation } from '../../../apps/web/app/utils/editorPresentation'
 import type { EditorPart } from './parts'
 
-const props = defineProps<{ controller: EditorController; kind: EditorPart }>()
+const props = defineProps<{
+  controller: EditorController
+  kind: EditorPart
+  ui: EditorPresentation
+}>()
 const session = editorSession(props.controller)
 const isCanvas = props.kind === 'editor' || props.kind === 'canvas'
 if (isCanvas && session.mounted)
@@ -61,12 +66,15 @@ const removeModels = () => {
   <div
     v-if="alive && board"
     ref="root"
-    :class="isCanvas ? 'embedded-editor canvas-grid' : 'editor-control'"
+    :class="[
+      isCanvas ? 'embedded-editor' : 'editor-control',
+      { 'canvas-grid': isCanvas && ui.grid !== false },
+    ]"
     :part="isCanvas ? 'surface' : 'panel'"
     tabindex="0"
   >
     <template v-if="isCanvas">
-      <BoardEditor :board="board" :canvas-only="kind === 'canvas'" />
+      <BoardEditor :board="board" :canvas-only="kind === 'canvas'" :ui="ui" />
       <footer part="attribution" class="embedded-attribution">
         <a
           href="https://overprint.ink"
@@ -76,10 +84,23 @@ const removeModels = () => {
         >
       </footer>
     </template>
-    <CanvasTools v-else-if="kind === 'toolbar'" />
-    <LivePaintControls v-else-if="kind === 'palette'" part="palette" />
+    <CanvasTools
+      v-else-if="kind === 'toolbar'"
+      :tools="ui.tools"
+      :orientation="ui.orientation"
+      :show-shortcuts="ui.showShortcuts"
+    />
+    <LivePaintControls
+      v-else-if="kind === 'palette'"
+      part="palette"
+      :presets="ui.presets"
+      :custom-colors="ui.customColors"
+      :show-paint-target="ui.showPaintTarget"
+    />
     <template v-else-if="kind === 'layers'">
       <BoardLayers
+        :show-import="ui.showImport"
+        :show-native-layers="ui.showNativeLayers"
         :board="board"
         :side="side"
         v-model:silk="silk"
@@ -103,6 +124,8 @@ const removeModels = () => {
     />
     <div v-else-if="kind === 'view-controls'" part="view-controls">
       <BoardViewControls
+        :show-view-mode="ui.showViewMode"
+        :show-board-side="ui.showBoardSide"
         :models="board.models"
         v-model:model-view="modelView"
         v-model:side="side"

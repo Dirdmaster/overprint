@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import BoardLayers from './BoardLayers.vue'
 import BoardProperties from '../board/BoardProperties.vue'
+import type { EditorPresentation } from '../../utils/editorPresentation'
 import type { BoardPackage } from '../../utils/boardPackage'
-defineProps<{ board: BoardPackage; side: string }>()
+withDefaults(defineProps<{ board: BoardPackage; side: string; ui?: EditorPresentation }>(), {
+  ui: () => ({})
+})
 defineEmits<{ importGraphic: [] }>()
 const silk = defineModel<boolean>('silk', { required: true })
 const fabrication = defineModel<boolean>('fabrication', { required: true })
@@ -16,6 +19,8 @@ const mask = defineModel<string>('mask', { required: true })
     <header class="shrink-0 border-b border-line"><slot name="header" /></header>
     <div class="min-h-0 overflow-y-auto">
       <BoardLayers
+        :show-import="ui.showImport"
+        :show-native-layers="ui.showNativeLayers"
         :board="board"
         :side="side"
         v-model:silk="silk"

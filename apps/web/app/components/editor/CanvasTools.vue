@@ -1,17 +1,28 @@
 <script setup lang="ts">
 import { useCanvasTools } from '../../composables/canvas/useCanvasTools'
 import { Hand, MousePointer2, PaintBucket } from '@lucide/vue'
+withDefaults(
+  defineProps<{
+    tools?: ('select' | 'hand' | 'paint')[]
+    orientation?: 'horizontal' | 'vertical'
+    showShortcuts?: boolean
+  }>(),
+  { tools: () => ['select', 'hand', 'paint'], orientation: 'vertical', showShortcuts: true }
+)
 const { selected, active } = useCanvasTools()
 </script>
 
 <template>
   <div
-    class="flex flex-col gap-2 rounded-lg bg-surface p-1"
+    :class="orientation === 'horizontal' ? 'flex-row' : 'flex-col'"
+    :aria-orientation="orientation"
+    class="flex gap-2 rounded-lg bg-surface p-1"
     part="toolbar"
     role="toolbar"
     :aria-label="$t('editor.tools.label')"
   >
     <button
+      v-if="tools.includes('select')"
       part="tool-button"
       :aria-label="$t('editor.tools.select')"
       :aria-pressed="active === 'select'"
@@ -24,9 +35,15 @@ const { selected, active } = useCanvasTools()
         class="size-4.5"
         aria-hidden="true"
       />
-      <kbd class="absolute bottom-0.5 right-1 text-[0.5rem]">V</kbd>
+      <kbd
+        v-if="showShortcuts"
+        class="absolute bottom-0.5 right-1 text-[0.5rem]"
+      >
+        V
+      </kbd>
     </button>
     <button
+      v-if="tools.includes('hand')"
       part="tool-button"
       :aria-label="$t('editor.tools.hand')"
       :aria-pressed="active === 'hand'"
@@ -39,9 +56,15 @@ const { selected, active } = useCanvasTools()
         class="size-4.5"
         aria-hidden="true"
       />
-      <kbd class="absolute bottom-0.5 right-1 text-[0.5rem]">␣</kbd>
+      <kbd
+        v-if="showShortcuts"
+        class="absolute bottom-0.5 right-1 text-[0.5rem]"
+      >
+        ␣
+      </kbd>
     </button>
     <button
+      v-if="tools.includes('paint')"
       part="tool-button"
       :aria-label="$t('editor.tools.paint')"
       :aria-pressed="active === 'paint'"
@@ -54,7 +77,12 @@ const { selected, active } = useCanvasTools()
         class="size-4.5"
         aria-hidden="true"
       />
-      <kbd class="absolute bottom-0.5 right-1 text-[0.5rem]">K</kbd>
+      <kbd
+        v-if="showShortcuts"
+        class="absolute bottom-0.5 right-1 text-[0.5rem]"
+      >
+        K
+      </kbd>
     </button>
   </div>
 </template>
