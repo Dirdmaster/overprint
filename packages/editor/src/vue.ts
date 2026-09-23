@@ -1,4 +1,5 @@
 import { defineComponent, getCurrentInstance, h, inject, provide, onMounted, onBeforeUnmount, shallowRef, watch, computed, readonly, type InjectionKey, type ComputedRef, type PropType } from 'vue'
+import { createEditorHistory } from './history'
 import type { EditorController, EditorDocument, EditorPart } from './index'
 import { startSession, mountPart, presentation, type Theme } from './adapters/shared'
 import { sessionProps, presentationProps } from './adapters/vueProps'
@@ -21,6 +22,20 @@ export const useEditorState = () => {
   const unsubscribe = controller.subscribeState(value => { state.value = value })
   onBeforeUnmount(unsubscribe)
   return readonly(state)
+}
+/** Destructurable readonly refs plus actions, scoped to the current root. */
+export const useEditorHistory = () => {
+  const history = createEditorHistory(useEditor())
+  const state = shallowRef(history.getState())
+  const unsubscribe = history.subscribe(() => { state.value = history.getState() })
+  onBeforeUnmount(unsubscribe)
+  return {
+    canRestore: computed(() => state.value.canRestore),
+    pending: computed(() => state.value.pending),
+    error: computed(() => state.value.error),
+    checkpoint: history.checkpoint,
+    restore: history.restore,
+  }
 }
 const events = {
   ready: (_controller: EditorController) => true,
@@ -81,7 +96,7 @@ export const Layers = part('layers')
 export const Properties = part('properties')
 export const ViewControls = part('view-controls')
 export const ZoomControls = part('zoom-controls')
-const Surface = part('editor')
+export const EditorSurface = part('editor')
 export const Editor = defineComponent({
   name: 'OverprintEditor',
   inheritAttrs: false,
@@ -94,6 +109,6 @@ export const Editor = defineComponent({
       onReady: (editor: EditorController) => emit('ready', editor),
       onChange: instance.vnode.props?.onChange ? (document: EditorDocument) => emit('change', document) : undefined,
       onError: (error: Error) => emit('error', error),
-    }, () => h(Surface, presentation(props)))
+    }, () => h(EditorSurface, presentation(props)))
   },
 })

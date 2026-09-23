@@ -1,6 +1,7 @@
 'use client'
 
-import { createContext, createElement as h, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createContext, createElement as h, useContext, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
+import { createEditorHistory } from './history'
 import type { EditorController, EditorPresentation, EditorPart, EditorViewState } from './index'
 import { startSession, mountPart, presentation, presentationKeys, type SessionProps, type Theme } from './adapters/shared'
 
@@ -25,6 +26,12 @@ export const useEditorState = (): EditorViewState => {
     return unsubscribe
   }, [controller])
   return state
+}
+/** In-memory checkpoint controls shared by children of the same EditorRoot. */
+export const useEditorHistory = () => {
+  const history = createEditorHistory(useEditor())
+  const state = useSyncExternalStore(history.subscribe, history.getState, history.getState)
+  return { ...state, checkpoint: history.checkpoint, restore: history.restore }
 }
 export const EditorRoot = (props: EditorRootProps) => {
   const latest = useRef(props)
@@ -76,5 +83,5 @@ export const Layers = part('layers')
 export const Properties = part('properties')
 export const ViewControls = part('view-controls')
 export const ZoomControls = part('zoom-controls')
-const Surface = part('editor')
-export const Editor = (props: EditorProps) => h(EditorRoot, props, h(Surface, presentation(props)))
+export const EditorSurface = part('editor')
+export const Editor = (props: EditorProps) => h(EditorRoot, props, h(EditorSurface, presentation(props)))

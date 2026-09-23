@@ -44,3 +44,6 @@ export const registerEditor = (): void => {
 
 export type { EditorPresentation } from '../../../apps/web/app/utils/editorPresentation'
 export type { EditorElement } from './elements'
+
+export { createEditorHistory } from './history'
+export type { EditorHistory, EditorHistoryState } from './history'

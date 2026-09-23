@@ -40,3 +40,20 @@ test('Vue applies the latest props when the engine finishes loading', async ({ p
   await expect(page.getByRole('img', { name: 'Framework test back board preview' })).toBeVisible()
   expect(await page.evaluate(() => (window as any).adapter.controls.at(-1).getDocument().mask)).toBe('#123456')
 })
+
+for (const framework of ['react', 'vue']) {
+  test(`${framework} checkpoint hook restores artwork and resets for a new session`, async ({ page }) => {
+    await page.goto(`/tests/frameworks.html?framework=${framework}`)
+    const restore = page.getByRole('button', { name: 'Restore checkpoint', exact: true })
+    await expect(restore).toBeDisabled()
+    await page.getByRole('button', { name: 'Add layer', exact: true }).click()
+    await page.getByRole('button', { name: 'Checkpoint', exact: true }).click()
+    await expect(restore).toBeEnabled()
+    await page.getByRole('button', { name: 'Add layer', exact: true }).click()
+    await restore.click()
+    await expect.poll(() => page.evaluate(() => (window as any).adapter.controls.at(-1).getDocument().artwork.length)).toBe(1)
+    await page.evaluate(() => (window as any).adapter.replace())
+    await expect(page.getByRole('img', { name: 'Replacement front board preview' })).toBeVisible()
+    await expect(restore).toBeDisabled()
+  })
+}

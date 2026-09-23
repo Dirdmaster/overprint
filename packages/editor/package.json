@@ -25,7 +25,8 @@
   "scripts": {
     "build": "vite build && vue-tsc -p tsconfig.json --declaration --emitDeclarationOnly",
     "typecheck": "vue-tsc -p tsconfig.json --noEmit",
-    "test": "playwright test"
+    "test": "bun run test:unit && playwright test",
+    "test:unit": "bun test tests/history.test.ts"
   },
   "dependencies": {
     "@lucide/vue": "^1.46.0",

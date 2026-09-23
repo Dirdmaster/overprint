@@ -170,3 +170,13 @@ toolbar.showShortcuts = false
 ```
 
 `EditorPresentation` and `EditorElement` are exported types. These props configure presentation, not permissions: hiding an action does not disable its keyboard shortcut or controller method. Custom `presets` change the displayed palette choices; canvas color-cycling shortcuts still use the standard palette. Color values should be six-digit hex strings. CSS tokens and `::part` remain available for visual styling.
+
+## In-memory checkpoints
+
+Inside an `EditorRoot`, `useEditorHistory()` from the React or Vue entry returns `checkpoint()`, `restore()`, `canRestore`, `pending`, and `error`. Vue exposes the three state values as readonly refs; React exposes reactive values. Multiple controls under the same root share one checkpoint. Use `EditorSurface` to put the complete editor UI under that root alongside your own controls, without creating another session.
+
+`checkpoint()` returns whether a detached document was captured. `restore()` returns a promise of whether restoration succeeded. Both report failures through `error` (a message or `null`), so button handlers need no repeated try/catch. A restore without a checkpoint returns `false`. Concurrent restores share the same promise; checkpointing during a restore returns `false`. `canRestore` is false while restoring. A failed operation retains the previous checkpoint for retry. Successful operations clear the error.
+
+Plain JavaScript uses `createEditorHistory(controller)`. Its `getState()` returns an immutable snapshot; `subscribe(listener)` returns an unsubscribe function. React and Vue handle subscriptions automatically. The helper does not create or destroy the controller.
+
+This is one checkpoint in memory, separate from undo/redo. A new controller starts empty; loading a different board into the same controller keeps the checkpoint available, including its original board. Nothing is written to disk or sent to a server. Use `getDocument()` and `restore(document)` when your host needs persistent storage.
