@@ -12,7 +12,7 @@ export default {
     if (!fixture) throw new Error('Set OVERPRINT_BOARD_FIXTURE to an absolute BoardPackage JSON path. See apps/editor-workbench/README.md.')
     const board = JSON.parse(readFileSync(resolve(fixture), 'utf8'))
     config.plugins ||= []
-    config.plugins.push(vue())
+    config.plugins.push(vue({ template: { compilerOptions: { isCustomElement: tag => tag.startsWith('overprint-') } } }))
     config.plugins.push({
       name: 'overprint-host-board',
       resolveId: id => id === 'virtual:overprint-board' ? '\0overprint-host-board' : undefined,

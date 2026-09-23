@@ -1,17 +1,26 @@
-import React, { useLayoutEffect, useRef } from 'react'
-import { createRoot } from 'react-dom/client'
-import { registerEditor } from '@overprint/editor'
+'use client'
 
+import React, { useEffect, useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+
+// Create the controller in a client host, never pass it across a server boundary.
 export function OverprintEditor({ controller }) {
   const container = useRef(null)
-  useLayoutEffect(() => {
-    registerEditor()
-    const element = document.createElement('overprint-editor')
-    element.controller = controller
-    container.current.append(element)
-    return () => element.remove()
+  const [error, setError] = useState('')
+  useEffect(() => {
+    setError('')
+    let disposed = false
+    let element
+    import('@overprint/editor').then(({ registerEditor }) => {
+      if (disposed) return
+      registerEditor()
+      element = document.createElement('overprint-editor')
+      element.controller = controller
+      container.current.append(element)
+    }).catch(error => { if (!disposed) setError(error.message) })
+    return () => { disposed = true; element?.remove() }
   }, [controller])
-  return React.createElement('div', { ref: container })
+  return React.createElement(React.Fragment, null, React.createElement('div', { ref: container }), error && React.createElement('p', { role: 'alert' }, error))
 }
 
 export function mount(target, controller) {

@@ -1,11 +1,15 @@
+import { addons, useEffect } from 'storybook/preview-api'
+import { SNIPPET_RENDERED } from 'storybook/internal/docs-tools'
+import reactCode from './examples/react.js?raw'
+import vueCode from './examples/vue.js?raw'
+import nuxtCode from './examples/ControlledEditor.client.vue?raw'
+import vanillaCode from './examples/vanilla.js?raw'
 import scenarioCode from './scenarios.js?raw'
 import { scenario } from './scenarios'
 import { expect, userEvent, waitFor } from 'storybook/test'
 let current
 export default {
-  globals: { framework: 'javascript' },
   title: 'Editor',
-  parameters: { docs: { source: { code: scenarioCode, language: 'javascript' } } },
   args: { theme: 'light', side: 'front' },
   argTypes: {
     mode: { table: { disable: true } },
@@ -13,9 +17,15 @@ export default {
     side: { control: 'inline-radio', options: ['front', 'back'] },
   },
   beforeEach: () => () => current?.destroy(),
-  render: args => {
+  render: (args, context) => {
+    const framework = context.globals.framework || 'next'
+    const source = { react: reactCode, next: reactCode, vue: vueCode, nuxt: nuxtCode, javascript: vanillaCode }[framework]
+    useEffect(() => {
+      const frame = requestAnimationFrame(() => addons.getChannel().emit(SNIPPET_RENDERED, { id: context.id, source: source + '\n\n// Host scenarios (run in the browser):\n' + scenarioCode, format: framework === 'nuxt' ? 'html' : 'javascript' }))
+      return () => cancelAnimationFrame(frame)
+    }, [context.id, framework])
     current?.destroy()
-    current = scenario(args)
+    current = scenario({ ...args, framework })
     return current.root
   },
 }
@@ -25,6 +35,7 @@ export const ArtworkAndUndo = {
   play: async ({ canvasElement }) => {
     const add = canvasElement.querySelector('nav button')
     await userEvent.click(add)
+    await waitFor(() => expect(canvasElement.querySelector('overprint-editor')?.shadowRoot?.querySelector('button')).toBeTruthy())
     const editor = canvasElement.querySelector('overprint-editor').shadowRoot
     const undo = [...editor.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === 'Undo')
     await waitFor(() => expect(undo).toBeEnabled())

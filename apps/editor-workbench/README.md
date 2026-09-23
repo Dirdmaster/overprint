@@ -23,4 +23,4 @@ Open **Frameworks → Docs** for setup and copyable framework integration code, 
 
 The **Components** section has one story per component. Choose React, Vue, Next.js, Nuxt, or JavaScript from the global toolbar. The selection persists between component stories and updates both the mounted integration and the Code panel. Controls remain specific to the component. Switching frameworks starts a fresh example session; changing component props keeps the current session.
 
-Full-editor scenarios and framework-specific integration guides keep their declared implementation and lock the framework selector accordingly.
+Editor scenarios also use the global framework selection, including both independent instances. Framework-specific integration guides keep their declared implementation and lock the selector accordingly.

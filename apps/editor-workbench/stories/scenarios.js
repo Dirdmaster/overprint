@@ -86,8 +86,12 @@ export const scenario = ({ theme = 'light', side = 'front', mode = 'board', fram
     const second = createEditor({ ...makeBoard(), name: `${makeBoard().name} · editor B` })
     const other = document.createElement('div')
     root.append(other)
-    cleanup.push(() => second.destroy(), mountEditor('vanilla', other, second))
-    other.querySelector('overprint-editor').setAttribute('data-theme', theme)
+    cleanup.push(() => second.destroy(), mountEditor(framework, other, second))
+    const applyOtherTheme = () => other.querySelector('overprint-editor')?.setAttribute('data-theme', theme)
+    applyOtherTheme()
+    const otherObserver = new MutationObserver(applyOtherTheme)
+    otherObserver.observe(other, { childList: true, subtree: true })
+    cleanup.push(() => otherObserver.disconnect())
     button('Add SVG to editor B', () => addSample(second))
   }
   if (!actions.childElementCount) { actions.remove(); status.remove() }
