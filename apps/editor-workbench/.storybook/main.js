@@ -6,6 +6,7 @@ export default {
   addons: ['@storybook/addon-docs'],
   framework: '@storybook/html-vite',
   core: { disableTelemetry: true },
+  features: { sidebarOnboardingChecklist: false },
   viteFinal(config) {
     // Real private board snapshots stay outside the distributable package.
     const fixture = process.env.OVERPRINT_BOARD_FIXTURE
