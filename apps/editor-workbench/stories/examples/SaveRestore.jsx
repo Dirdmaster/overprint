@@ -1,48 +1,36 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Editor } from '@overprint/editor/react'
+import React from 'react'
+import { EditorRoot, EditorSurface, useEditorHistory } from '@overprint/editor/react'
 
-export default function SaveRestore({ board }) {
-  const [editor, setEditor] = useState(null)
-  const [saved, setSaved] = useState(null)
-  const [status, setStatus] = useState('')
-  const save = () => {
-    setSaved(editor.getDocument())
-    setStatus('Saved in host memory')
-  }
-  const restore = async () => {
-    try {
-      await editor.restore(saved)
-      setStatus('Restored from host memory')
-    } catch (error) {
-      setStatus(error.message)
-    }
-  }
+const CheckpointControls = () => {
+  const { checkpoint, restore, canRestore, pending, error } = useEditorHistory()
   return (
-    <section>
+    <>
       <nav className="host-actions">
         <button
-          disabled={!editor}
-          onClick={save}
+          disabled={pending}
+          onClick={checkpoint}
         >
-          Save to host
+          Save checkpoint
         </button>
         <button
-          disabled={!editor || !saved}
+          disabled={!canRestore}
           onClick={restore}
         >
-          Restore host save
+          Restore checkpoint
         </button>
       </nav>
-      <output aria-live="polite">{status}</output>
-      <Editor
-        board={board}
-        onReady={(controller) => {
-          setEditor(controller)
-          setSaved(null)
-        }}
-      />
-    </section>
+      {error && <p role="alert">{error}</p>}
+    </>
+  )
+}
+
+export default function SaveRestore({ board }) {
+  return (
+    <EditorRoot board={board}>
+      <CheckpointControls />
+      <EditorSurface />
+    </EditorRoot>
   )
 }

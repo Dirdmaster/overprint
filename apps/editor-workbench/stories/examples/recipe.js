@@ -1,4 +1,4 @@
-import { createEditor, registerEditor } from '@overprint/editor'
+import { createEditor, registerEditor, createEditorHistory } from '@overprint/editor'
 
 export const mountRecipe = (host, board, mode, nextBoard = board) => {
   registerEditor()
@@ -11,8 +11,8 @@ export const mountRecipe = (host, board, mode, nextBoard = board) => {
   output.setAttribute('aria-live', 'polite')
   const run = async (action) => {
     try {
-      await action()
-      output.textContent = 'Done'
+      const succeeded = await action()
+      if (succeeded !== false) output.textContent = 'Done'
     } catch (error) {
       output.textContent = error.message
     }
@@ -24,14 +24,19 @@ export const mountRecipe = (host, board, mode, nextBoard = board) => {
     actions.append(control)
     return control
   }
+  let unsubscribe
   if (mode === 'save') {
-    let saved
-    button('Save to host', () => {
-      saved = editor.getDocument()
-      restore.disabled = false
-    })
-    const restore = button('Restore host save', () => editor.restore(saved))
-    restore.disabled = true
+    const history = createEditorHistory(editor)
+    const save = button('Save checkpoint', history.checkpoint)
+    const restore = button('Restore checkpoint', history.restore)
+    const update = () => {
+      const { canRestore, pending, error } = history.getState()
+      save.disabled = pending
+      restore.disabled = !canRestore
+      output.textContent = error || ''
+    }
+    unsubscribe = history.subscribe(update)
+    update()
   } else if (mode === 'load') {
     const input = document.createElement('input')
     input.type = 'file'
@@ -46,6 +51,7 @@ export const mountRecipe = (host, board, mode, nextBoard = board) => {
   } else button('Refresh board geometry', () => editor.replaceBoard(nextBoard))
   host.append(actions, output, element)
   return () => {
+    unsubscribe?.()
     element.remove()
     actions.remove()
     output.remove()

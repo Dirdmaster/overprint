@@ -23,3 +23,9 @@ Keep the board object stable while editing. A new object starts a fresh session.
 The default editor has a built-in height. Override `--overprint-height` in your own layout. Theme accepts `light`, `dark` or `system`; it flows from the root to parts. No global CSS import is required.
 
 JavaScript hosts can still use `createEditor` and `registerEditor` directly. That lower-level interface owns explicit cleanup.
+
+## Checkpoints without repeated state management
+
+`useEditorHistory()` exposes `checkpoint`, `restore`, `canRestore`, `pending` and `error` to controls inside `EditorRoot`. Vue returns readonly refs; React returns reactive values. Use `EditorSurface` under the same root to keep the complete editor UI. The Save And Restore recipe uses these helpers directly.
+
+This is a single in-memory checkpoint, separate from undo/redo. It is shared by controls in the same editor and resets for a new session. Plain JavaScript uses `createEditorHistory(controller)` with an explicit subscription. The host still owns persistent storage.

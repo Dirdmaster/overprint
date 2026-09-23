@@ -28,13 +28,11 @@ export default {
         : recipe[`${family}Source`]
     useEffect(() => {
       const frame = requestAnimationFrame(() =>
-        addons
-          .getChannel()
-          .emit(SNIPPET_RENDERED, {
-            id: context.id,
-            source,
-            format: family === 'vue' ? 'html' : 'jsx'
-          })
+        addons.getChannel().emit(SNIPPET_RENDERED, {
+          id: context.id,
+          source,
+          format: family === 'vue' ? 'html' : 'jsx'
+        })
       )
       return () => cancelAnimationFrame(frame)
     }, [context.id, source])
@@ -53,6 +51,16 @@ export default {
     return root
   }
 }
-export const SaveAndRestore = { args: { mode: 'save' } }
+export const SaveAndRestore = {
+  args: { mode: 'save' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'One checkpoint in memory. useEditorHistory handles snapshots, pending state and errors. This does not persist data to storage.'
+      }
+    }
+  }
+}
 export const LoadBoard = { args: { mode: 'load' } }
 export const RefreshBoard = { args: { mode: 'refresh' } }
