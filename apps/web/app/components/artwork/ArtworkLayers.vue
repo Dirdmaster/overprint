@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useLayerDrag } from '../../composables/artwork/useLayerDrag'
+import { useArtwork } from '../../composables/artwork/useArtwork'
+import ArtworkAlignment from './ArtworkAlignment.vue'
+import { computed, watch } from 'vue'
 import {
   Eye,
   EyeOff,
@@ -12,8 +16,8 @@ import {
   ChevronDown,
   ChevronRight
 } from '@lucide/vue'
-import { artworkRows } from '~/utils/artwork'
-import type { AlignmentBounds } from '~/utils/artworkAlignment'
+import { artworkRows } from '../../utils/artwork'
+import type { AlignmentBounds } from '../../utils/artworkAlignment'
 const props = defineProps<{ side: string; bounds: AlignmentBounds }>()
 const {
   items,

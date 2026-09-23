@@ -1,0 +1,8 @@
+<script>
+  const landingUrl = new URL(window.location.href)
+  const selectedPath = landingUrl.searchParams.get('path')
+  if (!selectedPath || selectedPath === '/') {
+    landingUrl.searchParams.set('path', '/docs/getting-started--docs')
+    window.history.replaceState(window.history.state, '', landingUrl)
+  }
+</script>

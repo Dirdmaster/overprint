@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { Plus, FolderPlus, ImagePlus } from '@lucide/vue'
-import type { BoardPackage } from '~/utils/boardPackage'
-const props = defineProps<{ board: BoardPackage; side: string }>()
-const { create, canAdd } = useArtwork()
+import BoardLayers from './BoardLayers.vue'
+import BoardProperties from '../board/BoardProperties.vue'
+import type { EditorPresentation } from '../../utils/editorPresentation'
+import type { BoardPackage } from '../../utils/boardPackage'
+withDefaults(defineProps<{ board: BoardPackage; side: string; ui?: EditorPresentation }>(), {
+  ui: () => ({})
+})
 defineEmits<{ importGraphic: [] }>()
 const silk = defineModel<boolean>('silk', { required: true })
 const fabrication = defineModel<boolean>('fabrication', { required: true })
 const mask = defineModel<string>('mask', { required: true })
-const layerActions = [
-  { kind: 'layer', label: 'Add layer', icon: Plus },
-  { kind: 'folder', label: 'Add folder', icon: FolderPlus }
-] as const
 </script>
 <template>
   <aside
@@ -19,44 +18,15 @@ const layerActions = [
   >
     <header class="shrink-0 border-b border-line"><slot name="header" /></header>
     <div class="min-h-0 overflow-y-auto">
-      <section class="border-b border-line pb-6">
-        <header class="flex h-12 items-center justify-between border-b border-line px-4">
-          <h2 class="font-medium">Layers</h2>
-          <div class="flex items-center text-muted">
-            <button
-              v-for="action in layerActions"
-              :key="action.kind"
-              :title="action.label"
-              :aria-label="action.label"
-              :disabled="!canAdd"
-              class="flex size-7 items-center justify-center rounded hover:bg-soft disabled:opacity-45"
-              @click="create(action.kind, props.side)"
-            >
-              <component
-                :is="action.icon"
-                class="size-4.5"
-              />
-            </button>
-            <button
-              title="Import graphic"
-              aria-label="Import graphic"
-              class="flex size-7 items-center justify-center rounded hover:bg-soft"
-              @click="$emit('importGraphic')"
-            >
-              <ImagePlus class="size-4.5" />
-            </button>
-          </div>
-        </header>
-        <ArtworkLayers
-          :side="side"
-          :bounds="board.bounds"
-        />
-        <KicadLayers
-          :side="side"
-          v-model:silk="silk"
-          v-model:fabrication="fabrication"
-        />
-      </section>
+      <BoardLayers
+        :show-import="ui.showImport"
+        :show-native-layers="ui.showNativeLayers"
+        :board="board"
+        :side="side"
+        v-model:silk="silk"
+        v-model:fabrication="fabrication"
+        @import-graphic="$emit('importGraphic')"
+      />
       <BoardProperties
         :board="board"
         v-model:mask="mask"

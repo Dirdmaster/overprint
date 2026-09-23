@@ -11,17 +11,9 @@ export const parseProject = async (text: string): Promise<Composition> => {
   assertProjectSize(text)
   const p = JSON.parse(text)
   if (p.version !== 1) throw new Error('Unsupported project version.')
-  const b = p.board
+  validateProjectBoard(p.board)
   const numeric = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) < 100000
   const path = (s: unknown) => typeof s === 'string' && /^[MLZmlz\d\s.,+eE-]*$/.test(s)
-  if (!b || typeof b.name !== 'string' || !b.bounds || !['x','y','width','height'].every(k => numeric(b.bounds[k])) || b.bounds.width <= 0 || b.bounds.height <= 0 || !path(b.outline) || !path(b.holes) || !b.layers || typeof b.layers !== 'object' || !Object.values(b.layers).every(v => Array.isArray(v) && v.every(path))) throw new Error('Invalid board in project.')
-  if (b.syncSource !== undefined) {
-    const source = b.syncSource
-    if (!source || typeof source.url !== 'string' || !/^http:\/\/127\.0\.0\.1:\d+$/.test(source.url) || typeof source.boardId !== 'string' || !source.boardId || source.boardId.length > 100) throw new Error('Invalid board sync identity.')
-  }
-  if (b.browserImport !== undefined && (!b.browserImport || !Array.isArray(b.browserImport.warnings) || b.browserImport.warnings.length > 20 || !b.browserImport.warnings.every((warning: unknown) => typeof warning === 'string' && warning.length <= 500))) throw new Error('Invalid PCB import information.')
-  if (b.models !== undefined) b.models = validateBoardModels(b.models)
-  if (b.fabrication !== undefined) validateFabrication(b.fabrication)
   if (!Array.isArray(p.artwork) || p.artwork.length > MAX_ARTWORK_ITEMS + 2 || artworkCount(p.artwork) > MAX_ARTWORK_ITEMS || !['front','back'].includes(p.side) || typeof p.silk !== 'boolean' || typeof p.fabrication !== 'boolean' || !/^#[\da-f]{6}$/i.test(p.mask)) throw new Error('Invalid project settings.')
   const ids = new Set<string>()
   for (const item of p.artwork) {
@@ -46,4 +38,17 @@ export const parseProject = async (text: string): Promise<Composition> => {
     }
   }
   return p as Composition
+}
+
+export const validateProjectBoard = (b: BoardPackage): void => {
+  const numeric = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) < 100000
+  const path = (s: unknown) => typeof s === 'string' && /^[MLZmlz\d\s.,+eE-]*$/.test(s)
+  if (!b || typeof b.name !== 'string' || !b.bounds || !['x','y','width','height'].every(k => numeric(b.bounds[k as keyof typeof b.bounds])) || b.bounds.width <= 0 || b.bounds.height <= 0 || !path(b.outline) || !path(b.holes) || !b.layers || typeof b.layers !== 'object' || !Object.values(b.layers).every(v => Array.isArray(v) && v.every(path))) throw new Error('Invalid board in project.')
+  if (b.syncSource !== undefined) {
+    const source = b.syncSource
+    if (!source || typeof source.url !== 'string' || !/^http:\/\/127\.0\.0\.1:\d+$/.test(source.url) || typeof source.boardId !== 'string' || !source.boardId || source.boardId.length > 100) throw new Error('Invalid board sync identity.')
+  }
+  if (b.browserImport !== undefined && (!b.browserImport || !Array.isArray(b.browserImport.warnings) || b.browserImport.warnings.length > 20 || !b.browserImport.warnings.every((warning: unknown) => typeof warning === 'string' && warning.length <= 500))) throw new Error('Invalid PCB import information.')
+  if (b.models !== undefined) b.models = validateBoardModels(b.models)
+  if (b.fabrication !== undefined) validateFabrication(b.fabrication)
 }

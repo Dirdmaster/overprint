@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Artwork } from '~/utils/artwork'
+import { ref, shallowRef, watch, onMounted, onBeforeUnmount, useTemplateRef } from 'vue'
+import type { Artwork } from '../../utils/artwork'
 const props = defineProps<{ item: Artwork }>()
 const emit = defineEmits<{
   start: [event: PointerEvent, mode: 'resize' | 'rotate', handle?: { x: number; y: number }]

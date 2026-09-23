@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import type { BoardPackage } from '~/utils/boardPackage'
-import type { Artwork } from '~/utils/artwork'
+import { useBoardModelPreview } from '../../composables/canvas/useBoardModelPreview'
+import { useTemplateRef } from 'vue'
+import type { BoardPackage } from '../../utils/boardPackage'
+import type { Artwork } from '../../utils/artwork'
 const props = defineProps<{
   board: BoardPackage
   artwork: Artwork[]
@@ -16,7 +18,7 @@ defineExpose({ fit, zoom })
 
 <template>
   <div
-    class="absolute inset-0 md:right-84"
+    class="absolute inset-0"
     aria-label="Assembled preview"
   >
     <div

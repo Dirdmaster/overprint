@@ -7,6 +7,7 @@ if (!['standalone', 'cloudflare'].includes(target)) throw new Error(`Unknown bui
 
 for (const [command, args] of [
   [process.execPath, ['scripts/copy-plugin.mjs']],
+  [process.execPath, ['scripts/copy-integrations.mjs']],
   ['nuxt', ['build']],
 ]) {
   const result = spawnSync(command, args, {

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useArtwork } from '../../composables/artwork/useArtwork'
+import { ref, computed, watch } from 'vue'
 import {
   AlignHorizontalJustifyStart,
   AlignHorizontalJustifyCenter,
@@ -16,7 +18,7 @@ import {
   distributeArtwork,
   type Alignment,
   type AlignmentBounds
-} from '~/utils/artworkAlignment'
+} from '../../utils/artworkAlignment'
 
 const props = defineProps<{ bounds: AlignmentBounds; side: string }>()
 const { selectedArtwork, applyPositions } = useArtwork()

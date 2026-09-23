@@ -28,6 +28,43 @@ asset bundle. Tagged drafts use the corresponding package's changelog entry;
 legacy versions with no changelog retain GitHub's generated notes. When a changelog
 exists but the tagged version is missing, preparation fails rather than using stale notes.
 
+## Editor npm releases
+
+The `publish-editor.yml` workflow publishes `@overprint/editor` when an
+`editor-v<version>` tag is pushed. The tag must exactly match
+`packages/editor/package.json`. It builds declarations and bundles, runs the
+editor unit and browser tests, then publishes with provenance to npm.
+Prereleases use the `next` dist-tag; stable versions use `latest`.
+Web and KiCad release tags do not trigger npm publishing.
+
+After the first reviewed manual npm publication, configure the package's
+trusted publisher on npmjs.com with these exact values:
+
+- Provider: GitHub Actions
+- Organization or user: `Dirdmaster`
+- Repository: `overprint`
+- Workflow filename: `publish-editor.yml`
+- Environment: leave blank
+- Allow direct publishing with `npm publish` if that option is shown.
+
+No npm token secret is required. The workflow uses a GitHub-hosted runner,
+OIDC permission and npm 11.5.1. See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
+The workflow must be present on the tagged commit. Configure trust before
+pushing the first automated release tag. Do not tag the version already
+published manually: npm versions cannot be overwritten.
+
+Before the first manual publish, build and test the package and inspect
+`npm pack --dry-run` from `packages/editor`. Publish only the approved package
+contents, using `npm publish --access public --tag next` for the initial alpha.
+The npm account must have publishing permission for the `@overprint` scope.
+
+For subsequent releases, review and commit the editor version, changelog and
+lockfile before pushing the matching tag. Pushing the tag publishes immediately
+after checks pass; it does not create a draft. The repository's publication
+approval rule therefore applies to the release tag push too. This workflow does
+not configure npm trust or extend the existing automated Changesets release PR
+to include editor version/changelog files.
+
 ## Build a source candidate
 
 ```sh

@@ -1,0 +1,31 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+
+<Meta title="Getting started" />
+
+# Use Overprint in your application
+
+Choose your framework in the toolbar. **Editor / Playground** and each component's **Code** panel show consumer code for that selection. The preview mounts the actual packaged adapter.
+
+React and Next use `@overprint/editor/react`. Vue and Nuxt use `@overprint/editor/vue`. Pass your `BoardPackage` as `board`. The package handles mounting, cleanup and browser initialization, and includes its styles. No wrapper component or manual element registration is required.
+
+Next server pages can pass serializable board data to the packaged client component. Put callbacks and hooks in a client parent. Vue and Nuxt can import the Vue component normally; it initializes after mounting. Storybook itself is a browser preview, not an SSR environment.
+
+## Compose your interface
+
+Use `EditorRoot` with `Canvas`, `Toolbar`, `Palette`, `Layers`, `Properties`, `ViewControls` and `ZoomControls`. Each part takes presentation props directly. One root owns one editing session and supports one canvas. Custom controls use `useEditor()` for actions and `useEditorState()` for reactive state. Vue returns the state as a readonly ref.
+
+## Host responsibilities
+
+You supply board data and choose persistence. `ready` provides a controller, `change` provides a document snapshot, and `error` reports initialization failures. React uses `onReady`, `onChange` and `onError`; Vue uses `@ready`, `@change` and `@error`.
+
+Keep the board object stable while editing. A new object starts a fresh session. For geometry updates that preserve artwork, use `controller.replaceBoard(nextBoard)` with matching bounds. Use `controller.loadBoard(file)` to import a new PCB locally. Integration recipes demonstrate these workflows.
+
+The default editor has a built-in height. Override `--overprint-height` in your own layout. Theme accepts `light`, `dark` or `system`; it flows from the root to parts. No global CSS import is required.
+
+JavaScript hosts can still use `createEditor` and `registerEditor` directly. That lower-level interface owns explicit cleanup.
+
+## Checkpoints without repeated state management
+
+`useEditorHistory()` exposes `checkpoint`, `restore`, `canRestore`, `pending` and `error` to controls inside `EditorRoot`. Vue returns readonly refs; React returns reactive values. Use `EditorSurface` under the same root to keep the complete editor UI. The Save And Restore recipe uses these helpers directly.
+
+This is a single in-memory checkpoint, separate from undo/redo. It is shared by controls in the same editor and resets for a new session. Plain JavaScript uses `createEditorHistory(controller)` with an explicit subscription. The host still owns persistent storage.

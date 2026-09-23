@@ -1,0 +1,12 @@
+.component-story { padding: 1.5rem; display: flex; flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+.component-story overprint-layers,
+.component-story overprint-properties { width: 19rem; max-width: 100%; }
+.component-story overprint-view-controls { width: 19rem; max-width: 100%; }
+.component-story overprint-zoom-controls { width: 12rem; }
+.component-story overprint-canvas { width: 100%; --overprint-height: 36rem; }
+.component-story-canvas { padding: 0; }
+
+.component-mount { display: contents; }
+
+.component-story-editor { display: block; padding: 0; }
+.component-mount > div { display: contents; }

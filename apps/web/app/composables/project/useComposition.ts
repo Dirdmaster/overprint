@@ -1,11 +1,13 @@
-import type { BoardPackage } from '~/utils/boardPackage'
+import { useArtwork } from '../artwork/useArtwork'
+import { useEditorRef } from '../editor/editorState'
+import type { BoardPackage } from '../../utils/boardPackage'
 
 export const useComposition = () => {
-  const board = useState<BoardPackage | undefined>('composition-board', () => undefined)
-  const side = useState('composition-side', () => 'front')
-  const silk = useState('composition-silk', () => true)
-  const maskColor = useState('composition-mask', () => '#202723')
-  const components = useState('composition-fabrication', () => false)
+  const board = useEditorRef<BoardPackage | undefined>('composition-board', () => undefined)
+  const side = useEditorRef('composition-side', () => 'front')
+  const silk = useEditorRef('composition-silk', () => true)
+  const maskColor = useEditorRef('composition-mask', () => '#202723')
+  const components = useEditorRef('composition-fabrication', () => false)
   const { reset } = useArtwork()
   const openBoard = (next: BoardPackage) => {
     reset()

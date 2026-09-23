@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useLivePaint } from '../../composables/artwork/useLivePaint'
+import { useNativeSilk } from '../../composables/artwork/useNativeSilk'
+import { useArtwork } from '../../composables/artwork/useArtwork'
+import ColorSwatchPicker from '../color/ColorSwatchPicker.vue'
+import { ref, computed } from 'vue'
 import {
   ChevronDown,
   ChevronRight,
@@ -9,7 +14,7 @@ import {
   Ruler,
   LockKeyhole
 } from '@lucide/vue'
-import { nativeSilkId, nativeSilkSettings } from '~/utils/nativeSilk'
+import { nativeSilkId, nativeSilkSettings } from '../../utils/nativeSilk'
 const props = defineProps<{ side: string }>()
 const silk = defineModel<boolean>('silk', { required: true })
 const fabrication = defineModel<boolean>('fabrication', { required: true })
