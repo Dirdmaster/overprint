@@ -4,10 +4,12 @@ Storybook runs the built `@overprint/editor` package with a real board. React an
 
 ```sh
 bun run --cwd packages/editor build
-OVERPRINT_BOARD_FIXTURE=/absolute/path/board.json bun run --cwd apps/editor-workbench storybook
+bun run --cwd apps/editor-workbench storybook
 ```
 
-Supply a real BoardPackage JSON snapshot. Fixtures stay outside the package and repository. The same environment variable is required for `build:storybook`; its output includes the fixture geometry, so review it before publishing. The local LoRa development card snapshot is private. Its raw KiCad file exceeds the current browser parser bound; the pre-extracted host snapshot works.
+The default fixture is the owner-approved public LoRa development card snapshot in `fixtures/loracard.json`; see its provenance and limits in `fixtures/README.md`. Its raw KiCad file exceeds the current browser parser bound; the pre-extracted host snapshot works.
+
+For local testing, set `OVERPRINT_BOARD_FIXTURE=/absolute/path/board.json` to use another BoardPackage snapshot. Static Storybook output embeds the selected board geometry and artwork. Do not publish a build made with a private override.
 
 - **Getting started:** package setup, props, events and session ownership.
 - **Editor / Playground:** full editor, with theme, side and grid controls.
