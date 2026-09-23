@@ -51,6 +51,7 @@ jobs:
       - run: bun run typecheck
       - run: bun run test:server
       - run: bun run test:ops
+      - run: node --test scripts/editor-release.test.mjs
       - name: Check plugin Python syntax
         run: python3 -m compileall -q packages/kicad/overprint_export
       - run: bunx --no-install playwright install --with-deps chromium

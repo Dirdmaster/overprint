@@ -3,6 +3,16 @@
   "version": "0.1.0-alpha.0",
   "type": "module",
   "license": "MIT",
+  "description": "Embeddable PCB artwork editor with customizable components for React, Vue, Next.js, Nuxt, and vanilla JavaScript.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dirdmaster/overprint.git",
+    "directory": "packages/editor"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "files": [
     "dist",
     "README.md",
