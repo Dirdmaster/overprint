@@ -16,6 +16,10 @@
     "./react": {
       "types": "./dist/types/packages/editor/src/react.d.ts",
       "import": "./dist/react.js"
+    },
+    "./vue": {
+      "types": "./dist/types/packages/editor/src/vue.d.ts",
+      "import": "./dist/vue.js"
     }
   },
   "scripts": {

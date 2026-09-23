@@ -16,6 +16,22 @@ The package owns registration, mounting and cleanup. No stylesheet import is req
 
 For custom layouts, wrap named parts in `EditorRoot board={board}`: `Canvas`, `Toolbar`, `Palette`, `Layers`, `Properties`, `ViewControls`, `ZoomControls`. One root supports one canvas. Children render after the session is ready. Custom controls use `useEditor()` for actions and `useEditorState()` for reactive state; both must be inside the root. Theme flows from the root and can be overridden per part. Parts accept presentation props directly.
 
+## Vue and Nuxt
+
+```vue
+<script setup lang="ts">
+import { Editor } from '@overprint/editor/vue'
+import type { BoardPackage } from '@overprint/editor'
+defineProps<{ board: BoardPackage }>()
+</script>
+
+<template>
+  <Editor :board="board" theme="dark" />
+</template>
+```
+
+The Vue entry is safe to import and render on the server, including in Nuxt. It initializes after mounting; no copied `.client.vue` wrapper or `ClientOnly` is needed. Events are `@ready`, `@change` and `@error`. Named parts and `EditorRoot` match the React entry. In a child of the root, `useEditor()` returns the controller and `useEditorState()` returns a readonly reactive snapshot ref. Browser children appear after initialization.
+
 ## Plain JavaScript
 
 ```ts

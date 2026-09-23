@@ -7,5 +7,5 @@ export default defineConfig({
   resolve: { alias: { '~': fileURLToPath(new URL('../../apps/web/app', import.meta.url)) } },
   define: { __VUE_OPTIONS_API__: true, __VUE_PROD_DEVTOOLS__: false, __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false },
   worker: { format: 'es' },
-  build: { lib: { entry: { editor: 'src/index.ts', react: 'src/react.ts' }, formats: ['es'], fileName: (_format, name) => `${name}.js` }, rollupOptions: { external: ['react'] } },
+  build: { lib: { entry: { editor: 'src/index.ts', react: 'src/react.ts', vue: 'src/vue.ts' }, formats: ['es'], fileName: (_format, name) => `${name}.js` }, rollupOptions: { external: ['react', 'vue'] } },
 })
