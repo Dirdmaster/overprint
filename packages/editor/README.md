@@ -58,7 +58,7 @@ editor.destroy()
 
 Set the `controller` DOM property before attaching the element. Each mounted editor needs its own controller. Theme accepts `light`, `dark`, or `system`. Styles live in a shadow root; the host does not need global CSS. The browser registration and mount should happen in a client lifecycle hook when using SSR.
 
-The host supplies a `BoardPackage` and owns storage, authentication, and exports. `getDocument()` returns a detached, JSON-serializable Overprint composition. `await editor.restore(document)` validates and restores it, clearing undo history. Subscribe notifications signal document changes; call `getDocument()` when a snapshot is needed.
+The host supplies a `BoardPackage` and owns storage, authentication, and exports. `getDocument()` returns a detached, JSON-serializable Overprint composition. `await editor.restore(document)` validates and restores it, clearing undo history. It returns `true` when applied or `false` if disposal or a newer board operation cancels it; invalid documents still reject. Subscribe notifications signal document changes; call `getDocument()` when a snapshot is needed.
 
 - `await editor.loadBoard(file)` imports `.kicad_pcb` or an Overprint board ZIP locally, resetting artwork. A newer import cancels the older import.
 - `editor.replaceBoard(board)` refreshes geometry while preserving artwork and history. Coordinate bounds must match; otherwise load a new board.
@@ -175,7 +175,7 @@ toolbar.showShortcuts = false
 
 Inside an `EditorRoot`, `useEditorHistory()` from the React or Vue entry returns `checkpoint()`, `restore()`, `canRestore`, `pending`, and `error`. Vue exposes the three state values as readonly refs; React exposes reactive values. Multiple controls under the same root share one checkpoint. Use `EditorSurface` to put the complete editor UI under that root alongside your own controls, without creating another session.
 
-`checkpoint()` returns whether a detached document was captured. `restore()` returns a promise of whether restoration succeeded. Both report failures through `error` (a message or `null`), so button handlers need no repeated try/catch. A restore without a checkpoint returns `false`. Concurrent restores share the same promise; checkpointing during a restore returns `false`. `canRestore` is false while restoring. A failed operation retains the previous checkpoint for retry. Successful operations clear the error.
+`checkpoint()` returns whether a detached document was captured. `restore()` returns a promise of whether restoration succeeded. Both report failures through `error` (a message or `null`), so button handlers need no repeated try/catch. A restore without a checkpoint returns `false`. Concurrent restores share the same promise; checkpointing during a restore returns `false`. `canRestore` is false while restoring. A failed or cancelled operation reports an error and retains the previous checkpoint for retry. Successful operations clear the error.
 
 Plain JavaScript uses `createEditorHistory(controller)`. Its `getState()` returns an immutable snapshot; `subscribe(listener)` returns an unsubscribe function. React and Vue handle subscriptions automatically. The helper does not create or destroy the controller.
 

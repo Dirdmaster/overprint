@@ -1,4 +1,4 @@
-import { createEditor, registerEditor } from '../dist/editor.js'
+import { createEditor, registerEditor, createEditorHistory } from '../dist/editor.js'
 registerEditor()
 const board = { name: 'Interaction test', bounds: { x: 0, y: 0, width: 40, height: 30 },
   outline: 'M0 0 L40 0 L40 30 L0 30 Z', holes: '', layers: {
@@ -30,4 +30,4 @@ if (parts) {
   document.body.append(output)
   controllers[0].subscribeState(state => { output.textContent = state.activeTool })
 }
-Object.assign(window, { controllers })
+Object.assign(window, { controllers, createEditorHistory })

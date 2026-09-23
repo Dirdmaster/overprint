@@ -88,3 +88,24 @@ test('the bundled worker imports a PCB and resets artwork without affecting anot
   }, source)
   expect(result).toEqual({ name: 'Imported', artwork: [], isolated: true })
 })
+
+for (const interrupt of ['replace', 'dispose']) {
+  test(`checkpoint restore reports cancellation after ${interrupt}`, async ({ page }) => {
+    await page.goto('/tests/index.html')
+    const result = await page.evaluate(async interrupt => {
+      const { controllers, createEditorHistory } = window as any
+      const editor = controllers[0]
+      const history = createEditorHistory(editor)
+      history.checkpoint()
+      const pending = history.restore()
+      // Let restore start parsing before invalidating its generation.
+      await Promise.resolve()
+      if (interrupt === 'replace') editor.replaceBoard(editor.getDocument().board)
+      else editor.destroy()
+      return { applied: await pending, state: history.getState() }
+    }, interrupt)
+    expect(result.applied).toBe(false)
+    expect(result.state.pending).toBe(false)
+    expect(result.state.error).toBe('Checkpoint restore was cancelled.')
+  })
+}

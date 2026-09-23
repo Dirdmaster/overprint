@@ -54,10 +54,10 @@ export const createEditorHistory = (editor: DocumentAccess): EditorHistory => {
       active = Promise.resolve()
         .then(() => editor.restore(document))
         .then(
-          () => {
+          (applied) => {
             active = undefined
-            update(false)
-            return true
+            update(false, applied ? null : 'Checkpoint restore was cancelled.')
+            return applied
           },
           (error) => {
             active = undefined

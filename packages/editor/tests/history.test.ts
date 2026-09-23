@@ -10,6 +10,7 @@ describe('editor checkpoints', () => {
       getDocument: () => structuredClone(current),
       restore: async (value: EditorDocument) => {
         current = structuredClone(value)
+        return true
       }
     }
     const history = createEditorHistory(editor)
@@ -28,10 +29,10 @@ describe('editor checkpoints', () => {
       getDocument: () => document('saved'),
       restore: () =>
         fail
-          ? new Promise<void>((_, no) => {
+          ? new Promise<boolean>((_, no) => {
               reject = no
             })
-          : Promise.resolve()
+          : Promise.resolve(true)
     }
     const history = createEditorHistory(editor)
     history.checkpoint()
@@ -58,7 +59,7 @@ describe('editor checkpoints', () => {
         if (fail) throw new Error('Disposed')
         return document('saved')
       },
-      restore: async () => {}
+      restore: async () => true
     })
     let updates = 0
     const unsubscribe = history.subscribe(() => updates++)

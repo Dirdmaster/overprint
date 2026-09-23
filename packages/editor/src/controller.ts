@@ -19,7 +19,7 @@ export interface EditorController extends EditorControls {
   subscribe(listener: () => void): () => void
   loadBoard(file: File): Promise<void>
   replaceBoard(board: BoardPackage): void
-  restore(document: EditorDocument): Promise<void>
+  restore(document: EditorDocument): Promise<boolean>
   addGraphic(file: File): Promise<void>
   undo(): void
   redo(): void
@@ -83,9 +83,10 @@ export const createEditor = (board: BoardPackage, options: EditorOptions = {}): 
     async restore(document) {
       live(); const nextGeneration = ++generation
       const parsed = await parseProject(JSON.stringify(document))
-      if (!session.alive.value || generation !== nextGeneration) return
+      if (!session.alive.value || generation !== nextGeneration) return false
       request?.abort(); a.reset(); c.board.value = parsed.board; a.items.value = parsed.artwork
       c.side.value = parsed.side; c.silk.value = parsed.silk; c.maskColor.value = parsed.mask; c.components.value = parsed.fabrication
+      return true
     },
     async addGraphic(file) {
       live(); const current = generation
