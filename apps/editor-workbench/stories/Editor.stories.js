@@ -1,10 +1,7 @@
 import { addons, useEffect } from 'storybook/preview-api'
 import { SNIPPET_RENDERED } from 'storybook/internal/docs-tools'
-import reactCode from './examples/react.js?raw'
-import vueCode from './examples/vue.js?raw'
-import nuxtCode from './examples/ControlledEditor.client.vue?raw'
-import vanillaCode from './examples/vanilla.js?raw'
-import scenarioCode from './scenarios.js?raw'
+import { editorSource } from './editorSource'
+import { saveScenario } from './saveScenario'
 import { scenario } from './scenarios'
 import { expect, userEvent, waitFor } from 'storybook/test'
 let current
@@ -19,13 +16,13 @@ export default {
   beforeEach: () => () => current?.destroy(),
   render: (args, context) => {
     const framework = context.globals.framework || 'next'
-    const source = { react: reactCode, next: reactCode, vue: vueCode, nuxt: nuxtCode, javascript: vanillaCode }[framework]
+    const source = editorSource(framework, args.mode)
     useEffect(() => {
-      const frame = requestAnimationFrame(() => addons.getChannel().emit(SNIPPET_RENDERED, { id: context.id, source: source + '\n\n// Host scenarios (run in the browser):\n' + scenarioCode, format: framework === 'nuxt' ? 'html' : 'javascript' }))
+      const frame = requestAnimationFrame(() => addons.getChannel().emit(SNIPPET_RENDERED, { id: context.id, source: source.code, format: source.language }))
       return () => cancelAnimationFrame(frame)
-    }, [context.id, framework])
+    }, [context.id, source.code, source.language])
     current?.destroy()
-    current = scenario({ ...args, framework })
+    current = (args.mode === 'save' ? saveScenario : scenario)({ ...args, framework })
     return current.root
   },
 }
