@@ -6,5 +6,9 @@ export default {
     },
   },
   initialGlobals: { framework: 'next' },
-  parameters: { layout: 'fullscreen', docs: { codePanel: true, source: { type: 'code' } } },
+  parameters: {
+    layout: 'fullscreen',
+    docs: { codePanel: true, source: { type: 'code' } },
+    options: { storySort: { order: ['Getting started', 'Editor', 'Components', 'Integration', 'Customization'] } },
+  },
 }
