@@ -2,6 +2,22 @@
 
 The Overprint editor as a framework-independent web component. It uses the same editor components and state model as the standalone app, including SVG artwork, layers and folders, transforms and alignment, native silkscreen Live Paint, board colors, front/back controls, and optional 3D geometry.
 
+## React and Next.js
+
+```tsx
+import { Editor } from '@overprint/editor/react'
+
+<Editor board={board} theme="dark" />
+```
+
+The package owns registration, mounting and cleanup. No stylesheet import is required; the default editor height is built in and can be overridden with `--overprint-height` on the component's `style`. Next can import the component from a server page with serializable board data. Use a client parent for callbacks or hooks.
+
+`onReady(controller)`, `onChange(document)` and `onError(error)` connect host behavior. `onChange` creates a detached document snapshot only when supplied. Pass stable board data: a new board object starts a new session and clears artwork/history. Presentation props update the existing session. Use controller `replaceBoard` for geometry refresh without losing artwork.
+
+For custom layouts, wrap named parts in `EditorRoot board={board}`: `Canvas`, `Toolbar`, `Palette`, `Layers`, `Properties`, `ViewControls`, `ZoomControls`. One root supports one canvas. Children render after the session is ready. Custom controls use `useEditor()` for actions and `useEditorState()` for reactive state; both must be inside the root. Theme flows from the root and can be overridden per part. Parts accept presentation props directly.
+
+## Plain JavaScript
+
 ```ts
 import { createEditor, registerEditor, type BoardPackage } from '@overprint/editor'
 
