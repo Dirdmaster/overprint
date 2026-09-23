@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build:storybook": "storybook build --disable-telemetry --output-dir dist",
-    "storybook": "storybook dev --host 127.0.0.1 -p 43742 --no-open --disable-telemetry"
+    "storybook": "storybook dev --host 127.0.0.1 -p 43742 --no-open --disable-telemetry",
+    "build": "storybook build --disable-telemetry --output-dir dist"
   },
   "dependencies": {
     "@overprint/editor": "workspace:*",

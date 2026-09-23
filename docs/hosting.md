@@ -71,6 +71,24 @@ After deployment, verify one synthetic ZIP reaches JLCPCB from Cloudflare's prod
 
 The relay allows 20 MB per ZIP and times out after 60 seconds. Standalone admits four simultaneous uploads and can queue up to 80 MB of ZIP data in memory, plus runtime overhead.
 
+## Integration documentation
+
+Website builds include Storybook at `/integrations/`. Opening `/integrations`
+redirects to the trailing-slash path while preserving story and framework query
+parameters. Storybook assets and its preview run under this path on the same
+origin as the website.
+
+The workspace build first builds the editor package and Storybook, then copies
+the resulting static files into the web app before Nuxt builds either target.
+The default demo is the public LoRa snapshot documented in
+`apps/editor-workbench/fixtures/README.md`. No private fixture or environment
+variable is needed in CI or Pages settings. Generated website assets are ignored
+by Git and refreshed on every web build.
+
+For a local website preview, use `bun start` and open
+`http://127.0.0.1:4317/integrations/`. For Storybook development alone, use
+`bun run --cwd apps/editor-workbench storybook` after building the editor.
+
 ## Runtime checks
 
 ```sh

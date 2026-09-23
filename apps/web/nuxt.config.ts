@@ -27,7 +27,7 @@ export default defineNuxtConfig({
     ...(target ? { output: { dir: fileURLToPath(new URL(`./.output/${target}`, import.meta.url)) } } : {}),
     ...(target === 'cloudflare' ? {
       entry: fileURLToPath(new URL('./server/cloudflare.ts', import.meta.url)),
-      cloudflare: { nodeCompat: true },
+      cloudflare: { nodeCompat: true, pages: { routes: { exclude: ['/integrations', '/integrations/*'] } } },
     } : {}),
   },
   runtimeConfig: {

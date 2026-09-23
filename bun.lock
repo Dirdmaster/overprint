@@ -43,6 +43,7 @@
       },
       "devDependencies": {
         "@cloudflare/workers-types": "^5.20260916.1",
+        "@overprint/editor-workbench": "workspace:*",
         "@overprint/kicad": "workspace:*",
         "@playwright/test": "^1.63.0",
         "@tailwindcss/vite": "^4.3.3",

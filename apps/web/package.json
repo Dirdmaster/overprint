@@ -43,7 +43,8 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9.3",
     "vue-tsc": "^3.3.11",
-    "wrangler": "^4.132.0"
+    "wrangler": "^4.132.0",
+    "@overprint/editor-workbench": "workspace:*"
   },
   "license": "MIT",
   "version": "0.1.0-alpha.1"

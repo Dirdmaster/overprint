@@ -12,7 +12,8 @@
         ".output/standalone/**",
         "dist/**",
         "public/downloads/overprint-kicad.zip",
-        "public/pcm/**"
+        "public/pcm/**",
+        "public/integrations/**"
       ],
       "passThroughEnv": [
         "PATH"
@@ -30,7 +31,8 @@
       "outputs": [
         ".output/cloudflare/**",
         "public/downloads/overprint-kicad.zip",
-        "public/pcm/**"
+        "public/pcm/**",
+        "public/integrations/**"
       ],
       "inputs": [
         "$TURBO_DEFAULT$",
