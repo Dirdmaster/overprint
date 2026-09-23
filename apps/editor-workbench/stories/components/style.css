@@ -7,3 +7,6 @@
 .component-story-canvas { padding: 0; }
 
 .component-mount { display: contents; }
+
+.component-story-editor { display: block; padding: 0; }
+.component-mount > div { display: contents; }

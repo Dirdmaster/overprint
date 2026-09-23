@@ -1,58 +1,25 @@
-import { Meta, Source } from '@storybook/addon-docs/blocks'
-import * as Frameworks from './Frameworks.stories'
+import { Meta } from '@storybook/addon-docs/blocks'
 
-<Meta of={Frameworks} />
+<Meta title="Getting started" />
 
-# Framework integration
+# Use Overprint in your application
 
-Each example below is the actual mounting code used by its live story. Select a story and open the **Code** panel to see and copy its source beside the editor.
+Choose your framework in the toolbar. **Editor / Playground** and each component's **Code** panel show consumer code for that selection. The preview mounts the actual packaged adapter.
 
-The host creates a controller from its board data and owns persistence. Mounting and unmounting the view is separate from destroying the controller.
+React and Next use `@overprint/editor/react`. Vue and Nuxt use `@overprint/editor/vue`. Pass your `BoardPackage` as `board`. The package handles mounting, cleanup and browser initialization, and includes its styles. No wrapper component or manual element registration is required.
 
-```js
-import { createEditor } from '@overprint/editor'
-import { mount } from './vue.js' // or react.js / vanilla.js below
+Next server pages can pass serializable board data to the packaged client component. Put callbacks and hooks in a client parent. Vue and Nuxt can import the Vue component normally; it initializes after mounting. Storybook itself is a browser preview, not an SSR environment.
 
-const controller = createEditor(board, { mask: '#161616' })
-const unmount = mount(document.querySelector('#editor'), controller)
+## Compose your interface
 
-// Host save / restore:
-const saved = controller.getDocument()
-await controller.restore(saved)
+Use `EditorRoot` with `Canvas`, `Toolbar`, `Palette`, `Layers`, `Properties`, `ViewControls` and `ZoomControls`. Each part takes presentation props directly. One root owns one editing session and supports one canvas. Custom controls use `useEditor()` for actions and `useEditorState()` for reactive state. Vue returns the state as a readonly ref.
 
-// When the host is finished with this editor:
-unmount()
-controller.destroy()
-```
+## Host responsibilities
 
-## Vue
+You supply board data and choose persistence. `ready` provides a controller, `change` provides a document snapshot, and `error` reports initialization failures. React uses `onReady`, `onChange` and `onError`; Vue uses `@ready`, `@change` and `@error`.
 
-<Source of={Frameworks.Vue} />
+Keep the board object stable while editing. A new object starts a fresh session. For geometry updates that preserve artwork, use `controller.replaceBoard(nextBoard)` with matching bounds. Use `controller.loadBoard(file)` to import a new PCB locally. Integration recipes demonstrate these workflows.
 
-## React
+The default editor has a built-in height. Override `--overprint-height` in your own layout. Theme accepts `light`, `dark` or `system`; it flows from the root to parts. No global CSS import is required.
 
-<Source of={Frameworks.React} />
-
-## Plain JavaScript
-
-<Source of={Frameworks.PlainJavaScript} />
-
-## Next.js (App Router)
-
-Pass serializable board data from the server page to this client component. It imports the editor after hydration and disposes it on unmount or board replacement. Save and restore here use host memory; connect them to your own persistence as needed.
-
-The live story runs this same client component in React Strict Mode. The page example shows where to mount it in a Next.js application.
-
-<Source of={Frameworks.NextJs} />
-
-See the [Next.js client boundary documentation](https://nextjs.org/docs/app/api-reference/directives/use-client).
-
-## Nuxt
-
-Place the client component in `app/components/OverprintEditor.client.vue` and the page in `app/pages/index.vue` for Nuxt 4. For Nuxt 3's default layout, use `components/` and `pages/` instead. Supply your BoardPackage JSON in the page's `~/data/board.json`.
-
-The live story mounts the same Vue component. Nuxt's page uses auto-imports and `ClientOnly`; the editor initializes after mount. Board replacement resets the editor and its in-memory save. Unmounting disposes the controller and any pending initialization.
-
-<Source of={Frameworks.Nuxt} />
-
-See the [Nuxt client-component documentation](https://nuxt.com/docs/4.x/directory-structure/app/components#client-components).
+JavaScript hosts can still use `createEditor` and `registerEditor` directly. That lower-level interface owns explicit cleanup.
