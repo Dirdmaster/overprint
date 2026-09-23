@@ -8,7 +8,7 @@ const controls: any[] = []
 let changes = 0
 let app: { unmount: () => void; render?: ReturnType<typeof createRoot>['render'] }
 const framework = new URLSearchParams(location.search).get('framework') || 'react'
-const vueProps = shallowRef({ board, grid: true })
+const vueProps = shallowRef({ board, grid: true, side: 'front', mask: '#161616' })
 const VueCustom = defineComponent({ setup() {
   const editor = VueEditor.useEditor()
   const state = VueEditor.useEditorState()
@@ -20,13 +20,13 @@ const Custom = () => {
   const state = useEditorState()
   return h('button', { onClick: () => editor.setTool('paint') }, `Custom ${state.tool}`)
 }
-const render = (grid = true) => framework === 'vue' ? (vueProps.value = { board: currentBoard, grid }) : app.render!(h(StrictMode, null, h(EditorRoot, { board: currentBoard, onReady: (editor: any) => controls.push(editor), onChange: () => changes++ }, h(Custom), h(Toolbar, { orientation: 'horizontal' }), h(Canvas, { grid }), h(Layers))))
+const render = (grid = true) => framework === 'vue' ? (vueProps.value = { ...vueProps.value, board: currentBoard, grid }) : app.render!(h(StrictMode, null, h(EditorRoot, { board: currentBoard, onReady: (editor: any) => controls.push(editor), onChange: () => changes++ }, h(Custom), h(Toolbar, { orientation: 'horizontal' }), h(Canvas, { grid }), h(Layers))))
 const mount = () => {
   if (framework === 'vue') {
-    const vue = createApp({ render: () => vh(VueEditor.EditorRoot, { board: vueProps.value.board, onReady: (editor: any) => controls.push(editor), onChange: () => changes++ }, () => [vh(VueCustom), vh(VueEditor.Toolbar, { orientation: 'horizontal' }), vh(VueEditor.Canvas, { grid: vueProps.value.grid }), vh(VueEditor.Layers)]) })
+    const vue = createApp({ render: () => vh(VueEditor.EditorRoot, { board: vueProps.value.board, side: vueProps.value.side, mask: vueProps.value.mask, onReady: (editor: any) => controls.push(editor), onChange: () => changes++ }, () => [vh(VueCustom), vh(VueEditor.Toolbar, { orientation: 'horizontal' }), vh(VueEditor.Canvas, { grid: vueProps.value.grid }), vh(VueEditor.Layers)]) })
     app = vue; vue.mount('#host')
   } else app = createRoot(document.querySelector('#host')!)
   render()
 }
 mount()
-Object.assign(window, { adapter: { controls, render, unmount: () => app.unmount(), mount, changes: () => changes, replace: () => { currentBoard = { ...board, name: 'Replacement' }; render() } } })
+Object.assign(window, { adapter: { controls, render, configure: () => { vueProps.value = { ...vueProps.value, side: 'back', mask: '#123456' } }, unmount: () => app.unmount(), mount, changes: () => changes, replace: () => { currentBoard = { ...board, name: 'Replacement' }; render() } } })

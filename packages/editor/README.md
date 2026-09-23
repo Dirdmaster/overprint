@@ -131,9 +131,11 @@ overprint-layers::part(panel) { border-radius: 1rem; }
 
 `state.tool` is the selected tool; `state.activeTool` also reflects temporary hand navigation while Space or the middle mouse button is held.
 
-### Component props
+### Presentation props
 
-All elements accept reactive presentation properties. Set arrays and booleans as DOM properties (or Vue `.prop` bindings), not JSON strings in attributes. Changes apply without remounting the controller or clearing artwork. The full `overprint-editor` accepts the same props for its built-in parts.
+The React and Vue components accept presentation props directly, for example `<Toolbar orientation="horizontal" showShortcuts={false} />` in React or `<Toolbar orientation="horizontal" :show-shortcuts="false" />` in Vue. No DOM refs or compiler configuration are needed.
+
+For advanced custom-element integrations, all elements accept reactive presentation properties. Set arrays and booleans as DOM properties (or Vue `.prop` bindings), not JSON strings in attributes. Changes apply without remounting the controller or clearing artwork. The full `overprint-editor` accepts the same props for its built-in parts.
 
 | Part | Props (defaults) |
 | --- | --- |
@@ -157,7 +159,7 @@ All elements accept reactive presentation properties. Set arrays and booleans as
 />
 ```
 
-In Vue/Nuxt, keep the existing custom-element compiler configuration. In React, pass these properties through the element ref as in the framework example. Plain JavaScript is typed through `HTMLElementTagNameMap`:
+Only when using custom elements directly, configure Vue to recognize `overprint-*` tags, or assign properties through a React element ref. Prefer the packaged framework components above. Plain JavaScript is typed through `HTMLElementTagNameMap`:
 
 ```ts
 const toolbar = document.createElement('overprint-toolbar')

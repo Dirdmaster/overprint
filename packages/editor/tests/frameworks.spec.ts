@@ -28,3 +28,15 @@ test(`${framework} replacement and rapid remount leave only the latest live sess
 })
 
 }
+
+test('Vue applies the latest props when the engine finishes loading', async ({ page }) => {
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  await page.route('**/dist/editor.js', async route => { await gate; await route.continue() })
+  await page.goto('/tests/frameworks.html?framework=vue', { waitUntil: 'domcontentloaded' })
+  await expect.poll(() => page.evaluate(() => Boolean((window as any).adapter))).toBe(true)
+  await page.evaluate(() => (window as any).adapter.configure())
+  release()
+  await expect(page.getByRole('img', { name: 'Framework test back board preview' })).toBeVisible()
+  expect(await page.evaluate(() => (window as any).adapter.controls.at(-1).getDocument().mask)).toBe('#123456')
+})

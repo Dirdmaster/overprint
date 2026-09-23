@@ -42,6 +42,8 @@ export const EditorRoot = defineComponent({
         error.value = null
         let unsubscribe: (() => void) | undefined
         const stop = startSession(board, { side: props.side, mask: props.mask }, editor => {
+          if (props.side) editor.setSide(props.side)
+          if (props.mask) editor.setMaskColor(props.mask)
           controller.value = editor
           unsubscribe = editor.subscribe(() => { if (instance.vnode.props?.onChange) emit('change', editor.getDocument()) })
           emit('ready', editor)
