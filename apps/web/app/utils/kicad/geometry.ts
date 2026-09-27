@@ -3,6 +3,8 @@ export type Point = [number, number]
 export type Ring = Point[]
 const SCALE = 100000
 export const TOLERANCE = 0.005
+// Millimetres: tolerate small saved endpoint gaps independently of curve approximation.
+const OUTLINE_JOIN_TOLERANCE = 0.01
 export const round = (n: number) => Math.round(n * 1e6) / 1e6
 export const path = (rings: Ring[]) => rings.map(r => `M${r.map(p => p.map(round).join(',')).join(' L')} Z`).join(' ')
 const integers = (ring: Ring) => ring.map(([x, y]) => ({ X: Math.round(x * SCALE), Y: Math.round(y * SCALE) }))
@@ -72,8 +74,8 @@ export const stitch = (segments: Ring[]): Ring[] => {
   const remaining = segments.filter(s => s.length >= 2).map(s => [...s]), result: Ring[] = []
   while (remaining.length) {
     const ring = remaining.pop()!
-    while (distance(ring[0]!, ring.at(-1)!) > 0.001) {
-      const matches = remaining.map((s, i) => ({ i, reverse: distance(ring.at(-1)!, s.at(-1)!) <= 0.001, start: distance(ring.at(-1)!, s[0]!) <= 0.001 })).filter(m => m.reverse || m.start)
+    while (distance(ring[0]!, ring.at(-1)!) > OUTLINE_JOIN_TOLERANCE) {
+      const matches = remaining.map((s, i) => ({ i, reverse: distance(ring.at(-1)!, s.at(-1)!) <= OUTLINE_JOIN_TOLERANCE, start: distance(ring.at(-1)!, s[0]!) <= OUTLINE_JOIN_TOLERANCE })).filter(m => m.reverse || m.start)
       if (matches.length !== 1) throw new Error('The board needs a closed, unambiguous Edge.Cuts outline.')
       const match = matches[0]!, next = remaining.splice(match.i, 1)[0]!
       ring.push(...(match.reverse ? next.reverse() : next).slice(1))

@@ -8,6 +8,7 @@ Supported geometry includes lines, rectangles, polygons, three-point arcs, circl
 
 ## Limits
 
+- Outline endpoints within 0.01 mm are joined for the browser preview. Larger gaps and ambiguous joins stop import. This does not repair the source PCB.
 - A raw PCB has no native Gerbers or drill files. Manufacturing export requires a package from the KiCad plugin; the browser importer does not synthesize fabrication files.
 - Referenced component model files are not contained in the PCB. Assembled models require the plugin.
 - Zone fills are read as saved, never recalculated. Unfilled zones produce an import note.

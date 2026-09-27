@@ -71,6 +71,38 @@ test('assembles unordered reversed edges and approximates an arc through its mid
   assert.throws(() => stitch([[[0, 0], [10, 0]]]), /closed/)
 })
 
+test('joins small outline gaps in either direction and at loop closure', () => {
+  const edges: Ring[] = [
+    [[0, 0], [10, 0]],
+    [[10, 0.006], [10, 10]],
+    [[10, 10], [0, 10]],
+    [[0, 10], [0, 0]],
+  ]
+  for (let first = 0; first < edges.length; first++) {
+    const ordered = [...edges.slice(first), ...edges.slice(0, first)]
+    for (const reverse of [false, true]) {
+      assert.equal(stitch(ordered.map(r => reverse ? [...r].reverse() : r)).length, 1)
+    }
+  }
+  const board = extractKicadBoard(`(kicad_pcb (version 20260206)
+    (gr_line (start 0 0) (end 10 0) (layer "Edge.Cuts"))
+    (gr_line (start 10 0.006) (end 10 10) (layer "Edge.Cuts"))
+    (gr_line (start 10 10) (end 0 10) (layer "Edge.Cuts"))
+    (gr_line (start 0 10) (end 0 0.0011) (layer "Edge.Cuts")))`, 'small-gaps.kicad_pcb')
+  assert.deepEqual(board.bounds, { x: 0, y: 0, width: 10, height: 10 })
+})
+
+test('rejects outline gaps beyond 0.01 mm and ambiguous nearby joins', () => {
+  assert.throws(() => stitch([
+    [[0, 0], [10, 0]], [[10, 0.0101], [10, 10]],
+    [[10, 10], [0, 10]], [[0, 10], [0, 0]],
+  ]), /closed/)
+  assert.throws(() => stitch([
+    [[10, 0.006], [10, 10]], [[10, -0.006], [0, 10]],
+    [[0, 0], [10, 0]],
+  ]), /unambiguous/)
+})
+
 test('reads saved zone fills, never substitutes the unfilled boundary, and reports project-only via settings', () => {
   const board = extractKicadBoard(simple(`
     (zone (layer "F.Cu") (polygon (pts (xy 0 0) (xy 20 0) (xy 20 10))))
