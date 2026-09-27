@@ -24,7 +24,9 @@
       "title": "Open another board?",
       "description": "Save this project locally if you want to pick it up later. Opening another board replaces the current project and its browser autosave. Your artwork won’t carry over.",
       "cancel": "Cancel",
-      "open": "Open board"
+      "open": "Open board",
+      "update": "Update PCB, keep artwork",
+      "updateDescription": "Update the PCB while keeping artwork at its existing positions, or open it as a new project. Save a copy first if you want to keep the current PCB."
     },
     "currentBoard": "Current board",
     "syncSucceeded": "Last sync successful"

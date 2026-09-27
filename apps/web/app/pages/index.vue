@@ -9,9 +9,19 @@ const syncDialog = useTemplateRef('syncDialog')
 const projectPicker = useTemplateRef('projectPicker')
 const replacement = useTemplateRef('replacement')
 const confirmReplacement = async () => !board.value || (await replacement.value?.show()) === true
+let keepArtwork = false
+const confirmImport = async () => {
+  keepArtwork = false
+  if (!board.value) return true
+  const choice = await replacement.value?.show(true)
+  keepArtwork = choice === 'update'
+  return choice === true || keepArtwork
+}
 const acceptImport = (imported: Parameters<typeof openBoard>[0]) => {
   syncDialog.value?.disconnect()
-  openBoard(imported)
+  if (keepArtwork) board.value = imported
+  else openBoard(imported)
+  keepArtwork = false
 }
 const ready = ref(false)
 onMounted(() => {
@@ -106,7 +116,7 @@ const onDrop = (event: DragEvent) => {
     />
     <ImportBoardDialog
       ref="importer"
-      :confirm-replacement="confirmReplacement"
+      :confirm-replacement="confirmImport"
       @imported="acceptImport"
     />
   </NuxtLayout>
