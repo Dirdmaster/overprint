@@ -1,4 +1,5 @@
 import { Matrix4 } from 'three'
+import { wrlMeshes } from './wrlModels.ts'
 import { atom, child, children, flag, number, type SExpr } from './sexpr.ts'
 import { embeddedFileReader } from './embeddedFiles.ts'
 import { componentGlb, type ModelInstance, type ModelMesh } from './modelGlb.ts'
@@ -44,10 +45,10 @@ export const importEmbeddedModels = async (board: SExpr, reader: StepReader = re
       if (++count > 1000) { result.warnings.push('Only the first 1000 visible model instances are processed.'); break }
       try {
         const path = atom(model), bytes = await read(fp, path)
-        if (!/\.(step|stp)$/i.test(path)) throw new Error('Unsupported embedded model format. STEP and STP are currently supported.')
+        if (!/\.(step|stp|wrl)$/i.test(path)) throw new Error('Unsupported embedded model format. STEP, STP and static WRL are supported.')
         let meshes = cache.get(bytes)
         if (!meshes) {
-          meshes = stepMeshes(await reader(bytes))
+          meshes = /\.wrl$/i.test(path) ? wrlMeshes(bytes) : stepMeshes(await reader(bytes))
           componentGlb([{ meshes, matrix: new Matrix4().toArray() }])
           cache.set(bytes, meshes)
         }

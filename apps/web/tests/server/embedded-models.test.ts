@@ -108,3 +108,56 @@ test('model timeout keeps geometry while cancellation preserves the previous pro
   await assert.rejects(cancelled, /cancelled/)
   assert.ok(second.stopped())
 })
+
+test('imports mixed embedded STEP and static WRL components with their material colors', async () => {
+  const mixed = readFileSync(new URL('../fixtures/embedded-mixed.kicad_pcb', import.meta.url), 'utf8')
+  const board = await extractKicadBoardWithModels(mixed, 'mixed.kicad_pcb', () => {}, async bytes => converter.ReadStepFile(bytes, {}))
+  assert.equal(board.models?.status, 'ready')
+  assert.deepEqual(board.models?.includedReferences, ['U1', 'U2'])
+})
+
+import { VRMLLoader } from 'three/addons/loaders/VRMLLoader.js'
+import { Mesh, type MeshPhongMaterial } from 'three'
+test('WRL model units, internal hierarchy and both footprint transforms match native KiCad', async () => {
+  const wrl = readFileSync(new URL('../fixtures/embedded-wrl.kicad_pcb', import.meta.url), 'utf8')
+  const board = await extractKicadBoardWithModels(wrl, 'wrl.kicad_pcb', () => {})
+  assert.equal(board.models?.status, 'ready')
+  const actual = await meshPoints(decodeGlb(board.models!.glb!, board.models!.encoding))
+  const native = new VRMLLoader().parse(readFileSync(new URL('../fixtures/embedded-native.wrl', import.meta.url), 'utf8'), '')
+  native.updateMatrixWorld(true)
+  const expected: Vector3[] = []
+  native.traverse(object => {
+    if (!(object instanceof Mesh) || (object.material as MeshPhongMaterial).color.r < 0.5) return
+    const position = object.geometry.getAttribute('position')
+    for (let i = 0; i < position.count; i++) {
+      const point = new Vector3().fromBufferAttribute(position, i).applyMatrix4(object.matrixWorld)
+      // Native VRML places copper surfaces at +/-0.8 mm. Use the STEP/GLB
+      // surface convention for both formats: top 1.595 mm, bottom -0.085 mm.
+      expected.push(new Vector3(point.x / 1000, (point.z + (point.x < 30 ? 0.795 : 0.715)) / 1000, -point.y / 1000))
+    }
+  })
+  assert.ok(expected.length > 0)
+  for (const [left, right] of [[actual, expected], [expected, actual]]) for (const point of left!) assert.ok(Math.min(...right!.map(other => point.distanceTo(other))) < 0.00001)
+})
+
+import { createHash } from 'node:crypto'
+const replaceWrl = async (content: string) => {
+  const { parseSExpr, children, child } = await import('../../app/utils/kicad/sexpr.ts')
+  const parsed = parseSExpr(readFileSync(new URL('../fixtures/embedded-mixed.kicad_pcb', import.meta.url), 'utf8'))
+  const file = children(child(parsed, 'embedded_files'), 'file').find(file => child(file, 'name')[1] === 'body.wrl')!
+  const bytes = Buffer.from(content), frame = Buffer.alloc(12 + bytes.length)
+  frame.writeUInt32LE(0xfd2fb528); frame[4] = 0xa0; frame.writeUInt32LE(bytes.length, 5)
+  frame.writeUIntLE((bytes.length << 3) | 1, 9, 3); bytes.copy(frame, 12)
+  child(file, 'data').splice(1, Infinity, `|${frame.toString('base64')}|`)
+  child(file, 'checksum')[1] = createHash('sha256').update(bytes).digest('hex')
+  const serialize = (node: any): string => Array.isArray(node) ? `(${node.map(serialize).join(' ')})` : JSON.stringify(node)
+  return serialize(parsed)
+}
+test('unsupported or excessive WRL content leaves the STEP component usable', async () => {
+  for (const content of ['Inline { url "https://forbidden.invalid/model.wrl" }', 'Script { url "javascript:alert(1)" }', 'Transform { center 1 0 0 children [] }', 'Group { children ['.repeat(70), 'DEF recursive Group { children [ USE recursive ] }']) {
+    const board = await extractKicadBoardWithModels(await replaceWrl('#VRML V2.0 utf8\n' + content), 'partial.kicad_pcb', () => {}, async bytes => converter.ReadStepFile(bytes, {}))
+    assert.equal(board.models?.status, 'partial')
+    assert.deepEqual(board.models?.includedReferences, ['U2'])
+    assert.equal(board.models?.missing[0]?.reference, 'U1')
+  }
+})

@@ -64,6 +64,7 @@ const decode = (base64: string) => {
 
 export const embeddedFileReader = (board: SExpr) => {
   const cache = new Map<SExpr, Promise<Uint8Array>>()
+  const decoded = new Map<string, Uint8Array>()
   let total = 0
   return async (footprint: SExpr, path: string) => {
     if (!path.startsWith('kicad-embed://')) throw new Error('Model is external. In KiCad, use Tools → Collect and Embed 3D Models, then save again.')
@@ -75,14 +76,17 @@ export const embeddedFileReader = (board: SExpr) => {
     if (!cache.has(file)) cache.set(file, (async () => {
       const text = child(file, 'data').slice(1).join('')
       if (!text.startsWith('|') || !text.endsWith('|')) throw new Error('Invalid embedded payload delimiter.')
+      const expected = atom(child(file, 'checksum')).toLowerCase()
+      const key = expected + ':' + text
+      if (decoded.has(key)) return decoded.get(key)!
       const bytes = decode(text.slice(1, -1))
       total += bytes.length
       if (total > 32 * 1024 * 1024) throw new Error('Embedded models exceed the 32 MB total decoded limit.')
-      const expected = atom(child(file, 'checksum')).toLowerCase()
       const actual = expected.length === 64
         ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)), b => b.toString(16).padStart(2, '0')).join('')
         : murmur(bytes)
       if (actual !== expected) throw new Error('Embedded model checksum mismatch.')
+      decoded.set(key, bytes)
       return bytes
     })())
     return cache.get(file)!
