@@ -41,7 +41,7 @@ test('refreshes an embedded PCB while keeping existing artwork', async ({ page }
   await page.getByLabel('More ways to open a board').click()
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles('tests/fixtures/embedded-models.kicad_pcb')
-  await page.getByRole('button', { name: 'Update PCB, keep artwork', exact: true }).click({ timeout: 5000 })
+  await page.getByRole('button', { name: 'Update PCB, keep artwork', exact: true }).click()
   await expect(page.locator('[data-artwork-layer] image')).toHaveCount(1)
   await expect(page.getByRole('img', { name: 'embedded-models front board preview' })).toBeVisible()
   await expect(page.getByRole('button', { name: '3D', exact: true })).toBeEnabled()

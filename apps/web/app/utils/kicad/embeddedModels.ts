@@ -42,7 +42,12 @@ export const importEmbeddedModels = async (board: SExpr, reader: StepReader = re
     const ref = (reference ? atom(reference, 2) : 'Unnamed component').slice(0, 500)
     for (const model of children(fp, 'model')) {
       if (flag(model, 'hide')) continue
-      if (++count > 1000) { result.warnings.push('Only the first 1000 visible model instances are processed.'); break }
+      if (++count > 1000) {
+        if (count === 1001) result.warnings.push('Only the first 1000 visible model instances are processed.')
+        if (result.missing.length < 10000) result.missing.push({ reference: ref, reason: 'Model omitted because the 1000-instance limit was reached.' })
+        else if (result.warnings.length < 2) result.warnings.push('Further omitted references exceed the 10000-entry status limit.')
+        continue
+      }
       try {
         const path = atom(model), bytes = await read(fp, path)
         if (!/\.(step|stp|wrl)$/i.test(path)) throw new Error('Unsupported embedded model format. STEP, STP and static WRL are supported.')
@@ -62,7 +67,6 @@ export const importEmbeddedModels = async (board: SExpr, reader: StepReader = re
         result.missing.push({ reference: ref, reason: (error instanceof Error ? error.message : 'Unable to read embedded model.').slice(0, 500) })
       }
     }
-    if (count > 1000) break
   }
   if (instances.length) {
     try { result.glb = componentGlb(instances); result.encoding = 'gzip-base64'; result.status = result.missing.length || result.warnings.length ? 'partial' : 'ready' }

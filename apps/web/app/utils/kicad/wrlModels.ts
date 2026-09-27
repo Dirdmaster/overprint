@@ -48,6 +48,7 @@ const preflight = (text: string) => {
     }
     if (token === 'center' && tokens.slice(i + 1, i + 4).some(n => Number(n) !== 0)) throw new Error('WRL transform centers are unsupported.')
     if (token === 'scaleOrientation' && Number(tokens[i + 4]) !== 0) throw new Error('WRL scale orientation is unsupported.')
+    if (token === 'convex' && tokens[i + 1] === 'FALSE') throw new Error('Concave WRL faces are unsupported.')
     if (token === 'transparency' && Number(tokens[i + 1]) !== 0) throw new Error('Transparent WRL materials are unsupported.')
   }
   if (stack.length) throw new Error('Truncated WRL structure.')

@@ -161,3 +161,25 @@ test('unsupported or excessive WRL content leaves the STEP component usable', as
     assert.equal(board.models?.missing[0]?.reference, 'U1')
   }
 })
+
+test('concave WRL faces are reported instead of silently triangulated incorrectly', async () => {
+  const content = '#VRML V2.0 utf8\nShape { geometry IndexedFaceSet { convex FALSE coord Coordinate { point [0 0 0, 3 0 0, 3 3 0, 2 3 0, 2 1 0, 1 1 0, 1 3 0, 0 3 0] } coordIndex [0 1 2 3 4 5 6 7 -1] } }'
+  const board = await extractKicadBoardWithModels(await replaceWrl(content), 'concave.kicad_pcb', () => {}, async bytes => converter.ReadStepFile(bytes, {}))
+  assert.equal(board.models?.status, 'partial')
+  assert.match(board.models!.missing[0]!.reason, /concave/i)
+})
+
+test('reports references beyond the model instance limit', async () => {
+  const { parseSExpr, children, child } = await import('../../app/utils/kicad/sexpr.ts')
+  const parsed = parseSExpr(fixture), footprints = children(parsed, 'footprint')
+  for (const fp of footprints) parsed.splice(parsed.indexOf(fp), 1)
+  for (let i = 0; i < 1001; i++) {
+    const fp = structuredClone(footprints[0]!)
+    children(fp, 'property').find(p => p[1] === 'Reference')![2] = `U${i}`
+    parsed.push(fp)
+  }
+  const serialize = (node: any): string => Array.isArray(node) ? `(${node.map(serialize).join(' ')})` : JSON.stringify(node)
+  const board = await extractKicadBoardWithModels(serialize(parsed), 'many.kicad_pcb', () => {}, async bytes => converter.ReadStepFile(bytes, {}))
+  assert.equal(board.models?.status, 'partial')
+  assert.ok(board.models?.missing.some(model => model.reference === 'U1000' && /limit/.test(model.reason)))
+})
