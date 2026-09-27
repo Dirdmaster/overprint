@@ -1,5 +1,5 @@
 """Run with KiCad 10 Python. Original synthetic geometry, no third-party board assets."""
-import base64, ctypes, ctypes.util, hashlib, json, subprocess, tempfile
+import base64, ctypes, ctypes.util, hashlib, json, re, subprocess, tempfile
 from pathlib import Path
 import wx
 app = wx.App(False)
@@ -17,7 +17,9 @@ with tempfile.TemporaryDirectory() as tmp:
     tmp=Path(tmp); src=tmp/'body.kicad_pcb'; step=tmp/'body.step'
     pcb.SaveBoard(str(src),board([(0,0),(4,0),(4,1),(1,3),(0,3)],1))
     subprocess.run([CLI,'pcb','export','step','--force','--board-only','--user-origin','0x0mm','-o',str(step),str(src)],check=True)
-    model=step.read_bytes(); (HERE/'embedded-body.step').write_bytes(model)
+    normalized=re.sub(r"FILE_NAME\('body.step','[^']+'", "FILE_NAME('body.step','2000-01-01T00:00:00'", step.read_text())
+    model=('\n'.join(line.rstrip() for line in normalized.splitlines())+'\n').encode()
+    step.write_bytes(model); (HERE/'embedded-body.step').write_bytes(model)
     b=board([(10,10),(60,10),(60,50),(10,50)],1.6)
     for ref,pos,angle,back,rot,scale,offset in [('U1',(20,20),30,False,(15,25,35),(1,1.5,.75),(.5,-.3,.2)),('U2',(40,35),120,True,(10,20,30),(1.2,.8,1.1),(.2,.4,.6))]:
         fp=pcb.FOOTPRINT(b); fp.SetReference(ref); fp.Value().SetVisible(False); fp.Reference().SetVisible(False); b.Add(fp)

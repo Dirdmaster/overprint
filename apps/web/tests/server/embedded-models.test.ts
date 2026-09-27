@@ -56,7 +56,7 @@ test('shared embedded geometry is converted once and hidden models stay hidden',
 
 test('accepts the native KiCad Murmur128 checksum as well as SHA256', async () => {
   // Oracle computed with KiCad 10's MMH3_HASH header and embedded-files seed.
-  const input = fixture.replace(/\(checksum "[a-f\d]+"\)/, '(checksum "31367950DED7660E89E49738DD0CB8D0")')
+  const input = fixture.replace(/\(checksum "[a-f\d]+"\)/, '(checksum "94BAFB01C51B32259A3A803691E089CC")')
   const board = await extractKicadBoardWithModels(input, 'native-hash.kicad_pcb', () => {}, async bytes => converter.ReadStepFile(bytes, {}))
   assert.equal(board.models?.status, 'ready')
 })
