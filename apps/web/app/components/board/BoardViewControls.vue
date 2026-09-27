@@ -13,7 +13,7 @@ const side = defineModel<string>('side', { required: true })
 const modelHint = computed(() =>
   props.models?.glb
     ? 'Assembled component preview'
-    : 'Re-export with the current KiCad plugin to include component models'
+    : 'In KiCad 10, collect and embed 3D models, then save and import the PCB'
 )
 const modelSummary = computed(() =>
   props.models?.glb

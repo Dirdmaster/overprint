@@ -1,8 +1,8 @@
-import { readBoardPackage, type BoardPackage } from './boardPackage'
+import type { BoardPackage } from './boardPackage.ts'
 
 /** Native files stay local; isolate bounded extraction from the editor's UI thread. */
-export const importBoardFile = async (file: File, signal: AbortSignal | undefined, createWorker: () => Worker): Promise<BoardPackage> => {
-  if (!/\.kicad_pcb$/i.test(file.name)) return readBoardPackage(file)
+export const importBoardFile = async (file: File, signal: AbortSignal | undefined, createWorker: () => Worker, onModels?: () => void): Promise<BoardPackage> => {
+  if (!/\.kicad_pcb$/i.test(file.name)) return (await import('./boardPackage')).readBoardPackage(file)
   if (file.size > 25_000_000) throw new Error('This KiCad PCB exceeds the 25 MB limit.')
   signal?.throwIfAborted()
   const text = new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer())
@@ -17,12 +17,24 @@ export const importBoardFile = async (file: File, signal: AbortSignal | undefine
       else resolve(board!)
     }
     const abort = () => finish(undefined, new Error('Board import cancelled.'))
-    const timeout = setTimeout(() => finish(undefined, new Error('KiCad PCB extraction timed out. Try the KiCad plugin for this board.')), 30_000)
-    signal?.addEventListener('abort', abort, { once: true })
-    worker.onmessage = (event: MessageEvent<{ board?: BoardPackage; error?: string }>) => {
-      finish(event.data.board, event.data.error ? new Error(event.data.error) : undefined)
+    let geometry: BoardPackage | undefined
+    const fallback = (reason: string) => {
+      if (!geometry) return finish(undefined, new Error(reason))
+      geometry.browserImport!.warnings.push(reason)
+      finish(geometry)
     }
-    worker.onerror = () => finish(undefined, new Error('Unable to start the KiCad PCB importer. Reload and try again.'))
+    let timeout = setTimeout(() => fallback('KiCad PCB extraction timed out.'), 30_000)
+    signal?.addEventListener('abort', abort, { once: true })
+    worker.onmessage = (event: MessageEvent<{ board?: BoardPackage; geometry?: BoardPackage; error?: string }>) => {
+      if (event.data.geometry) {
+        geometry = event.data.geometry
+        onModels?.()
+        clearTimeout(timeout)
+        timeout = setTimeout(() => fallback('Embedded model conversion timed out after 30 seconds. The 2D board is available.'), 30_000)
+      } else if (event.data.error) fallback(event.data.error)
+      else finish(event.data.board)
+    }
+    worker.onerror = () => fallback('Unable to run the KiCad model importer. Reload and try again.')
     worker.postMessage({ text, name: file.name })
   })
 }

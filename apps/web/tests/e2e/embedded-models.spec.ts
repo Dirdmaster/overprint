@@ -1,0 +1,33 @@
+import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+const fixture = 'tests/fixtures/embedded-models.kicad_pcb'
+test('imports embedded STEP locally, renders both sides and restores a downloaded project', async ({ page }) => {
+  const uploads: string[] = [], errors: string[] = []
+  page.on('request', request => { if (request.method() !== 'GET') uploads.push(request.url()) })
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
+  await page.getByLabel('Choose board export').setInputFiles(fixture)
+  await expect(page.getByRole('button', { name: '3D', exact: true })).toBeEnabled({ timeout: 45000 })
+  await page.getByRole('button', { name: '3D', exact: true }).click()
+  await expect(page.getByText(/Drag to orbit/)).toBeVisible()
+  const canvas = page.getByRole('img', { name: 'embedded-models assembled 3D preview' })
+  await expect(canvas).toBeVisible()
+  await page.screenshot({ path: 'test-results/embedded-step-front.png' })
+  await page.getByRole('button', { name: 'Back', exact: true }).click()
+  await page.screenshot({ path: 'test-results/embedded-step-back.png' })
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect(page.getByRole('status')).toContainText('All changes saved')
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Save project', exact: true }).click()
+  const saved = (await (await download).path())!
+  const project = JSON.parse(readFileSync(saved, 'utf8'))
+  expect(project.board.models.includedReferences).toEqual(['U1', 'U2'])
+  await page.reload()
+  await expect(page.getByRole('button', { name: '3D', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'Open project', exact: true }).click()
+  await page.getByLabel('Choose project file').setInputFiles({ name: 'embedded.overprint', mimeType: 'application/json', buffer: readFileSync(saved) })
+  await expect(page.getByRole('button', { name: '3D', exact: true })).toBeEnabled()
+  expect(uploads).toEqual([])
+  expect(errors).toEqual([])
+})

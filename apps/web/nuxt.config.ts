@@ -20,7 +20,8 @@ export default defineNuxtConfig({
     plugins: [tailwindcss()],
     // Worker-only dependencies must be ready before the first PCB drop;
     // late discovery otherwise reloads the editor and interrupts extraction.
-    optimizeDeps: { include: ['clipper-lib'] },
+    optimizeDeps: { include: ['clipper-lib', 'fzstd'] },
+    worker: { format: 'es' },
   },
   devtools: { enabled: false },
   nitro: {

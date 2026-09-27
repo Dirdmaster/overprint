@@ -41,8 +41,8 @@ const presets = [
       aria-label="PCB file import"
     >
       <p>
-        Imported locally from a KiCad PCB. Connect through the plugin for native Gerbers, drills,
-        and 3D models.
+        Imported locally from a KiCad PCB. Embedded STEP models can appear in 3D. The plugin is
+        still needed for native Gerbers and drills.
       </p>
       <details v-if="board.browserImport.warnings.length">
         <summary class="cursor-pointer">
