@@ -150,7 +150,7 @@ test('Pages font routes report unavailable without a configured key and never ca
   try {
     const response = await runtime.dispatchFetch(new URL('/api/fonts/catalog', await runtime.ready).href)
     assert.equal(response.status, 503)
-    assert.match(await response.text(), /bundled font/)
+    assert.match(await response.text(), /Contact the host/)
     assert.equal(calls, 0)
   } finally { await runtime.dispose() }
 })

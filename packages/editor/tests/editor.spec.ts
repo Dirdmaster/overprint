@@ -1,3 +1,4 @@
+import { routeGeist } from '../../../apps/web/tests/fixtures/googleFontFixture'
 import { test, expect } from '@playwright/test'
 
 test('full editor layers and board properties round-trip through host documents', async ({ page }) => {
@@ -147,14 +148,15 @@ test('shape commands retain physical geometry, bounded lines and editable projec
 })
 
 test('text commands preserve frozen outlines, scaling and failed-edit history', async ({ page }) => {
+  await routeGeist(page)
   await page.goto('/tests/index.html')
   const result = await page.evaluate(async () => {
     const editor = (window as any).controllers[0]
-    const definition = { type: 'text', font: 'geist-latin-v1', weight: 400, content: 'AV\nPCB', size: 4, align: 'center', letterSpacing: .2, lineHeight: 1.3, fill: '#ffffff' }
+    const definition = { type: 'text', font: 'google-fonts-v1', weight: 400, google: { family: 'Geist', variant: 'regular', version: 'v1', id: '9'.repeat(64) }, content: 'AV\nPCB', size: 4, align: 'center', letterSpacing: .2, lineHeight: 1.3, fill: '#ffffff' }
     editor.setSide('back')
     const id = await editor.addText(definition, 5, 6)
     const original = editor.getDocument()
-    await editor.editText(id, { weight: 700, content: 'Bold' })
+    await editor.editText(id, { content: 'Bold' })
     editor.undo()
     const undone = editor.getDocument()
     editor.redo()

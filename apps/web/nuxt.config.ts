@@ -15,7 +15,7 @@ export default defineNuxtConfig({
   },
   // Feature folders organize files; existing component names stay unprefixed.
   components: [{ path: '~/components', pathPrefix: false }],
-  css: ['~/assets/css/main.css', '@fontsource/inter/400.css', '@fontsource/inter/500.css', '@fontsource/inter/600.css', '@fontsource/geist/600.css'],
+  css: ['~/assets/css/main.css', '@fontsource/inter/400.css', '@fontsource/inter/500.css', '@fontsource/inter/600.css'],
   vite: {
     plugins: [tailwindcss()],
     // Worker-only dependencies must be ready before the first PCB drop;

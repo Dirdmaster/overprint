@@ -5,6 +5,15 @@ export type TextDefinition = {
   size: number; align: 'left' | 'center' | 'right'; letterSpacing: number; lineHeight: number; fill: string
 }
 export const defaultText = (): TextDefinition => ({ type: 'text', font: 'geist-latin-v1', weight: 400, content: 'Text', size: 3, align: 'left', letterSpacing: 0, lineHeight: 1.2, fill: '#ffffff' })
+export const newText = async (): Promise<TextDefinition> => {
+  const response = await fetch('/api/fonts/catalog?q=Geist&offset=0')
+  if (!response.ok) throw new Error('Google Fonts is unavailable. Configure the font service to draw new text.')
+  const catalogue = await response.json() as { families: { family: string; version: string; variants: { variant: string; id: string }[] }[] }
+  const family = catalogue.families.find(item => item.family === 'Geist')
+  const variant = family?.variants.find(item => item.variant === 'regular' || item.variant === '400')
+  if (!family || !variant) throw new Error('Geist is unavailable in the Google Fonts catalogue.')
+  return { ...defaultText(), font: 'google-fonts-v1', google: { family: family.family, version: family.version, variant: variant.variant, id: variant.id } }
+}
 export const validateText = (value: unknown): TextDefinition => {
   const d = value as TextDefinition
   const number = (n: unknown, min: number, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= max

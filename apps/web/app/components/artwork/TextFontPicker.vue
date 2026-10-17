@@ -29,7 +29,6 @@ const {
   styleName,
   search,
   choice,
-  bundled,
   apply,
   highlight,
   selectStyle,
@@ -51,7 +50,7 @@ const {
       <span class="text-muted">Font family</span>
       <ComboboxRoot
         v-model:open="open"
-        :model-value="value.google?.family ?? 'offline:geist'"
+        :model-value="value.google?.family"
         :ignore-filter="true"
         :loop="true"
         :reset-search-term-on-select="false"
@@ -139,21 +138,6 @@ const {
             >
               Load more fonts
             </button>
-            <p class="border-t border-line px-2 pb-1 pt-3 text-xs text-muted">Available offline</p>
-            <ComboboxItem
-              value="offline:geist"
-              aria-label="Geist (offline)"
-              @select.prevent="apply(bundled())"
-              class="flex cursor-default items-center justify-between rounded px-3 py-2 outline-none data-[highlighted]:bg-soft data-[state=checked]:text-accent"
-            >
-              <span class="flex-1">Geist</span>
-              <Check
-                v-if="!value.google"
-                aria-hidden="true"
-                class="mr-2 size-4"
-              />
-              <span class="text-xs text-muted">Bundled</span>
-            </ComboboxItem>
           </ComboboxViewport>
           <p
             v-if="error"
@@ -193,7 +177,7 @@ const {
       <select
         aria-label="Font style"
         :value="currentVariant"
-        :disabled="pending"
+        :disabled="pending || !value.google"
         class="w-full rounded bg-soft p-2 text-ink"
         @focus="loadStyles"
         @change="selectStyle"

@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useTextDrawing } from '../../composables/artwork/useTextDrawing'
 import { useCanvasToolState } from '../../composables/canvas/useCanvasToolState'
-import { defaultText } from '../../utils/textDrawing'
+import { newText } from '../../utils/textDrawing'
 const props = defineProps<{ side: string }>()
 const emit = defineEmits<{ error: [message: string] }>()
 const { addText } = useTextDrawing()
@@ -17,7 +17,7 @@ const place = async (event: PointerEvent) => {
   const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
   pending.value = true
   try {
-    const id = await addText(defaultText(), props.side, point.x, point.y)
+    const id = await addText(await newText(), props.side, point.x, point.y)
     if (id) {
       selected.value = 'select'
       emit('error', '')

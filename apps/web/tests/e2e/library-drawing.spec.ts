@@ -1,6 +1,8 @@
+import { routeGeist } from '../fixtures/googleFontFixture'
 import { test, expect } from '@playwright/test'
 import { demoBoard } from '../fixtures/demoBoard'
 test('scaled linked text detaches and reopens with editable content and physical size', async ({ page }) => {
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)

@@ -1,13 +1,14 @@
+import { routeGeist } from '../fixtures/googleFontFixture'
 import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { createHash } from 'node:crypto'
 import { demoBoard } from '../fixtures/demoBoard'
-// A synthetic catalogue backed by the licensed bundled Geist font, not a live Google family.
+// A synthetic catalogue backed by the licensed Inter test font, not a live Google family.
 const require = createRequire(import.meta.url)
 const converter = require('opentype.js')
-const woff = readFileSync(new URL('../../app/assets/text-fonts/geist-latin-700-normal.woff', import.meta.url))
-const ttf = process.env.OVERPRINT_REAL_FONT_TTF ? readFileSync(process.env.OVERPRINT_REAL_FONT_TTF) : Buffer.from(converter.parse(woff.buffer.slice(woff.byteOffset, woff.byteOffset + woff.byteLength)).toArrayBuffer())
+const woff = readFileSync(new URL('../../../../node_modules/@fontsource/inter/files/inter-latin-700-normal.woff', import.meta.url))
+const ttf = process.env.OVERPRINT_REAL_FONT_TTF ? readFileSync(process.env.OVERPRINT_REAL_FONT_TTF) : Buffer.from((() => { const font = converter.parse(woff.buffer.slice(woff.byteOffset, woff.byteOffset + woff.byteLength)); delete font.tables.gsub; delete font.tables.gpos; return font.toArrayBuffer() })())
 const id = 'a'.repeat(64)
 const family = { family: 'Fixture Sans', category: 'sans-serif', version: 'v1', variants: [{ variant: 'regular', id: 'b'.repeat(64) }, { variant: '700', id }] }
 
@@ -19,6 +20,7 @@ test('search, preview and apply a font; frozen text reopens offline and failed e
     return route.fulfill({ json: { families: [family], total: 1, offset: 0 } })
   })
   await page.route('**/api/fonts/file?*', route => { downloads++; return route.fulfill({ contentType: 'font/ttf', body: ttf }) })
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -80,8 +82,8 @@ test('search, preview and apply a font; frozen text reopens offline and failed e
   await expect(page.getByRole('alert')).toContainText('Existing artwork still displays and exports')
   await expect(image).toHaveAttribute('href', after!)
   // A valid but different font under the same identity must not silently replace saved paths.
-  const otherWoff = readFileSync(new URL('../../app/assets/text-fonts/geist-latin-400-normal.woff', import.meta.url))
-  const other = Buffer.from(converter.parse(otherWoff.buffer.slice(otherWoff.byteOffset, otherWoff.byteOffset + otherWoff.byteLength)).toArrayBuffer())
+  const otherWoff = readFileSync(new URL('../../../../node_modules/@fontsource/inter/files/inter-latin-400-normal.woff', import.meta.url))
+  const other = Buffer.from((() => { const font = converter.parse(otherWoff.buffer.slice(otherWoff.byteOffset, otherWoff.byteOffset + otherWoff.byteLength)); delete font.tables.gsub; delete font.tables.gpos; return font.toArrayBuffer() })())
   await page.route('**/api/fonts/file?*', route => route.fulfill({ contentType: 'font/ttf', body: other }))
   await page.reload()
   await page.getByRole('button', { name: 'Text', exact: true }).click()
@@ -89,7 +91,8 @@ test('search, preview and apply a font; frozen text reopens offline and failed e
   await expect(page.getByRole('alert')).toContainText('Font bytes have changed')
   await expect(image).toHaveAttribute('href', after!)
   await page.getByRole('combobox', { name: 'Font family', exact: true }).click()
-  await page.getByRole('option', { name: 'Geist (offline)', exact: true }).click()
+  await expect(page.getByRole('option', { name: 'Geist (offline)', exact: true })).toHaveCount(0)
+  await page.getByRole('option', { name: 'Fixture Sans', exact: true }).click()
   await expect(image).not.toHaveAttribute('href', after!)
   await expect(page.getByRole('alert')).toHaveCount(0)
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
@@ -97,8 +100,9 @@ test('search, preview and apply a font; frozen text reopens offline and failed e
   await expect(page.getByLabel('Text content')).toHaveValue('Text')
 })
 
-test('unconfigured catalogue offers a bundled fallback without changing text', async ({ page }) => {
+test('unconfigured catalogue preserves existing outlines without offering a bundled font', async ({ page }) => {
   await page.route('**/api/fonts/catalog?*', route => route.fulfill({ status: 503 }))
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -120,6 +124,7 @@ test('pagination and font-download retry work without reselecting the family', a
     return route.fulfill({ json: { families, total: 41, offset } })
   })
   await page.route('**/api/fonts/file?*', route => ++attempts === 1 ? route.fulfill({ status: 503 }) : route.fulfill({ contentType: 'font/ttf', body: ttf }))
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -138,6 +143,7 @@ test('pagination and font-download retry work without reselecting the family', a
 test('family popup supports keyboard selection, focus return and stable inspector layout', async ({ page }, testInfo) => {
   await page.route('**/api/fonts/catalog?*', route => route.fulfill({ json: { families: [family], total: 1, offset: 0 } }))
   await page.route('**/api/fonts/file?*', route => route.fulfill({ contentType: 'font/ttf', body: ttf }))
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -184,6 +190,7 @@ test('pending family download preserves artwork and cannot overwrite a newer tex
   let requested = false
   await page.route('**/api/fonts/catalog?*', route => route.fulfill({ json: { families: [family], total: 1, offset: 0 } }))
   await page.route('**/api/fonts/file?*', async route => { requested = true; await gate; await route.fulfill({ contentType: 'font/ttf', body: ttf }) })
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -221,6 +228,7 @@ test('a newer highlighted family previews after the bounded in-flight preview fi
     if (name === family.family) await gate
     await route.fulfill({ contentType: 'font/ttf', body: ttf })
   })
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -246,6 +254,7 @@ test('Escape cancels a pending family selection without changing artwork', async
   let requested = false
   await page.route('**/api/fonts/catalog?*', route => route.fulfill({ json: { families: [family], total: 1, offset: 0 } }))
   await page.route('**/api/fonts/file?*', async route => { requested = true; await gate; await route.fulfill({ contentType: 'font/ttf', body: ttf }) })
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)

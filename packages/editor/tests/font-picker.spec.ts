@@ -1,16 +1,18 @@
+import { routeGeist } from '../../../apps/web/tests/fixtures/googleFontFixture'
 import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const converter = require('opentype.js')
-const woff = readFileSync(new URL('../../../apps/web/app/assets/text-fonts/geist-latin-700-normal.woff', import.meta.url))
-const ttf = Buffer.from(converter.parse(woff.buffer.slice(woff.byteOffset, woff.byteOffset + woff.byteLength)).toArrayBuffer())
-// Synthetic catalogue, using licensed bundled font bytes rather than a live Google family.
+const woff = readFileSync(new URL('../../../node_modules/@fontsource/inter/files/inter-latin-700-normal.woff', import.meta.url))
+const ttf = Buffer.from((() => { const font = converter.parse(woff.buffer.slice(woff.byteOffset, woff.byteOffset + woff.byteLength)); delete font.tables.gsub; delete font.tables.gpos; return font.toArrayBuffer() })())
+// Synthetic catalogue, using licensed Inter test font bytes rather than a live Google family.
 const family = { family: 'Fixture Sans', category: 'sans-serif', version: 'v1', variants: [{ variant: 'regular', id: 'c'.repeat(64) }] }
 
 test('font popup stays styled and clickable inside the embedded shadow root', async ({ page }, testInfo) => {
   await page.route('**/api/fonts/catalog?*', route => route.fulfill({ json: { families: [family], total: 1, offset: 0 } }))
   await page.route('**/api/fonts/file?*', route => route.fulfill({ contentType: 'font/ttf', body: ttf }))
+  await routeGeist(page)
   await page.goto('/tests/index.html')
   const editor = page.locator('overprint-editor').first()
   await editor.getByRole('button', { name: 'Draw text', exact: true }).click()

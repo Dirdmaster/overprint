@@ -110,7 +110,7 @@ export const createGoogleFontsHandler = ({ fetcher = fetch, now = Date.now, time
       if (path.endsWith('/catalog') && (q.length > 100 || /[\u0000-\u001f]/.test(q) || !/^\d{1,5}$/.test(offsetText))) return fail(400, 'Invalid catalogue search.')
       const family = url.searchParams.get('family') ?? '', variant = url.searchParams.get('variant') ?? '', version = url.searchParams.get('version') ?? '', id = url.searchParams.get('id') ?? ''
       if (path.endsWith('/file') && (!family || family.length > 200 || !variantPattern.test(variant) || !/^v\d{1,8}$/.test(version) || !/^[a-f0-9]{64}$/.test(id))) return fail(400, 'Invalid font selection.')
-      if (!apiKey?.trim()) return fail(503, 'Google Fonts is not configured. Use a bundled font or contact the host.')
+      if (!apiKey?.trim()) return fail(503, 'Google Fonts is not configured. Contact the host to enable new text and font editing.')
       const families = await getCatalogue(apiKey)
       if (path.endsWith('/catalog')) {
         const matches = families.filter(item => item.family.toLowerCase().includes(q.trim().toLowerCase())), offset = Number(offsetText)

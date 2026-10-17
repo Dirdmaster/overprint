@@ -1,9 +1,11 @@
+import { routeGeist } from '../fixtures/googleFontFixture'
 import { test, expect } from '@playwright/test'
 import { demoBoard } from '../fixtures/demoBoard'
 
 test('text stays editable while persisted geometry is frozen local paths', async ({ page }) => {
   const external: string[] = []
   page.on('request', request => { if (!/^(http:\/\/127\.0\.0\.1:|data:|blob:)/.test(request.url())) external.push(request.url()) })
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -43,6 +45,7 @@ test('text stays editable while persisted geometry is frozen local paths', async
 })
 
 test('text previews each keystroke, groups typing for undo and keeps invalid drafts editable', async ({ page }) => {
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -76,6 +79,7 @@ test('text previews each keystroke, groups typing for undo and keeps invalid dra
 })
 
 test('a delayed font change cannot overwrite undo or a newer invalid draft', async ({ page }) => {
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -89,21 +93,23 @@ test('a delayed font change cannot overwrite undo or a newer invalid draft', asy
   let release!: () => void, requested!: () => void
   const blocked = new Promise<void>(resolve => { release = resolve })
   const started = new Promise<void>(resolve => { requested = resolve })
-  await page.route('**/*700*.woff*', async route => { requested(); await blocked; await route.continue() })
+  await page.route('**/api/fonts/file?*', async route => { if (new URL(route.request().url()).searchParams.get('variant') === '700') { requested(); await blocked } await route.fallback() })
+  await page.getByLabel('Font style').focus()
+  await expect(page.getByLabel('Font style').locator('option')).toHaveCount(2)
   await page.getByLabel('Font style').selectOption('700')
   await started
   await input.fill('🛠')
   await expect(page.getByRole('alert')).toContainText('Unsupported')
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
   await expect(input).toHaveValue('Text')
-  const response = page.waitForResponse(response => response.url().includes('700') && response.url().includes('.woff'))
+  const response = page.waitForResponse(response => response.url().includes('variant=700'))
   release()
   await (await response).finished()
   // A subsequent valid edit must be based on the restored regular text, not the delayed bold draft.
   await input.fill('Latest')
   await expect(image).not.toHaveAttribute('href', original!)
   await expect(page.getByText('Updating text…', { exact: true })).toHaveCount(0)
-  await expect(page.getByLabel('Font style')).toHaveValue('400')
+  await expect(page.getByLabel('Font style')).toHaveValue('regular')
   await expect(input).toHaveValue('Latest')
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
   await expect(image).toHaveAttribute('href', original!)
@@ -122,6 +128,7 @@ test('downloaded manufacturing text is identical after reopening frozen outlines
     }) as typeof crypto.subtle.importKey
   }, [...keys.publicKey.export({ format: 'der', type: 'spki' })])
   const board = { name: 'Text output', bounds: { x: 0, y: 0, width: 20, height: 20 }, outline: 'M0 0 L20 0 L20 20 L0 20 Z', holes: '', layers: { 'front-silkscreen': [], 'front-mask': [], 'front-copper': [], 'front-fabrication': [] }, fabrication: { version: 1, copperLayers: 2, originMm: [0, 0], files: Object.fromEntries([...['F_Cu', 'B_Cu', 'F_Mask', 'B_Mask', 'F_Silkscreen', 'B_Silkscreen', 'Edge_Cuts'].map(name => [`fabrication/${name}.gbr`, '%MOMM*%\nM02*\n']), ['fabrication/drill.drl', 'M48\nMETRIC,TZ\n%\nM30\n']]) } }
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Open project', exact: true }).click()
   await page.getByLabel('Choose project file').setInputFiles({ name: 'text.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ version: 1, board, artwork: [], side: 'front', silk: false, mask: '#161616', fabrication: false })) })
@@ -174,6 +181,7 @@ test('downloaded manufacturing text is identical after reopening frozen outlines
 })
 
 test('live outlining keeps the inspector hint and controls in place', async ({ page }) => {
+  await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -184,8 +192,10 @@ test('live outlining keeps the inspector hint and controls in place', async ({ p
   const before = await position()
   let release!: () => void
   const blocked = new Promise<void>(resolve => { release = resolve })
-  await page.route('**/*700*.woff*', async route => { await blocked; await route.continue() })
+  await page.route('**/api/fonts/file?*', async route => { if (new URL(route.request().url()).searchParams.get('variant') === '700') await blocked; await route.fallback() })
   try {
+    await page.getByLabel('Font style').focus()
+    await expect(page.getByLabel('Font style').locator('option')).toHaveCount(2)
     await page.getByLabel('Font style').selectOption('700')
     await expect(page.getByText('Loading font…', { exact: true })).toBeAttached()
     expect(await position()).toEqual(before)

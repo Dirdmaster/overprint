@@ -1,32 +1,16 @@
 import { loadGoogleTextFont } from './googleTextFont'
 import type { Font } from 'opentype.js'
-import regularUrl from '../assets/text-fonts/geist-latin-400-normal.woff?url'
-import boldUrl from '../assets/text-fonts/geist-latin-700-normal.woff?url'
 import { validateText, type TextDefinition } from './textDrawing'
 import { readArtwork } from './artwork'
-const fonts = new Map<number, Promise<Font>>()
-const loadFont = (weight: number) => {
-  let pending = fonts.get(weight)
-  if (!pending) {
-    pending = (async () => {
-      const [response, converter] = await Promise.all([fetch(weight === 400 ? regularUrl : boldUrl), import('opentype.js')])
-      if (!response.ok) throw new Error('Unable to load the bundled font. Try again.')
-      return converter.parse(await response.arrayBuffer())
-    })()
-    fonts.set(weight, pending)
-    pending.catch(() => fonts.delete(weight))
-  }
-  return pending
-}
 export const outlineText = async (value: TextDefinition) => {
   const drawing = validateText(value)
-  const loaded = drawing.font === 'google-fonts-v1' ? await loadGoogleTextFont(drawing.google!) : undefined
-  const font = loaded?.font ?? await loadFont(drawing.weight)
-  if (loaded) drawing.google = loaded.identity
+  if (drawing.font === 'geist-latin-v1') throw new Error('This saved text uses the former bundled Geist font. Choose Geist from Google Fonts to edit it. Existing artwork still displays and exports.')
+  const loaded = await loadGoogleTextFont(drawing.google!)
+  const font: Font = loaded.font
+  drawing.google = loaded.identity
   for (const character of new Set(drawing.content.replaceAll('\n', ''))) {
-    if (!font.charToGlyphIndex(character)) throw new Error(`Unsupported glyph “${character}” in ${drawing.google?.family ?? 'Geist Latin'}. Choose a supported character.`)
+    if (!font.charToGlyphIndex(character)) throw new Error(`Unsupported glyph “${character}” in ${drawing.google.family}. Choose a supported character.`)
   }
-  const options = { kerning: true, letterSpacing: drawing.letterSpacing / drawing.size }
   const lines = drawing.content.split('\n')
   // Google families can contain shaping lookups unsupported by opentype.js 2.
   // Our supported Latin subset uses direct glyphs and kerning, without ligatures.
@@ -44,12 +28,12 @@ export const outlineText = async (value: TextDefinition) => {
     }
     return { path, advance }
   }
-  const advances = lines.map(line => loaded ? layoutLatin(line).advance : font.getAdvanceWidth(line, drawing.size, options))
+  const advances = lines.map(line => layoutLatin(line).advance)
   const lineWidth = Math.max(...advances)
   const paths = lines.map((line, index) => {
     const x = drawing.align === 'center' ? (lineWidth - advances[index]!) / 2 : drawing.align === 'right' ? lineWidth - advances[index]! : 0
     const y = index * drawing.size * drawing.lineHeight
-    return loaded ? layoutLatin(line, x, y).path : font.getPath(line, x, y, drawing.size, options)
+    return layoutLatin(line, x, y).path
   }).filter(path => path.commands.length)
   const boxes = paths.map(path => path.getBoundingBox())
   const left = Math.min(0, ...boxes.map(box => box.x1))

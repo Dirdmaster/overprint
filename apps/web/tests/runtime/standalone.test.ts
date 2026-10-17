@@ -101,7 +101,7 @@ test('standalone font catalogue gives a useful unavailable response without conf
   try {
     const response = await fetch(`${await ready}/api/fonts/catalog`)
     assert.equal(response.status, 503)
-    assert.match(await response.text(), /bundled font/)
+    assert.match(await response.text(), /Contact the host/)
   } finally {
     if (child.exitCode === null) { const exited = once(child, 'exit'); child.kill('SIGTERM'); await exited }
   }

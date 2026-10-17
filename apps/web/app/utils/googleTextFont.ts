@@ -2,7 +2,7 @@ import type { Font } from 'opentype.js'
 import type { GoogleFontIdentity } from './textDrawing'
 
 const cache = new Map<string, Promise<{ font: Font; identity: GoogleFontIdentity }>>()
-const unavailable = 'This font is unavailable. Existing artwork still displays and exports. Retry or choose a bundled font to edit.'
+const unavailable = 'This font is unavailable. Existing artwork still displays and exports. Retry or choose another Google font to edit.'
 export const loadGoogleTextFont = async (identity: GoogleFontIdentity) => {
   const key = JSON.stringify([identity.family, identity.variant, identity.version, identity.id])
   let pending = cache.get(key)

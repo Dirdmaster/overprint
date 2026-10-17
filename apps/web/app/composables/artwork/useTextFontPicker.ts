@@ -22,7 +22,7 @@ export const useTextFontPicker = (
     preview = ref(''),
     previewName = ref('')
   const chosenFamily = ref<Family>()
-  const familyName = computed(() => current().google?.family ?? 'Geist')
+  const familyName = computed(() => current().google?.family ?? 'Geist (legacy)')
   const currentVariant = computed(() => current().google?.variant ?? String(current().weight))
   const compatibleFamily = computed(() => {
     const saved = current().google
@@ -38,7 +38,7 @@ export const useTextFontPicker = (
     const saved = current().google
     return saved
       ? (compatibleFamily.value?.variants.map((item) => item.variant) ?? [saved.variant])
-      : ['400', '700']
+      : [String(current().weight)]
   })
   const styleName = (variant: string) => {
     const weight = parseInt(variant) || 400
@@ -79,8 +79,8 @@ export const useTextFontPicker = (
       if (!response.ok)
         throw new Error(
           response.status === 503
-            ? 'Google Fonts is not configured on this server. Geist is available offline.'
-            : 'Unable to load Google Fonts. Retry or choose Geist offline.'
+            ? 'Google Fonts is not configured on this server.'
+            : 'Unable to load Google Fonts. Retry when the service is available.'
         )
       const result = (await response.json()) as { families: Family[]; total: number }
       if (token !== request) return
@@ -138,7 +138,6 @@ export const useTextFontPicker = (
       id: family.variants.find((item) => item.variant === variant)!.id
     }
   })
-  const bundled = (): Choice => ({ font: 'geist-latin-v1', weight: 400, google: undefined })
   const renderPreview = async (value: Choice) => {
     const result = await outlineText({
       ...defaultText(),
@@ -162,7 +161,7 @@ export const useTextFontPicker = (
       if (token !== operation || original !== JSON.stringify(current())) return
       chosenFamily.value = family
       preview.value = source
-      previewName.value = value.google?.family ?? 'Geist'
+      previewName.value = value.google?.family ?? ''
       onSelect(value)
       open.value = false
     } catch (reason) {
@@ -182,7 +181,7 @@ export const useTextFontPicker = (
       const source = await renderPreview(value)
       if (token === previewRequest) {
         preview.value = source
-        previewName.value = value.google?.family ?? 'Geist'
+        previewName.value = value.google?.family ?? ''
       }
     } catch {
       /* A hover preview never changes artwork or interrupts selection. */
@@ -197,7 +196,7 @@ export const useTextFontPicker = (
     queuedPreview = undefined
     if (!event || pending.value) return
     const family = families.value.find((item) => item.family === event.value)
-    const value = event.value === 'offline:geist' ? bundled() : family ? choice(family) : undefined
+    const value = family ? choice(family) : undefined
     if (!value) return
     previewTimer = setTimeout(() => {
       queuedPreview = { value, token }
@@ -229,8 +228,7 @@ export const useTextFontPicker = (
   }
   const selectStyle = (event: Event) => {
     const variant = (event.target as HTMLSelectElement).value
-    if (!current().google) void apply({ ...bundled(), weight: Number(variant) })
-    else if (compatibleFamily.value)
+    if (compatibleFamily.value)
       void apply(choice(compatibleFamily.value, variant), compatibleFamily.value)
   }
   watch(
@@ -269,7 +267,6 @@ export const useTextFontPicker = (
     styleName,
     search,
     choice,
-    bundled,
     apply,
     highlight,
     selectStyle,

@@ -78,7 +78,7 @@ test('rejects method, origin, body and proxy parameters before upstream access',
   assert.equal(calls, 0)
   const missing = await handler(request('catalog'))
   assert.equal(missing.status, 503)
-  assert.match(await missing.text(), /bundled font/)
+  assert.match(await missing.text(), /Contact the host/)
 })
 
 test('upstream URLs and error bodies never leak credentials', async () => {
