@@ -1,10 +1,11 @@
+import { loadGoogleTextFont } from './googleTextFont'
 import type { Font } from 'opentype.js'
 import regularUrl from '../assets/text-fonts/geist-latin-400-normal.woff?url'
 import boldUrl from '../assets/text-fonts/geist-latin-700-normal.woff?url'
 import { validateText, type TextDefinition } from './textDrawing'
 import { readArtwork } from './artwork'
 const fonts = new Map<number, Promise<Font>>()
-const loadFont = (weight: 400 | 700) => {
+const loadFont = (weight: number) => {
   let pending = fonts.get(weight)
   if (!pending) {
     pending = (async () => {
@@ -19,17 +20,36 @@ const loadFont = (weight: 400 | 700) => {
 }
 export const outlineText = async (value: TextDefinition) => {
   const drawing = validateText(value)
-  const font = await loadFont(drawing.weight)
+  const loaded = drawing.font === 'google-fonts-v1' ? await loadGoogleTextFont(drawing.google!) : undefined
+  const font = loaded?.font ?? await loadFont(drawing.weight)
+  if (loaded) drawing.google = loaded.identity
   for (const character of new Set(drawing.content.replaceAll('\n', ''))) {
-    if (!font.charToGlyphIndex(character)) throw new Error(`Unsupported glyph “${character}” in Geist Latin. Choose a supported character.`)
+    if (!font.charToGlyphIndex(character)) throw new Error(`Unsupported glyph “${character}” in ${drawing.google?.family ?? 'Geist Latin'}. Choose a supported character.`)
   }
   const options = { kerning: true, letterSpacing: drawing.letterSpacing / drawing.size }
   const lines = drawing.content.split('\n')
-  const advances = lines.map(line => font.getAdvanceWidth(line, drawing.size, options))
+  // Google families can contain shaping lookups unsupported by opentype.js 2.
+  // Our supported Latin subset uses direct glyphs and kerning, without ligatures.
+  const { Path } = await import('opentype.js')
+  const layoutLatin = (line: string, x = 0, y = 0) => {
+    const path = new Path()
+    const glyphs = Array.from(line, character => font.charToGlyph(character))
+    let advance = 0
+    for (const [index, glyph] of glyphs.entries()) {
+      path.extend(glyph.getPath(x + advance, y, drawing.size))
+      advance += (glyph.advanceWidth ?? 0) * drawing.size / font.unitsPerEm
+      const next = glyphs[index + 1]
+      if (next) advance += font.getKerningValue(glyph, next) * drawing.size / font.unitsPerEm
+      advance += drawing.letterSpacing
+    }
+    return { path, advance }
+  }
+  const advances = lines.map(line => loaded ? layoutLatin(line).advance : font.getAdvanceWidth(line, drawing.size, options))
   const lineWidth = Math.max(...advances)
   const paths = lines.map((line, index) => {
     const x = drawing.align === 'center' ? (lineWidth - advances[index]!) / 2 : drawing.align === 'right' ? lineWidth - advances[index]! : 0
-    return font.getPath(line, x, index * drawing.size * drawing.lineHeight, drawing.size, options)
+    const y = index * drawing.size * drawing.lineHeight
+    return loaded ? layoutLatin(line, x, y).path : font.getPath(line, x, y, drawing.size, options)
   }).filter(path => path.commands.length)
   const boxes = paths.map(path => path.getBoundingBox())
   const left = Math.min(0, ...boxes.map(box => box.x1))

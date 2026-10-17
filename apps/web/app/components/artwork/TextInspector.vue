@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import TextFontPicker from './TextFontPicker.vue'
 import type { Artwork } from '../../utils/artwork'
 import { physicalText, defaultText, type TextDefinition } from '../../utils/textDrawing'
 import { useTextDrawing } from '../../composables/artwork/useTextDrawing'
@@ -25,14 +26,18 @@ watch(
   },
   { immediate: true, deep: true, flush: 'sync' }
 )
-const apply = async (event: Event) => {
-  if (event.type === 'input' && event.target instanceof HTMLSelectElement) return
+const apply = async (event?: Event) => {
+  if (event?.type === 'input' && event.target instanceof HTMLSelectElement) return
   if (event instanceof InputEvent && event.isComposing) return
   const operation = ++request
   pending.value = true
   try {
     await editText(props.item.id, { ...draft.value }, group)
-    if (operation === request) error.value = ''
+    if (operation === request) {
+      error.value = ''
+      const saved = committedItem.value?.drawing
+      if (saved?.type === 'text') draft.value.google = saved.google
+    }
   } catch (reason) {
     if (operation === request)
       error.value = reason instanceof Error ? reason.message : 'Unable to outline text.'
@@ -61,18 +66,17 @@ const apply = async (event: Event) => {
           class="w-full rounded bg-soft p-2 text-ink"
         />
       </label>
-      <label class="flex flex-col gap-1 text-muted">
-        Font
-        <select
-          v-model.number="draft.weight"
-          @change="apply"
-          aria-label="Text font"
-          class="w-full rounded bg-soft p-2 text-ink"
-        >
-          <option :value="400">Geist Regular</option>
-          <option :value="700">Geist Bold</option>
-        </select>
-      </label>
+      <TextFontPicker
+        :key="item.id"
+        :value="draft"
+        @select="
+          (value) => {
+            draft = { ...draft, ...value }
+            group = {}
+            apply()
+          }
+        "
+      />
       <label class="flex flex-col gap-1 text-muted">
         Size (mm, em)
         <input
