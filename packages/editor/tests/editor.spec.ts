@@ -145,3 +145,55 @@ test('shape commands retain physical geometry, bounded lines and editable projec
   expect(result.rejected).toBe(true)
   expect(result.staleRejected).toBe(true)
 })
+
+test('text commands preserve frozen outlines, scaling and failed-edit history', async ({ page }) => {
+  await page.goto('/tests/index.html')
+  const result = await page.evaluate(async () => {
+    const editor = (window as any).controllers[0]
+    const definition = { type: 'text', font: 'geist-latin-v1', weight: 400, content: 'AV\nPCB', size: 4, align: 'center', letterSpacing: .2, lineHeight: 1.3, fill: '#ffffff' }
+    editor.setSide('back')
+    const id = await editor.addText(definition, 5, 6)
+    const original = editor.getDocument()
+    await editor.editText(id, { weight: 700, content: 'Bold' })
+    editor.undo()
+    const undone = editor.getDocument()
+    editor.redo()
+    const redone = editor.getDocument()
+    const invalid: string[] = []
+    for (const patch of [{ content: 'Ω' }, { content: '  ' }, { content: 'a'.repeat(501) }, { size: -1 }]) {
+      try { await editor.editText(id, patch) } catch (error) { invalid.push((error as Error).message) }
+    }
+    const preserved = JSON.stringify(editor.getDocument()) === JSON.stringify(redone)
+    const scaled = structuredClone(original)
+    scaled.artwork[0].width *= 2
+    scaled.artwork[0].height *= 2
+    scaled.artwork[0].rotation = 30
+    await editor.restore(scaled)
+    const frozen = editor.getDocument().artwork[0].source
+    await editor.editText(id, { fill: '#ff0000' })
+    const edited = editor.getDocument().artwork[0]
+    const pending = editor.editText(id, { content: 'Late write' })
+    editor.removeLayer(id)
+    const deleted = await pending
+    const adding = editor.addText(definition, 1, 1)
+    editor.replaceBoard({ ...original.board, name: 'Another board' })
+    const replaced = await adding
+    const disposing = editor.addText(definition, 1, 1)
+    editor.destroy()
+    const disposed = await disposing
+    return { original: original.artwork[0], undone: undone.artwork[0], changed: redone.artwork[0].source !== original.artwork[0].source, invalid: invalid.length, preserved, frozenEqual: frozen === original.artwork[0].source, edited, deleted, replaced, disposed }
+  })
+  expect(result.original.side).toBe('back')
+  expect(result.original.source).toContain('<path')
+  expect(result.original.source).not.toMatch(/<text|<image|href=/)
+  expect(result.undone).toEqual(result.original)
+  expect(result.changed).toBe(true)
+  expect(result.invalid).toBe(4)
+  expect(result.preserved).toBe(true)
+  expect(result.frozenEqual).toBe(true)
+  expect(result.edited).toMatchObject({ x: 5, y: 6, rotation: 30, side: 'back', drawing: { size: 8, letterSpacing: .4 } })
+  expect(result.edited.width).toBeCloseTo(result.original.width * 2, 5)
+  expect(result.deleted).toBe(false)
+  expect(result.replaced).toBe(null)
+  expect(result.disposed).toBe(null)
+})

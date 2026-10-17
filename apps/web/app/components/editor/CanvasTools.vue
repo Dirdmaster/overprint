@@ -8,7 +8,8 @@ import {
   Square,
   RectangleHorizontal,
   Circle,
-  Minus
+  Minus,
+  Type
 } from '@lucide/vue'
 withDefaults(
   defineProps<{
@@ -17,7 +18,7 @@ withDefaults(
     showShortcuts?: boolean
   }>(),
   {
-    tools: () => ['select', 'hand', 'paint', ...shapeTools],
+    tools: () => ['select', 'hand', 'paint', ...shapeTools, 'text'],
     orientation: 'vertical',
     showShortcuts: true
   }
@@ -95,6 +96,27 @@ const { selected, active } = useCanvasTools()
         class="absolute bottom-0.5 right-1 text-[0.5rem]"
       >
         K
+      </kbd>
+    </button>
+    <button
+      v-if="tools.includes('text')"
+      part="tool-button"
+      aria-label="Draw text"
+      title="Draw text (T)"
+      :aria-pressed="active === 'text'"
+      class="relative flex size-9 items-center justify-center rounded-md"
+      :class="active === 'text' ? 'bg-accent text-on-accent' : 'text-muted'"
+      @click="selected = 'text'"
+    >
+      <Type
+        class="size-4.5"
+        aria-hidden="true"
+      />
+      <kbd
+        v-if="showShortcuts"
+        class="absolute bottom-0.5 right-1 text-[0.5rem]"
+      >
+        T
       </kbd>
     </button>
     <button

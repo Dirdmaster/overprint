@@ -97,7 +97,7 @@ export const createControls = (
     },
     setTool(value) {
       live()
-      if (!['select', 'hand', 'paint', 'rectangle', 'roundedRectangle', 'ellipse', 'line'].includes(value))
+      if (!['select', 'hand', 'paint', 'rectangle', 'roundedRectangle', 'ellipse', 'line', 'text'].includes(value))
         throw new Error('Invalid tool.')
       tools.selected.value = value
     },

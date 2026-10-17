@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useLayerDrag } from '../../composables/artwork/useLayerDrag'
 import { useArtwork } from '../../composables/artwork/useArtwork'
+import TextInspector from './TextInspector.vue'
 import DrawingInspector from './DrawingInspector.vue'
 import ArtworkAlignment from './ArtworkAlignment.vue'
 import { computed, watch } from 'vue'
@@ -235,8 +236,13 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
         </select>
       </label>
     </div>
+    <TextInspector
+      v-if="current?.drawing?.type === 'text'"
+      :key="current.id"
+      :item="current"
+    />
     <DrawingInspector
-      v-if="current?.drawing"
+      v-if="current?.drawing?.type === 'shape'"
       :item="current"
     />
     <ArtworkAlignment

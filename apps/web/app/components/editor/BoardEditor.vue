@@ -5,6 +5,7 @@ import { useCanvasTools } from '../../composables/canvas/useCanvasTools'
 import { useComposition } from '../../composables/project/useComposition'
 import LivePaintControls from '../paint/LivePaintControls.vue'
 import LivePaintCanvas from '../paint/LivePaintCanvas.vue'
+import TextCanvas from '../artwork/TextCanvas.vue'
 import DrawingCanvas from '../artwork/DrawingCanvas.vue'
 import ArtworkCanvas from '../artwork/ArtworkCanvas.vue'
 import NativeSilkscreen from '../board/NativeSilkscreen.vue'
@@ -341,6 +342,12 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
           <ArtworkCanvas
             :side="side"
             interactive
+          />
+          <TextCanvas
+            v-if="active === 'text'"
+            :key="side"
+            :side="side"
+            @error="graphicError = $event"
           />
           <DrawingCanvas
             :side="side"

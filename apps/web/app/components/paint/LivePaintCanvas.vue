@@ -100,7 +100,10 @@ const fill = (region: Target) => {
   stroke.visited.add(key)
   if ('artworkId' in region) {
     if (items.value.find((item) => item.id === region.artworkId)?.drawing) {
-      emit('error', 'Convert this editable shape to SVG in its inspector before using Live Paint.')
+      emit(
+        'error',
+        'Convert this editable artwork to SVG in its inspector before using Live Paint.'
+      )
       return
     }
     if (items.value.find((item) => item.id === region.artworkId)?.library) {

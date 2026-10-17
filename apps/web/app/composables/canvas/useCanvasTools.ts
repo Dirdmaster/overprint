@@ -15,6 +15,8 @@ export const useCanvasTools = () => {
       event.preventDefault()
       holdingSpace.value = true
     } else if (['v', 'm'].includes(event.key.toLowerCase())) selected.value = 'select'
+    else if (event.key.toLowerCase() === 't') selected.value = 'text'
+    else if (event.key === 'Escape' && selected.value === 'text') selected.value = 'select'
     else if (event.key.toLowerCase() === 'k') selected.value = 'paint'
   }
   const releaseSpace = (event: KeyboardEvent) => { if (event.code === 'Space') holdingSpace.value = false }

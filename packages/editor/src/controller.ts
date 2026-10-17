@@ -1,3 +1,5 @@
+import { useTextDrawing } from '../../../apps/web/app/composables/artwork/useTextDrawing'
+import type { TextDefinition } from '../../../apps/web/app/utils/textDrawing'
 import { useDrawing } from '../../../apps/web/app/composables/artwork/useDrawing'
 import type { ShapeDefinition } from '../../../apps/web/app/utils/drawing'
 import { createApp, effectScope, ref, watch } from 'vue'
@@ -23,6 +25,8 @@ export interface EditorController extends EditorControls {
   replaceBoard(board: BoardPackage): void
   restore(document: EditorDocument): Promise<boolean>
   addGraphic(file: File): Promise<void>
+  addText(drawing: TextDefinition, x: number, y: number): Promise<string | null>
+  editText(id: string, patch: Partial<TextDefinition>): Promise<boolean>
   addShape(drawing: ShapeDefinition, x: number, y: number): string
   editShape(id: string, patch: Partial<ShapeDefinition>): void
   convertToSvg(id: string): void
@@ -43,7 +47,7 @@ const initialize = (board: BoardPackage, options: EditorOptions) => {
   const context = createApp({})
   context.provide(editorStateKey, state)
   const scope = effectScope()
-  const data = scope.run(() => context.runWithContext(() => ({ artwork: useArtwork(), drawing: useDrawing(), composition: useComposition(), view: useCanvasView(), paint: useLivePaint(), tools: useCanvasToolState() })))!
+  const data = scope.run(() => context.runWithContext(() => ({ artwork: useArtwork(), drawing: useDrawing(), textDrawing: useTextDrawing(), composition: useComposition(), view: useCanvasView(), paint: useLivePaint(), tools: useCanvasToolState() })))!
   data.composition.openBoard(copy(board))
   data.composition.maskColor.value = options.mask || '#161616'
   data.composition.side.value = options.side || 'front'
@@ -108,6 +112,8 @@ export const createEditor = (board: BoardPackage, options: EditorOptions = {}): 
         width, height, rotation: 0, visible: true })
       a.selection.value = id
     },
+    addText(drawing, x, y) { live(); return session.textDrawing.addText(drawing, c.side.value, x, y) },
+    editText(id, patch) { live(); return session.textDrawing.editText(id, patch) },
     addShape(drawing, x, y) { live(); return session.drawing.addShape(drawing, c.side.value, x, y) },
     editShape(id, patch) { live(); session.drawing.editShape(id, patch) },
     convertToSvg(id) { live(); session.drawing.convertToSvg(id) },

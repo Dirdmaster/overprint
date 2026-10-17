@@ -62,7 +62,7 @@ test('drawing on the back uses the same positive bounds and requires conversion 
   await page.mouse.up()
   await page.getByRole('button', { name: 'Live paint (K)' }).click()
   await page.mouse.click((point.x + point.xx) / 2, (point.y + point.yy) / 2)
-  await expect(page.getByRole('alert')).toContainText('Convert this editable shape')
+  await expect(page.getByRole('alert')).toContainText('Convert this editable artwork')
   await expect(page.getByLabel('Shape width (mm)', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Convert to SVG', exact: true }).click()
   await expect(page.getByLabel('Shape width (mm)', { exact: true })).toHaveCount(0)

@@ -23,9 +23,11 @@ export const parseProject = async (text: string): Promise<Composition> => {
     if (item.drawing !== undefined) {
       if (item.kind || item.nativeSilk) throw new Error('Only graphics can have editable metadata.')
       item.drawing = validateDrawing(item.drawing)
-      const frozen = await readArtwork(new File([renderDrawing(item.drawing).source], 'shape.svg'))
-      const source = await readArtwork(new File([item.source], 'shape.svg'))
-      if (source.source !== frozen.source) throw new Error('Editable shape source does not match its geometry.')
+      if (item.drawing.type === 'shape') {
+        const frozen = await readArtwork(new File([renderDrawing(item.drawing).source], 'shape.svg'))
+        const source = await readArtwork(new File([item.source], 'shape.svg'))
+        if (source.source !== frozen.source) throw new Error('Editable shape source does not match its geometry.')
+      }
     }
     ids.add(item.id)
     if (item.kind !== undefined && !['layer', 'folder'].includes(item.kind)) throw new Error('Invalid layer type.')

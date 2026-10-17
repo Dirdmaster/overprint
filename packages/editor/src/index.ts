@@ -49,3 +49,5 @@ export { createEditorHistory } from './history'
 export type { EditorHistory, EditorHistoryState } from './history'
 
 export type { DrawingDefinition, ShapeDefinition, ShapeTool } from '../../../apps/web/app/utils/drawing'
+
+export type { TextDefinition } from '../../../apps/web/app/utils/textDrawing'
