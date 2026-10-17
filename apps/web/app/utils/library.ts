@@ -14,6 +14,8 @@ export const validateLibrarySnapshot = async (value: LibrarySnapshot): Promise<L
   if (!value || !value.bounds || !['x', 'y', 'width', 'height'].every(key => number(value.bounds[key as keyof LibraryBounds])) || value.bounds.width <= 0 || value.bounds.height <= 0 || !Array.isArray(value.artwork) || !value.artwork.length || value.artwork.some(item => !item || item.nativeSilk || item.library)) throw new Error('Invalid library snapshot.')
   const parsed = await parseProject(JSON.stringify({ version: 1, board: syntheticBoard, artwork: value.artwork, side: 'front', silk: false, mask: '#000000', fabrication: false }))
   if (!parsed.artwork.some(item => !item.kind)) throw new Error('A library composition needs a graphic.')
+  const actual = boundsOf(parsed.artwork)
+  if (!['x', 'y', 'width', 'height'].every(key => Math.abs(actual[key as keyof LibraryBounds] - value.bounds[key as keyof LibraryBounds]) < 1e-6)) throw new Error('Library bounds do not match the artwork.')
   const snapshot = { bounds: { ...value.bounds }, artwork: parsed.artwork }
   for (const side of ['front', 'back']) await snapshotSvg(snapshot, side)
   return snapshot
@@ -48,6 +50,9 @@ export const validateLibraryInstances = async (items: Artwork[]) => {
     if (Math.abs(first.width / first.height - snapshot.bounds.width / snapshot.bounds.height) > 1e-6) throw new Error('Linked compositions require uniform scaling.')
     for (const item of group) {
       if (JSON.stringify(item.library) !== JSON.stringify(link) || !['x', 'y', 'width', 'height', 'rotation', 'visible'].every(key => item[key as keyof Artwork] === first[key as keyof Artwork])) throw new Error('Inconsistent linked composition.')
+    }
+    for (const item of group) {
+      item.library = { ...link, snapshot: clone(snapshot) }
       // Canonical rendering prevents a stale or forged source diverging from its editable snapshot.
       item.source = await snapshotSvg(snapshot, item.side)
     }
@@ -154,7 +159,10 @@ export const saveLibraryAsset = async (value: LibraryAsset, expectedRevisionId?:
     tx.onabort = () => reject(new Error(message))
   })
 }
-export const assertArtworkCapacity = (items: Artwork[]) => { if (artworkCount(items) > MAX_ARTWORK_ITEMS) throw new Error('This operation exceeds the project limit of 100 layers, folders, and graphics.') }
+export const assertArtworkCapacity = (items: Artwork[]) => {
+  if (artworkCount(items) > MAX_ARTWORK_ITEMS) throw new Error('This operation exceeds the project limit of 100 layers, folders, and graphics.')
+  if (items.some(item => !['x', 'y', 'width', 'height', 'rotation'].every(key => number(item[key as keyof Artwork])) || item.width <= 0 || item.height <= 0)) throw new Error('This composition exceeds the supported artwork dimensions.')
+}
 
 export const deleteLibraryAsset = async (asset: LibraryAsset): Promise<void> => {
   const db = await openWorkspaceDatabase()

@@ -175,3 +175,16 @@ test('library quota failure leaves the composition intact and allows retry', asy
   await page.getByRole('button', { name: 'Close library', exact: true }).click()
   expect((await downloadProject(page)).artwork).toHaveLength(2)
 })
+
+
+test('portable linked snapshots normalize SVG metadata before detachment', async ({ page }) => {
+  const item = { ...front, rotation: 0, source: front.source.replace('<path ', '<metadata><private-note>discard</private-note></metadata><path ') }
+  const snapshot = { bounds: { x: 10, y: 15, width: 20, height: 10 }, artwork: [item] }
+  const linked = { ...item, id: 'linked', name: 'Portable link', library: { instanceId: 'instance', assetId: 'missing', revisionId: 'revision', snapshot } }
+  await importComposition(page, { ...imported, artwork: [linked] } as any)
+  await page.getByRole('button', { name: 'Portable link', exact: true }).click()
+  await page.getByRole('button', { name: 'Detach instance', exact: true }).click()
+  const saved = await downloadProject(page)
+  expect(saved.artwork[0].source).not.toContain('metadata')
+  expect(saved.artwork[0].source).toContain('#ff0000')
+})
