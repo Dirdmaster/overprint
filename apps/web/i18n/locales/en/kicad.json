@@ -37,8 +37,9 @@
       "chooseExport": "Choose board export",
       "showSetup": "Exporting from KiCad?",
       "opening": "Opening board…",
+      "models": "Board geometry ready. Reading embedded 3D models…",
       "failed": "Unable to open this board.",
-      "localHint": "PCB files are processed in your browser. No plugin or upload needed. Use the plugin for native manufacturing files and 3D models.",
+      "localHint": "PCB files are processed in your browser. No plugin or upload needed. For 3D previews, use Tools → Collect and Embed 3D Models in KiCad 10, then save your PCB. Embedded STEP and static WRL models are supported. Native manufacturing files still require the plugin.",
       "oneFile": "Choose one PCB or board export at a time."
     }
   }

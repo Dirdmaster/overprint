@@ -34,7 +34,9 @@ const receiveFiles = async (files: FileList | null) => {
   controller = new AbortController()
   feedback.value = t('kicad.import.opening')
   try {
-    const board = await readBoardFile(file, controller.signal)
+    const board = await readBoardFile(file, controller.signal, () => {
+      if (current === request) feedback.value = t('kicad.import.models')
+    })
     if (current !== request) return
     const accepted = await props.confirmReplacement()
     if (current !== request) return

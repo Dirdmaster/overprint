@@ -22,7 +22,6 @@ export const collectBoardItems = (board: SExpr, geometry: BoardGeometry) => {
     if (flag(item, 'remove_unused_layers')) geometry.warn('Pads with unused copper layers removed are shown on their declared outer layers.')
   }
   const footprint = (node: SExpr) => {
-    if (children(node, 'model').length) geometry.warn('Component 3D models are not included in a PCB file. Use the KiCad plugin for assembled previews.')
     for (const item of children(node)) {
       const kind = atom(item, 0)
       if (kind === 'pad') {
