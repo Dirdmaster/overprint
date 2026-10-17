@@ -219,6 +219,7 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
         Move to
         <select
           aria-label="Move to"
+          :disabled="!!current.library"
           :value="current.parentId ?? ''"
           class="rounded bg-soft p-2 text-ink"
           @change="reparent(current.id, ($event.target as HTMLSelectElement).value || undefined)"

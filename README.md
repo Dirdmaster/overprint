@@ -15,6 +15,7 @@ Your circuit stays in KiCad. Overprint handles the artwork.
 - Place SVG artwork on either side of your board.
 - Paint silkscreen regions and artwork with Live Paint.
 - Arrange designs with layers, folders and alignment tools.
+- Save reusable front/back compositions as linked instances or editable copies. See [artwork libraries](docs/artwork-libraries.md).
 - Preview the board in 2D or with its 3D component models.
 - Sync board changes from KiCad while keeping your artwork.
 - Download a ZIP or send it to JLCPCB from the editor.

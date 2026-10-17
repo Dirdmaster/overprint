@@ -1,3 +1,4 @@
+import { validateLibraryInstances } from './library'
 import { readArtwork, artworkCount, MAX_ARTWORK_ITEMS, type Artwork } from './artwork'
 import { validateDrawing, renderDrawing } from './drawing'
 import { validateBoardModels } from './boardModels'
@@ -45,6 +46,7 @@ export const parseProject = async (text: string): Promise<Composition> => {
       seen.add(parentId); parentId = parent.parentId
     }
   }
+  await validateLibraryInstances(p.artwork)
   return p as Composition
 }
 

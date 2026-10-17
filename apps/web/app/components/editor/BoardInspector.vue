@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LibraryPanel from '../library/LibraryPanel.vue'
 import BoardLayers from './BoardLayers.vue'
 import BoardProperties from '../board/BoardProperties.vue'
 import type { EditorPresentation } from '../../utils/editorPresentation'
@@ -27,6 +28,7 @@ const mask = defineModel<string>('mask', { required: true })
         v-model:fabrication="fabrication"
         @import-graphic="$emit('importGraphic')"
       />
+      <LibraryPanel />
       <BoardProperties
         :board="board"
         v-model:mask="mask"
