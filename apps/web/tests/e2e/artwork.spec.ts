@@ -140,8 +140,18 @@ test('project autosaves, downloads, and reopens with artwork intact', async ({ p
   await page.getByLabel('Artwork rotation').fill('25'); await page.getByLabel('Artwork rotation').press('Tab')
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await expect.poll(() => page.evaluate(() => new Promise(resolve => {
-    const request = indexedDB.open('overprint', 1)
-    request.onsuccess = () => { const db = request.result; const read = db.transaction('projects').objectStore('projects').get('current'); read.onsuccess = () => { resolve(JSON.parse(read.result ?? '{}').side); db.close() } }
+    const request = indexedDB.open('overprint-workspace', 1)
+    request.onsuccess = () => {
+      const db = request.result
+      const tx = db.transaction(['meta', 'projects'])
+      const active = tx.objectStore('meta').get('activeProjectId')
+      active.onsuccess = () => {
+        if (!active.result) { resolve(undefined); return }
+        const read = tx.objectStore('projects').get(active.result)
+        read.onsuccess = () => resolve(JSON.parse(read.result?.composition ?? '{}').side)
+      }
+      tx.oncomplete = () => db.close()
+    }
   }))).toBe('back')
   await page.reload()
   await expect(page.getByRole('img', { name: 'Demo board back board preview' })).toBeVisible()

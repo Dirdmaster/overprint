@@ -126,7 +126,7 @@ test('project picker can select the same file again after feedback is dismissed'
     await page.getByRole('button', { name: 'Open project', exact: true }).click({ noWaitAfter: true })
     await page.getByLabel('Choose project file').setInputFiles(invalidProject)
     const status = page.getByRole('status')
-    await expect(status).toContainText('Could not open project')
+    await expect(status).toContainText('Unsupported project version.')
     await status.click()
     await expect(status).toHaveCount(0)
   }
