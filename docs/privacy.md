@@ -6,6 +6,12 @@ Boards, artwork and component models are processed in your browser. Projects aut
 
 The KiCad plugin reads the open board, including unsaved edits, without saving or changing the PCB file. Model conversion uses a temporary board snapshot that is removed afterward. Exported packages omit local filesystem paths. Component models stay in projects and are excluded from manufacturing ZIPs.
 
+## Google Fonts
+
+The app UI uses a bundled Inter font. Creating text or opening the Google Fonts picker sends a family search to your Overprint server. The server fetches the Google Fonts catalogue and selected static font files from Google. Your artwork and text content are never sent to the font service; previews and outlines are generated in your browser. The server holds bounded, temporary font/catalogue caches in memory, without saving font files to project storage.
+
+Saved text contains frozen SVG outlines and font provenance. Opening or exporting it needs no font download. Editing a Google font may require a connection again. Hosting infrastructure can record font request metadata. See [configuration and limits](hosting.md#google-fonts).
+
 ## KiCad sync
 
 The plugin listens on `127.0.0.1`, on an available port between 43190 and 43199. Overprint scans those ports to find open boards.

@@ -7,6 +7,7 @@ defineProps<{
   syncProgress?: string
 }>()
 defineEmits<{
+  projects: []
   import: []
   save: []
   openProject: []
@@ -18,6 +19,12 @@ defineEmits<{
 <template>
   <header class="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-3 px-5 py-2">
     <AlphaBadge />
+    <button
+      class="header-action"
+      @click="$emit('projects')"
+    >
+      Projects
+    </button>
     <nav
       class="ml-auto flex flex-wrap items-center justify-end gap-1.5"
       :aria-label="$t('editor.actions')"

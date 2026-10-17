@@ -13,8 +13,11 @@ Your circuit stays in KiCad. Overprint handles the artwork.
 ## What you can do
 
 - Place SVG artwork on either side of your board.
+- Draw editable shapes and outlined text with a searchable Google Fonts catalogue.
+- Organize named local projects in a gallery and back up projects and libraries together.
 - Paint silkscreen regions and artwork with Live Paint.
 - Arrange designs with layers, folders and alignment tools.
+- Save reusable front/back compositions as linked instances or editable copies. See [artwork libraries](docs/artwork-libraries.md).
 - Preview the board in 2D or with its 3D component models.
 - Sync board changes from KiCad while keeping your artwork.
 - Download a ZIP or send it to JLCPCB from the editor.
@@ -52,7 +55,7 @@ The [KiCad plugin guide](packages/kicad/README.md) covers live sync and 3D model
 
 ## Your files stay yours
 
-Projects autosave in your browser. Download a `.overprint` project to keep a backup or move it to another browser.
+Named projects autosave in your browser. Download a `.overprint` project, or use **Projects → Export everything** to back up projects and libraries together. See the [local workspace guide](docs/local-workspace.md) for drawing tools, restore behavior and storage limits.
 
 There’s no account or cloud project storage. **Download ZIP** stays local. **Send ZIP** sends your manufacturing files to JLCPCB through a relay; in standalone mode, that relay runs on your own machine. [More about privacy](docs/privacy.md).
 

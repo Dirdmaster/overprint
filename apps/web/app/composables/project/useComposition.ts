@@ -8,8 +8,10 @@ export const useComposition = () => {
   const silk = useEditorRef('composition-silk', () => true)
   const maskColor = useEditorRef('composition-mask', () => '#202723')
   const components = useEditorRef('composition-fabrication', () => false)
+  const generation = useEditorRef('composition-generation', () => 0)
   const { reset } = useArtwork()
   const openBoard = (next: BoardPackage) => {
+    generation.value++
     reset()
     side.value = 'front'
     silk.value = true
@@ -17,5 +19,5 @@ export const useComposition = () => {
     components.value = false
     board.value = next
   }
-  return { board, side, silk, maskColor, components, openBoard }
+  return { board, side, silk, maskColor, components, openBoard, generation }
 }

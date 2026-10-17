@@ -4,9 +4,9 @@ Overprint is licensed under [MIT](LICENSE). Dependencies and third-party assets 
 
 ## Dependencies
 
-- Nuxt, Vue, Three.js and fflate: MIT
+- Nuxt, Vue, Three.js, fflate and Reka UI: MIT
 - Lucide: ISC
-- Inter and Geist: SIL Open Font License
+- Inter: SIL Open Font License
 - Playwright: Apache-2.0
 
 See the installed packages for their full license notices.
@@ -29,3 +29,11 @@ The setup guide includes a screenshot of KiCad’s interface. The order guide in
 - fzstd 0.1.1: MIT, copyright Arjun Barrett. License retained in the installed package.
 
 These dependencies retain their own licenses; Overprint's application code remains MIT.
+
+## Editable text outlines
+
+OpenType.js 2.0.0 is pinned for local path conversion under MIT. Selected Google Fonts are downloaded through the host server for browser-local outlining. Saved outlines display and export without a font request. Text outlining supports a limited Latin character set, not arbitrary scripts or emoji.
+
+## Font picker primitives
+
+Reka UI 2.11.0 provides accessible combobox and popover behavior under MIT. Its full notice is retained in [Reka UI notices](docs/licenses/reka-ui.md) and in the embedded editor notices.

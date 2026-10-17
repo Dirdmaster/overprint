@@ -15,7 +15,7 @@ export default defineNuxtConfig({
   },
   // Feature folders organize files; existing component names stay unprefixed.
   components: [{ path: '~/components', pathPrefix: false }],
-  css: ['~/assets/css/main.css', '@fontsource/inter/400.css', '@fontsource/inter/500.css', '@fontsource/inter/600.css', '@fontsource/geist/600.css'],
+  css: ['~/assets/css/main.css', '@fontsource/inter/400.css', '@fontsource/inter/500.css', '@fontsource/inter/600.css'],
   vite: {
     plugins: [tailwindcss()],
     // Worker-only dependencies must be ready before the first PCB drop;
@@ -32,6 +32,7 @@ export default defineNuxtConfig({
     } : {}),
   },
   runtimeConfig: {
+    googleFontsApiKey: '',
     public: {
       sourceDownload: existsSync(new URL('./public/downloads/overprint-source.zip', import.meta.url)),
       guideScreenshots: ['settings', 'multicolor', 'open-viewer', 'viewer'].every(name => existsSync(new URL(`./public/guides/jlcpcb/${name}.png`, import.meta.url))),

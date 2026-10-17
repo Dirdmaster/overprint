@@ -1,13 +1,27 @@
 <script setup lang="ts">
 import { useCanvasTools } from '../../composables/canvas/useCanvasTools'
-import { Hand, MousePointer2, PaintBucket } from '@lucide/vue'
+import { shapeTools, shapeNames, type CanvasTool } from '../../utils/drawing'
+import {
+  Hand,
+  MousePointer2,
+  PaintBucket,
+  Square,
+  RectangleHorizontal,
+  Circle,
+  Minus,
+  Type
+} from '@lucide/vue'
 withDefaults(
   defineProps<{
-    tools?: ('select' | 'hand' | 'paint')[]
+    tools?: CanvasTool[]
     orientation?: 'horizontal' | 'vertical'
     showShortcuts?: boolean
   }>(),
-  { tools: () => ['select', 'hand', 'paint'], orientation: 'vertical', showShortcuts: true }
+  {
+    tools: () => ['select', 'hand', 'paint', ...shapeTools, 'text'],
+    orientation: 'vertical',
+    showShortcuts: true
+  }
 )
 const { selected, active } = useCanvasTools()
 </script>
@@ -83,6 +97,51 @@ const { selected, active } = useCanvasTools()
       >
         K
       </kbd>
+    </button>
+    <button
+      v-if="tools.includes('text')"
+      part="tool-button"
+      aria-label="Draw text"
+      title="Draw text (T)"
+      :aria-pressed="active === 'text'"
+      class="relative flex size-9 items-center justify-center rounded-md"
+      :class="active === 'text' ? 'bg-accent text-on-accent' : 'text-muted'"
+      @click="selected = 'text'"
+    >
+      <Type
+        class="size-4.5"
+        aria-hidden="true"
+      />
+      <kbd
+        v-if="showShortcuts"
+        class="absolute bottom-0.5 right-1 text-[0.5rem]"
+      >
+        T
+      </kbd>
+    </button>
+    <button
+      v-for="tool in shapeTools.filter((tool) => tools.includes(tool))"
+      :key="tool"
+      part="tool-button"
+      :aria-label="`Draw ${shapeNames[tool].toLowerCase()}`"
+      :title="`Draw ${shapeNames[tool].toLowerCase()}`"
+      :aria-pressed="active === tool"
+      class="relative flex size-9 items-center justify-center rounded-md"
+      :class="active === tool ? 'bg-accent text-on-accent' : 'text-muted'"
+      @click="selected = tool"
+    >
+      <component
+        :is="
+          {
+            rectangle: Square,
+            roundedRectangle: RectangleHorizontal,
+            ellipse: Circle,
+            line: Minus
+          }[tool]
+        "
+        class="size-4.5"
+        aria-hidden="true"
+      />
     </button>
   </div>
 </template>

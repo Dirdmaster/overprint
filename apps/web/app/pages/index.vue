@@ -2,20 +2,48 @@
 // Own the layout here so editor-only drop events stay with the page's dialogs.
 definePageMeta({ layout: false })
 const { board, openBoard } = useComposition()
-const { status, open: openProjectFile, download } = useProjectStorage()
+const {
+  initialized,
+  status,
+  open: openProjectFile,
+  download,
+  save,
+  projects,
+  active,
+  busy,
+  refresh,
+  openSaved,
+  rename,
+  duplicate,
+  remove,
+  recover
+} = useProjectStorage()
+const gallery = useTemplateRef('gallery')
+const showProjects = async () => {
+  await save()
+  await refresh()
+  gallery.value?.show()
+}
+const selectProject = async (id: string) => {
+  if (await openSaved(id)) {
+    syncDialog.value?.disconnect()
+    gallery.value?.close()
+  }
+}
 const importer = useTemplateRef('importer')
 const jlcExport = useTemplateRef('jlcExport')
 const syncDialog = useTemplateRef('syncDialog')
 const projectPicker = useTemplateRef('projectPicker')
 const replacement = useTemplateRef('replacement')
-const confirmReplacement = async () => !board.value || (await replacement.value?.show()) === true
+const confirmReplacement = async () =>
+  (!board.value || (await replacement.value?.show()) === true) && (await save())
 let keepArtwork = false
 const confirmImport = async () => {
   keepArtwork = false
   if (!board.value) return true
   const choice = await replacement.value?.show(true)
   keepArtwork = choice === 'update'
-  return choice === true || keepArtwork
+  return (choice === true || keepArtwork) && (await save())
 }
 const acceptImport = (imported: Parameters<typeof openBoard>[0]) => {
   syncDialog.value?.disconnect()
@@ -23,10 +51,7 @@ const acceptImport = (imported: Parameters<typeof openBoard>[0]) => {
   else openBoard(imported)
   keepArtwork = false
 }
-const ready = ref(false)
-onMounted(() => {
-  ready.value = true
-})
+const ready = computed(() => initialized.value)
 
 const openImport = (setup = false, trigger?: HTMLElement) => {
   importer.value?.show(setup, trigger)
@@ -51,6 +76,7 @@ const onDrop = (event: DragEvent) => {
   >
     <EditorHeader
       v-if="board"
+      @projects="showProjects"
       @import="openImport()"
       @save="download"
       @open-project="openProject"
@@ -74,7 +100,15 @@ const onDrop = (event: DragEvent) => {
         />
         <AlphaBadge />
       </div>
-      <ThemeToggle />
+      <div class="flex items-center gap-2">
+        <button
+          class="header-action"
+          @click="showProjects"
+        >
+          Projects
+        </button>
+        <ThemeToggle />
+      </div>
     </header>
     <main
       class="relative flex min-h-0 flex-1"
@@ -97,6 +131,42 @@ const onDrop = (event: DragEvent) => {
         @open-project="openProject"
       />
     </main>
+    <ProjectGallery
+      ref="gallery"
+      :projects="projects"
+      :active-id="active?.id"
+      :busy="busy"
+      @open="selectProject"
+      @rename="rename"
+      @duplicate="duplicate"
+      @remove="remove"
+      @import="openProject"
+      @new="openImport()"
+    >
+      <WorkspaceBackup
+        :flush="save"
+        @restored="refresh"
+      />
+    </ProjectGallery>
+    <div
+      v-if="
+        status && !['All changes saved', 'Project opened', 'Recovery copy saved'].includes(status)
+      "
+      class="flex flex-wrap justify-center gap-2 p-2"
+    >
+      <button
+        class="header-action"
+        @click="download"
+      >
+        Download recovery project
+      </button>
+      <button
+        class="header-action"
+        @click="recover"
+      >
+        Save recovery copy
+      </button>
+    </div>
     <ProjectStatusNotice
       :message="status"
       @dismiss="status = ''"

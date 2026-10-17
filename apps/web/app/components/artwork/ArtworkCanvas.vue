@@ -5,7 +5,7 @@ import ArtworkTransformHandles from './ArtworkTransformHandles.vue'
 import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { artworkRows, type Artwork } from '../../utils/artwork'
 const props = defineProps<{ side: string; interactive?: boolean }>()
-const { items, selectionIds, selectedArtwork, select, checkpoint } = useArtwork()
+const { items, selectionIds, selectedArtwork, select, checkpoint, patchItems } = useArtwork()
 const { active } = useCanvasTools()
 const visible = computed(() =>
   artworkRows(items.value, props.side, true)
@@ -85,7 +85,9 @@ const move = (event: PointerEvent) => {
     const changes = new Map(
       moving.map((value) => [value.id, { ...value, x: value.x + dx, y: value.y + dy }])
     )
-    items.value = items.value.map((value) => changes.get(value.id) ?? value)
+    patchItems(
+      [...changes.values()].map((value) => ({ id: value.id, patch: { x: value.x, y: value.y } }))
+    )
     return
   }
   let patch: Partial<Artwork>
@@ -128,7 +130,7 @@ const move = (event: PointerEvent) => {
   if (patch.x !== undefined) patch.x = Math.max(-10000, Math.min(10000, patch.x))
   if (patch.y !== undefined) patch.y = Math.max(-10000, Math.min(10000, patch.y))
   if (patch.rotation !== undefined) patch.rotation %= 360
-  items.value = items.value.map((value) => (value.id === item.id ? { ...value, ...patch } : value))
+  patchItems([{ id: item.id, patch }])
 }
 onMounted(() => window.addEventListener('blur', finish))
 onBeforeUnmount(() => window.removeEventListener('blur', finish))

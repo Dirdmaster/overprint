@@ -19,14 +19,25 @@ export const useArtwork = () => {
   }
   const past = useEditorRef<Artwork[][]>('artwork-past', () => [])
   const future = useEditorRef<Artwork[][]>('artwork-future', () => [])
-  const copy = (value: Artwork[]) => value.map(item => ({ ...item }))
+  const copy = (value: Artwork[]) => JSON.parse(JSON.stringify(value)) as Artwork[]
   const checkpoint = () => { past.value = [...past.value.slice(-49), copy(items.value)]; future.value = [] }
   const undo = () => { const previous = past.value.at(-1); if (!previous) return; future.value.push(copy(items.value)); items.value = previous; past.value.pop() }
   const redo = () => { const next = future.value.at(-1); if (!next) return; past.value.push(copy(items.value)); items.value = next; future.value.pop() }
-  const edit = (id: string, patch: Partial<Artwork>) => { checkpoint(); items.value = items.value.map(item => item.id === id ? { ...item, ...patch } : item) }
+  const patchItems = (changes: { id: string; patch: Partial<Artwork> }[]) => {
+    const byId = new Map(changes.map(change => [change.id, change.patch]))
+    for (const change of changes) {
+      const target = items.value.find(item => item.id === change.id)
+      if (!target?.library) continue
+      const allowed = Object.fromEntries(Object.entries(change.patch).filter(([key]) => ['x', 'y', 'width', 'height', 'rotation', 'visible', 'name'].includes(key)))
+      for (const member of items.value.filter(item => item.library?.instanceId === target.library!.instanceId)) byId.set(member.id, allowed)
+    }
+    items.value = items.value.map(item => byId.has(item.id) ? { ...item, ...byId.get(item.id) } : item)
+  }
+  const edit = (id: string, patch: Partial<Artwork>) => { checkpoint(); patchItems([{ id, patch }]) }
   const descendants = (id: string): string[] => items.value.filter(item => item.parentId === id).flatMap(item => [item.id, ...descendants(item.id)])
   const removeIds = (values: string[]) => {
     const ids = new Set(values.filter(id => !isNativeSilk(id)).flatMap(id => [id, ...descendants(id)]))
+    for (const item of items.value.filter(item => ids.has(item.id) && item.library)) for (const member of items.value.filter(member => member.library?.instanceId === item.library!.instanceId)) ids.add(member.id)
     if (!ids.size) return
     checkpoint(); items.value = items.value.filter(item => !ids.has(item.id)); selection.value = null
   }
@@ -37,7 +48,7 @@ export const useArtwork = () => {
     if (!items.value.some(item => { const next = byId.get(item.id); return next && (Math.abs(next.x - item.x) > 1e-9 || Math.abs(next.y - item.y) > 1e-9) })) return
     if (changes.some(item => !Number.isFinite(item.x) || !Number.isFinite(item.y) || Math.abs(item.x) > 10000 || Math.abs(item.y) > 10000)) return
     checkpoint()
-    items.value = items.value.map(item => { const next = byId.get(item.id); return next ? { ...item, x: next.x, y: next.y } : item })
+    patchItems(changes.map(item => ({ id: item.id, patch: { x: item.x, y: item.y } })))
   }
   const destination = (side: string) => {
     const current = items.value.find(item => !item.nativeSilk && item.id === selection.value && item.side === side)
@@ -52,7 +63,7 @@ export const useArtwork = () => {
   const reparent = (id: string, parentId?: string) => {
     const item = items.value.find(item => item.id === id)
     const parent = items.value.find(item => item.id === parentId)
-    if (!item || item.nativeSilk || parent?.nativeSilk || id === parentId || descendants(id).includes(parentId ?? '') || (parentId && (!parent?.kind || parent.side !== item.side))) return
+    if (!item || item.library || item.nativeSilk || parent?.nativeSilk || id === parentId || descendants(id).includes(parentId ?? '') || (parentId && (!parent?.kind || parent.side !== item.side))) return
     edit(id, { parentId })
   }
   const reorder = (id: string, offset: number) => {
@@ -70,6 +81,7 @@ export const useArtwork = () => {
     if (!item || item.nativeSilk || target?.nativeSilk || id === targetId || descendants(id).includes(targetId ?? '')) return
     if (targetId && (!target || target.side !== item.side || (position === 'inside' && !target.kind))) return
     const parentId = position === 'inside' ? target?.id : target?.parentId
+    if (item.library && parentId) return
     const next = items.value.filter(item => item.id !== id)
     const index = !target ? 0 : position === 'inside' ? next.length : next.indexOf(target) + (position === 'before' ? 1 : 0)
     next.splice(index, 0, item.parentId === parentId ? item : { ...item, parentId })
@@ -79,5 +91,5 @@ export const useArtwork = () => {
     selection.value = id
   }
   const reset = () => { items.value = []; past.value = []; future.value = []; selection.value = null }
-  return { items, canAdd, selection, selectionIds, selectedArtwork, select, applyPositions, removeSelected, past, future, checkpoint, undo, redo, edit, remove, reorder, moveLayer, reset, create, destination, descendants, reparent }
+  return { items, patchItems, canAdd, selection, selectionIds, selectedArtwork, select, applyPositions, removeSelected, past, future, checkpoint, undo, redo, edit, remove, reorder, moveLayer, reset, create, destination, descendants, reparent }
 }

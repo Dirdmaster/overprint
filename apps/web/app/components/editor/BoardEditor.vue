@@ -5,6 +5,8 @@ import { useCanvasTools } from '../../composables/canvas/useCanvasTools'
 import { useComposition } from '../../composables/project/useComposition'
 import LivePaintControls from '../paint/LivePaintControls.vue'
 import LivePaintCanvas from '../paint/LivePaintCanvas.vue'
+import TextCanvas from '../artwork/TextCanvas.vue'
+import DrawingCanvas from '../artwork/DrawingCanvas.vue'
 import ArtworkCanvas from '../artwork/ArtworkCanvas.vue'
 import NativeSilkscreen from '../board/NativeSilkscreen.vue'
 import BoardModelPreview from '../board/BoardModelPreview.vue'
@@ -224,6 +226,17 @@ onBeforeUnmount(() => {
   editorState.viewport.value = null
 })
 const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1.1)
+// Controls keep native focus, including popup options inside an embedded shadow root.
+const focusCanvas = (event: PointerEvent) => {
+  const target = editorEventTarget(event)
+  if (
+    target?.closest(
+      'input, textarea, select, button, a[href], summary, [contenteditable="true"], [role="option"], [role="combobox"], [role="listbox"]'
+    )
+  )
+    return
+  editorRoot.value?.focus({ preventScroll: true })
+}
 </script>
 
 <template>
@@ -231,7 +244,7 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
     part="canvas"
     ref="editorRoot"
     tabindex="0"
-    @pointerdown.capture="editorRoot?.focus({ preventScroll: true })"
+    @pointerdown.capture="focusCanvas"
     class="relative flex min-h-0 w-full flex-1 flex-col gap-4"
     aria-label="Board workspace"
   >
@@ -340,6 +353,16 @@ const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1
           <ArtworkCanvas
             :side="side"
             interactive
+          />
+          <TextCanvas
+            v-if="active === 'text'"
+            :key="side"
+            :side="side"
+            @error="graphicError = $event"
+          />
+          <DrawingCanvas
+            :side="side"
+            @error="graphicError = $event"
           />
           <LivePaintCanvas
             v-if="active === 'paint'"

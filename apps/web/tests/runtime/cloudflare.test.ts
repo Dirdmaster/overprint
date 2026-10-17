@@ -106,3 +106,51 @@ test('Pages returns an upstream refusal while browser input is unfinished', { ti
     })
   } finally { await runtime.dispose() }
 })
+
+test('Pages exposes configured font routes without exposing credentials or accepting body routes', { timeout: 20_000 }, async () => {
+  let calls = 0
+  const runtime = new Miniflare(convertV4MiniflareOptions({
+    ...workerOptions(), bindings: { NUXT_GOOGLE_FONTS_API_KEY: 'runtime-font-key' },
+    outboundService: async request => {
+      calls++
+      if (request.url.startsWith('https://www.googleapis.com/webfonts/v1/webfonts?')) {
+        assert.equal(new URL(request.url).searchParams.get('key'), 'runtime-font-key')
+        return Response.json({ items: [{ family: 'Runtime Sans', category: 'sans-serif', version: 'v1', subsets: ['latin'], variants: ['regular'], files: { regular: 'https://fonts.gstatic.com/s/runtime/v1/Regular.ttf' } }] })
+      }
+      assert.equal(request.url, 'https://fonts.gstatic.com/s/runtime/v1/Regular.ttf')
+      const bytes = new Uint8Array(32); bytes[1] = 1; bytes[5] = 1
+      bytes.set(new TextEncoder().encode('name'), 12)
+      const view = new DataView(bytes.buffer); view.setUint32(20, 28); view.setUint32(24, 4)
+      return new Response(bytes, { headers: { 'Content-Type': 'font/ttf' } })
+    },
+  }))
+  try {
+    const base = new URL(await runtime.ready)
+    const result = await runtime.dispatchFetch(new URL('/api/fonts/catalog?q=runtime', base).href)
+    assert.equal(result.status, 200, `${await result.clone().text()} upstream calls=${calls}`)
+    const catalogue = await result.json() as { families: { family: string; version: string; variants: { variant: string; id: string }[] }[] }
+    assert.doesNotMatch(JSON.stringify(catalogue), /runtime-font-key|gstatic/)
+    const family = catalogue.families[0]!
+    const query = new URLSearchParams({ family: family.family, version: family.version, ...family.variants[0]! })
+    const font = await runtime.dispatchFetch(new URL(`/api/fonts/file?${query}`, base).href)
+    assert.equal(font.status, 200)
+    assert.equal((await font.arrayBuffer()).byteLength, 32)
+    // A second request uses only completed cached bytes, never a previous request's I/O.
+    assert.equal((await runtime.dispatchFetch(new URL(`/api/fonts/file?${query}`, base).href)).status, 200)
+    assert.equal(calls, 2)
+    assert.equal((await runtime.dispatchFetch(new URL('/api/fonts/catalog', base).href, { headers: { Origin: 'https://other.example' } })).status, 403)
+    assert.equal((await runtime.dispatchFetch(new URL('/api/fonts/catalog', base).href, { method: 'POST', body: 'x' })).status, 405)
+    assert.equal((await runtime.dispatchFetch(new URL('/api/fonts/catalog?url=https://other.example', base).href)).status, 400)
+  } finally { await runtime.dispose() }
+})
+
+test('Pages font routes report unavailable without a configured key and never call upstream', async () => {
+  let calls = 0
+  const runtime = new Miniflare(convertV4MiniflareOptions({ ...workerOptions(), outboundService: async () => { calls++; return new Response('unexpected', { status: 500 }) } }))
+  try {
+    const response = await runtime.dispatchFetch(new URL('/api/fonts/catalog', await runtime.ready).href)
+    assert.equal(response.status, 503)
+    assert.match(await response.text(), /Contact the host/)
+    assert.equal(calls, 0)
+  } finally { await runtime.dispose() }
+})

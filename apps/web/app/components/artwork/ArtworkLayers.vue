@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useLayerDrag } from '../../composables/artwork/useLayerDrag'
 import { useArtwork } from '../../composables/artwork/useArtwork'
+import TextInspector from './TextInspector.vue'
+import DrawingInspector from './DrawingInspector.vue'
 import ArtworkAlignment from './ArtworkAlignment.vue'
 import { computed, watch } from 'vue'
 import {
@@ -218,6 +220,7 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
         Move to
         <select
           aria-label="Move to"
+          :disabled="!!current.library"
           :value="current.parentId ?? ''"
           class="rounded bg-soft p-2 text-ink"
           @change="reparent(current.id, ($event.target as HTMLSelectElement).value || undefined)"
@@ -233,6 +236,15 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
         </select>
       </label>
     </div>
+    <TextInspector
+      v-if="current?.drawing?.type === 'text'"
+      :key="current.id"
+      :item="current"
+    />
+    <DrawingInspector
+      v-if="current?.drawing?.type === 'shape'"
+      :item="current"
+    />
     <ArtworkAlignment
       :bounds="bounds"
       :side="side"
