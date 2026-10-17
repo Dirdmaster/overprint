@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useLayerDrag } from '../../composables/artwork/useLayerDrag'
 import { useArtwork } from '../../composables/artwork/useArtwork'
+import DrawingInspector from './DrawingInspector.vue'
 import ArtworkAlignment from './ArtworkAlignment.vue'
 import { computed, watch } from 'vue'
 import {
@@ -233,6 +234,10 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
         </select>
       </label>
     </div>
+    <DrawingInspector
+      v-if="current?.drawing"
+      :item="current"
+    />
     <ArtworkAlignment
       :bounds="bounds"
       :side="side"

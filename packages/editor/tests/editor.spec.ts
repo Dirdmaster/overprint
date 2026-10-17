@@ -109,3 +109,39 @@ for (const interrupt of ['replace', 'dispose']) {
     expect(result.state.error).toBe('Checkpoint restore was cancelled.')
   })
 }
+
+test('shape commands retain physical geometry, bounded lines and editable project metadata', async ({ page }) => {
+  await page.goto('/tests/index.html')
+  const result = await page.evaluate(async () => {
+    const editor = (window as any).controllers[0]
+    const definition = { type: 'shape', shape: 'rectangle', width: 12, height: 8, radius: 0, fill: '#ff0000', stroke: '#000000', strokeWidth: 2, lineReverse: false }
+    const id = editor.addShape(definition, 3, 4)
+    editor.editShape(id, { width: 20 })
+    editor.undo()
+    const rectangle = editor.getDocument().artwork[0]
+    editor.setSide('back')
+    editor.addShape({ ...definition, shape: 'line', width: 10, height: 0 }, 5, 5)
+    editor.addShape({ ...definition, shape: 'line', width: 0, height: 10 }, 6, 6)
+    const document = editor.getDocument()
+    await editor.restore(document)
+    const restored = editor.getDocument()
+    const bad = structuredClone(document)
+    bad.artwork[0].drawing.fill = 'url(https://example.com/a.svg)'
+    let rejected = false
+    try { await editor.restore(bad) } catch { rejected = true }
+    const changed = structuredClone(document)
+    changed.artwork[0].drawing.width = 99
+    let staleRejected = false
+    try { await editor.restore(changed) } catch { staleRejected = true }
+    return { rectangle, lines: restored.artwork.slice(1), equal: JSON.stringify(document) === JSON.stringify(restored), rejected, staleRejected }
+  })
+  expect(result.rectangle).toMatchObject({ x: 3, y: 4, width: 14, height: 10, drawing: { width: 12, height: 8 } })
+  expect(result.rectangle.source).toContain('viewBox="0 0 14 10"')
+  expect(result.rectangle.source).toContain('<rect x="1" y="1" width="12" height="8"')
+  expect(result.lines[0]).toMatchObject({ width: 12, height: 2, side: 'back' })
+  expect(result.lines[0].source).toContain('x1="1" y1="1" x2="11" y2="1"')
+  expect(result.lines[1]).toMatchObject({ width: 2, height: 12, side: 'back' })
+  expect(result.equal).toBe(true)
+  expect(result.rejected).toBe(true)
+  expect(result.staleRejected).toBe(true)
+})

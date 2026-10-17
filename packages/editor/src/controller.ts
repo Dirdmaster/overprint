@@ -1,3 +1,5 @@
+import { useDrawing } from '../../../apps/web/app/composables/artwork/useDrawing'
+import type { ShapeDefinition } from '../../../apps/web/app/utils/drawing'
 import { createApp, effectScope, ref, watch } from 'vue'
 import { useCanvasToolState } from '../../../apps/web/app/composables/canvas/useCanvasToolState'
 import { useCanvasView } from '../../../apps/web/app/composables/canvas/useCanvasView'
@@ -21,6 +23,9 @@ export interface EditorController extends EditorControls {
   replaceBoard(board: BoardPackage): void
   restore(document: EditorDocument): Promise<boolean>
   addGraphic(file: File): Promise<void>
+  addShape(drawing: ShapeDefinition, x: number, y: number): string
+  editShape(id: string, patch: Partial<ShapeDefinition>): void
+  convertToSvg(id: string): void
   undo(): void
   redo(): void
   setSide(side: 'front' | 'back'): void
@@ -38,7 +43,7 @@ const initialize = (board: BoardPackage, options: EditorOptions) => {
   const context = createApp({})
   context.provide(editorStateKey, state)
   const scope = effectScope()
-  const data = scope.run(() => context.runWithContext(() => ({ artwork: useArtwork(), composition: useComposition(), view: useCanvasView(), paint: useLivePaint(), tools: useCanvasToolState() })))!
+  const data = scope.run(() => context.runWithContext(() => ({ artwork: useArtwork(), drawing: useDrawing(), composition: useComposition(), view: useCanvasView(), paint: useLivePaint(), tools: useCanvasToolState() })))!
   data.composition.openBoard(copy(board))
   data.composition.maskColor.value = options.mask || '#161616'
   data.composition.side.value = options.side || 'front'
@@ -103,6 +108,9 @@ export const createEditor = (board: BoardPackage, options: EditorOptions = {}): 
         width, height, rotation: 0, visible: true })
       a.selection.value = id
     },
+    addShape(drawing, x, y) { live(); return session.drawing.addShape(drawing, c.side.value, x, y) },
+    editShape(id, patch) { live(); session.drawing.editShape(id, patch) },
+    convertToSvg(id) { live(); session.drawing.convertToSvg(id) },
     undo() { live(); a.undo() }, redo() { live(); a.redo() },
     setSide(side) { live(); if (!['front','back'].includes(side)) throw new Error('Invalid board side.'); c.side.value = side },
     destroy() { if (!session.alive.value) return; reset(); listeners.clear(); session.alive.value = false; session.scope.stop() },

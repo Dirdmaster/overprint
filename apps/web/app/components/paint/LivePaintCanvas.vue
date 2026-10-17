@@ -99,6 +99,10 @@ const fill = (region: Target) => {
   if (!stroke || stroke.visited.has(key)) return
   stroke.visited.add(key)
   if ('artworkId' in region) {
+    if (items.value.find((item) => item.id === region.artworkId)?.drawing) {
+      emit('error', 'Convert this editable shape to SVG in its inspector before using Live Paint.')
+      return
+    }
     const source = artworkPaint?.recolor(region, color.value)
     if (!source) return
     if (new TextEncoder().encode(source).length > 2_000_000) {

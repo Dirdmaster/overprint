@@ -1,4 +1,5 @@
 import { readArtwork, artworkCount, MAX_ARTWORK_ITEMS, type Artwork } from './artwork'
+import { validateDrawing, renderDrawing } from './drawing'
 import { validateBoardModels } from './boardModels'
 import { validateFabrication } from './fabrication'
 import type { BoardPackage } from './boardPackage'
@@ -18,6 +19,13 @@ export const parseProject = async (text: string): Promise<Composition> => {
   const ids = new Set<string>()
   for (const item of p.artwork) {
     if (!item || typeof item.id !== 'string' || ids.has(item.id) || typeof item.name !== 'string' || typeof item.source !== 'string' || typeof item.visible !== 'boolean' || !['front','back'].includes(item.side) || !['x','y','width','height','rotation'].every(k => numeric(item[k])) || item.width <= 0 || item.height <= 0) throw new Error('Invalid artwork in project.')
+    if (item.drawing !== undefined) {
+      if (item.kind || item.nativeSilk) throw new Error('Only graphics can have editable metadata.')
+      item.drawing = validateDrawing(item.drawing)
+      const frozen = await readArtwork(new File([renderDrawing(item.drawing).source], 'shape.svg'))
+      const source = await readArtwork(new File([item.source], 'shape.svg'))
+      if (source.source !== frozen.source) throw new Error('Editable shape source does not match its geometry.')
+    }
     ids.add(item.id)
     if (item.kind !== undefined && !['layer', 'folder'].includes(item.kind)) throw new Error('Invalid layer type.')
     if (item.collapsed !== undefined && typeof item.collapsed !== 'boolean') throw new Error('Invalid layer state.')

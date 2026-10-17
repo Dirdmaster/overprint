@@ -1,8 +1,9 @@
+import type { CanvasTool } from '../../../apps/web/app/utils/drawing'
 import { watch } from 'vue'
 import type { editorSession } from './controller'
 import { normalizeHex } from '../../../apps/web/app/utils/paintColor'
 
-export type EditorTool = 'select' | 'hand' | 'paint'
+export type EditorTool = CanvasTool
 export type EditorViewState = {
   tool: EditorTool
   activeTool: EditorTool
@@ -96,7 +97,7 @@ export const createControls = (
     },
     setTool(value) {
       live()
-      if (!['select', 'hand', 'paint'].includes(value))
+      if (!['select', 'hand', 'paint', 'rectangle', 'roundedRectangle', 'ellipse', 'line'].includes(value))
         throw new Error('Invalid tool.')
       tools.selected.value = value
     },

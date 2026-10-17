@@ -19,7 +19,7 @@ export const useArtwork = () => {
   }
   const past = useEditorRef<Artwork[][]>('artwork-past', () => [])
   const future = useEditorRef<Artwork[][]>('artwork-future', () => [])
-  const copy = (value: Artwork[]) => value.map(item => ({ ...item }))
+  const copy = (value: Artwork[]) => JSON.parse(JSON.stringify(value)) as Artwork[]
   const checkpoint = () => { past.value = [...past.value.slice(-49), copy(items.value)]; future.value = [] }
   const undo = () => { const previous = past.value.at(-1); if (!previous) return; future.value.push(copy(items.value)); items.value = previous; past.value.pop() }
   const redo = () => { const next = future.value.at(-1); if (!next) return; past.value.push(copy(items.value)); items.value = next; future.value.pop() }

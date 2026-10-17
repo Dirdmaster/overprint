@@ -1,6 +1,8 @@
+import type { DrawingDefinition } from './drawing'
 import { flattenSvgStyles } from './svgStyles'
 
 export type Artwork = {
+  drawing?: DrawingDefinition
   nativeSilk?: { baseColor?: string; colors: Record<string, string> }
   kind?: 'layer' | 'folder'; parentId?: string; collapsed?: boolean
   id: string; name: string; side: string; source: string
