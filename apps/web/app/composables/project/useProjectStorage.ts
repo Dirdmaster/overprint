@@ -125,12 +125,16 @@ export const useProjectStorage = () => {
     window.addEventListener('keydown', keyboard); window.addEventListener('pagehide', flush)
     try {
       await refresh()
-      if (!(await getWorkspaceMeta<boolean>('legacyMigrated'))) {
+      const activeId = await getWorkspaceMeta<string>('activeProjectId')
+      let record = activeId ? await loadProject(activeId) : undefined
+      // A recovered or imported workspace project takes precedence over untouched legacy data.
+      // Malformed legacy input must not trap every subsequent reload in recovery mode.
+      if (!record && !(await getWorkspaceMeta<boolean>('legacyMigrated'))) {
         const text = await loadComposition() ?? localStorage.getItem('overprint-project-v1')
         await migrateLegacyProject(text ? await parseProject(text) : undefined)
+        const migratedId = await getWorkspaceMeta<string>('activeProjectId')
+        record = migratedId ? await loadProject(migratedId) : undefined
       }
-      const id = await getWorkspaceMeta<string>('activeProjectId')
-      const record = id ? await loadProject(id) : undefined
       if (record) await activate(record)
       await refresh()
     } catch { blocked = true; status.value = 'Saved project could not be restored. It has been kept untouched. Download your current work or save a recovery copy.' }

@@ -113,6 +113,9 @@ test('corrupted legacy data is kept untouched and reports recovery guidance', as
   await page.getByRole('button', { name: 'Import project', exact: true }).click()
   await page.getByLabel('Choose project file').setInputFiles({ name: 'Recovered.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(legacyProject)) })
   await expect(page.getByRole('status')).toContainText('Project opened')
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Save project', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('overprint-project-v1'))).toBe('{broken')
 })
 
 test('restores the old IndexedDB autosave into the gallery', async ({ page }) => {
