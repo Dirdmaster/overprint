@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useLibrary } from '../../composables/artwork/useLibrary'
 import { useArtwork } from '../../composables/artwork/useArtwork'
 import { snapshotSvg, type LibraryAsset } from '../../utils/library'
@@ -17,13 +17,25 @@ const {
   detach,
   update
 } = useLibrary()
-const opened = ref(false),
-  search = ref(''),
+const libraryDialog = ref<HTMLDialogElement>()
+const deleteDialog = ref<HTMLDialogElement>()
+const updateDialog = ref<HTMLDialogElement>()
+const search = ref(''),
   name = ref(''),
   captureIds = ref<string[]>([])
 const previews = ref<Record<string, string>>({}),
   pending = ref<LibraryAsset>()
 const deleting = ref<LibraryAsset>()
+watch(deleting, async (value) => {
+  await nextTick()
+  if (value) deleteDialog.value?.showModal()
+  else deleteDialog.value?.close()
+})
+watch(pending, async (value) => {
+  await nextTick()
+  if (value) updateDialog.value?.showModal()
+  else updateDialog.value?.close()
+})
 onMounted(refresh)
 const confirmDelete = async () => {
   if (deleting.value) await remove(deleting.value)
@@ -54,7 +66,7 @@ const thumbnails = async () => {
   }
 }
 const show = async () => {
-  opened.value = true
+  libraryDialog.value?.showModal()
   captureIds.value = [...selectionIds.value]
   await refresh()
   await thumbnails()
@@ -125,164 +137,151 @@ const imageUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIC
       {{ error }}
     </p>
   </section>
-  <div
-    v-if="opened"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    @click.self="opened = false"
+  <dialog
+    ref="libraryDialog"
+    aria-label="Composition library"
+    class="m-auto max-h-[85svh] w-3xl max-w-[calc(100%-2rem)] overflow-auto rounded-xl bg-surface p-5 text-ink shadow-xl backdrop:bg-black/50"
   >
-    <section
-      role="dialog"
-      @keydown.stop
-      aria-modal="true"
-      aria-label="Composition library"
-      class="max-h-full w-full max-w-3xl overflow-auto rounded-xl bg-surface p-5 text-ink shadow-xl"
-      @keydown.esc="opened = false"
-    >
-      <header class="flex items-center justify-between gap-4">
-        <h2 class="text-lg font-semibold">Composition library</h2>
-        <button
-          class="rounded bg-soft p-2"
-          aria-label="Close library"
-          @click="opened = false"
-        >
-          Close
-        </button>
-      </header>
-      <p class="my-3 text-sm text-muted">
-        Saved on this device. Linked placements stay pinned until you preview and apply an update.
-      </p>
-      <div class="grid gap-4 sm:grid-cols-2">
-        <section class="space-y-3 rounded-lg border border-line p-3">
-          <label class="block">
-            Composition name
+    <header class="flex items-center justify-between gap-4">
+      <h2 class="text-lg font-semibold">Composition library</h2>
+      <button
+        class="rounded bg-soft p-2"
+        aria-label="Close library"
+        @click="libraryDialog?.close()"
+      >
+        Close
+      </button>
+    </header>
+    <p class="my-3 text-sm text-muted">
+      Saved on this device. Linked placements stay pinned until you preview and apply an update.
+    </p>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <section class="space-y-3 rounded-lg border border-line p-3">
+        <label class="block">
+          Composition name
+          <input
+            v-model="name"
+            aria-label="Composition name"
+            maxlength="200"
+            class="mt-1 w-full rounded bg-soft p-2"
+          />
+        </label>
+        <fieldset class="max-h-48 space-y-1 overflow-auto">
+          <legend class="mb-2 font-medium">Capture artwork from either side</legend>
+          <label
+            v-for="item in graphics"
+            :key="item.id"
+            class="flex items-center gap-2"
+          >
             <input
-              v-model="name"
-              aria-label="Composition name"
+              v-model="captureIds"
+              type="checkbox"
+              :value="item.id"
+              :aria-label="`Capture ${item.name} ${item.side}`"
+            />
+            {{ item.name }} · {{ item.side }}
+          </label>
+        </fieldset>
+        <button
+          class="rounded bg-accent px-3 py-2 text-white disabled:opacity-40"
+          :disabled="busy || !captureIds.length"
+          @click="saveSelection()"
+        >
+          Save selection
+        </button>
+      </section>
+      <section class="space-y-3">
+        <label class="block">
+          Search library
+          <input
+            v-model="search"
+            aria-label="Search library"
+            class="mt-1 w-full rounded bg-soft p-2"
+          />
+        </label>
+        <article
+          v-for="asset in filtered"
+          :key="asset.id"
+          class="space-y-2 rounded-lg border border-line p-3"
+        >
+          <img
+            v-if="previews[asset.id]"
+            :src="imageUrl(previews[asset.id]!)"
+            :alt="`${asset.name} thumbnail`"
+            class="h-20 w-full rounded bg-soft object-contain"
+          />
+          <h3 class="font-semibold">{{ asset.name }}</h3>
+          <p class="text-muted">
+            {{ asset.revisions.length }} revision{{ asset.revisions.length === 1 ? '' : 's' }}
+          </p>
+          <label class="block">
+            Rename
+            <input
+              :value="asset.name"
+              :aria-label="`Rename ${asset.name}`"
               maxlength="200"
               class="mt-1 w-full rounded bg-soft p-2"
+              @change="rename(asset, ($event.target as HTMLInputElement).value)"
             />
           </label>
-          <fieldset class="max-h-48 space-y-1 overflow-auto">
-            <legend class="mb-2 font-medium">Capture artwork from either side</legend>
-            <label
-              v-for="item in graphics"
-              :key="item.id"
-              class="flex items-center gap-2"
+          <div class="flex flex-wrap gap-2">
+            <button
+              class="rounded bg-soft p-2"
+              :disabled="busy"
+              :aria-label="`Place linked ${asset.name}`"
+              @click="place(asset, true)"
             >
-              <input
-                v-model="captureIds"
-                type="checkbox"
-                :value="item.id"
-                :aria-label="`Capture ${item.name} ${item.side}`"
-              />
-              {{ item.name }} · {{ item.side }}
-            </label>
-          </fieldset>
-          <button
-            class="rounded bg-accent px-3 py-2 text-white disabled:opacity-40"
-            :disabled="busy || !captureIds.length"
-            @click="saveSelection()"
-          >
-            Save selection
-          </button>
-        </section>
-        <section class="space-y-3">
-          <label class="block">
-            Search library
-            <input
-              v-model="search"
-              aria-label="Search library"
-              class="mt-1 w-full rounded bg-soft p-2"
-            />
-          </label>
-          <article
-            v-for="asset in filtered"
-            :key="asset.id"
-            class="space-y-2 rounded-lg border border-line p-3"
-          >
-            <img
-              v-if="previews[asset.id]"
-              :src="imageUrl(previews[asset.id]!)"
-              :alt="`${asset.name} thumbnail`"
-              class="h-20 w-full rounded bg-soft object-contain"
-            />
-            <h3 class="font-semibold">{{ asset.name }}</h3>
-            <p class="text-muted">
-              {{ asset.revisions.length }} revision{{ asset.revisions.length === 1 ? '' : 's' }}
-            </p>
-            <label class="block">
-              Rename
-              <input
-                :value="asset.name"
-                :aria-label="`Rename ${asset.name}`"
-                maxlength="200"
-                class="mt-1 w-full rounded bg-soft p-2"
-                @change="rename(asset, ($event.target as HTMLInputElement).value)"
-              />
-            </label>
-            <div class="flex flex-wrap gap-2">
-              <button
-                class="rounded bg-soft p-2"
-                :disabled="busy"
-                :aria-label="`Place linked ${asset.name}`"
-                @click="place(asset, true)"
-              >
-                Place linked
-              </button>
-              <button
-                class="rounded bg-soft p-2"
-                :disabled="busy"
-                :aria-label="`Place copy ${asset.name}`"
-                @click="place(asset, false)"
-              >
-                Place copy
-              </button>
-              <button
-                class="rounded bg-soft p-2"
-                :disabled="busy"
-                :aria-label="`Delete library ${asset.name}`"
-                @click="deleting = asset"
-              >
-                Delete
-              </button>
-              <button
-                class="rounded bg-soft p-2"
-                :disabled="busy || !captureIds.length"
-                :aria-label="`Save new revision of ${asset.name}`"
-                @click="saveSelection(asset)"
-              >
-                Save new revision
-              </button>
-            </div>
-          </article>
-          <p
-            v-if="!filtered.length"
-            class="text-muted"
-          >
-            No saved compositions.
-          </p>
-        </section>
-      </div>
-      <p
-        v-if="error"
-        role="alert"
-        class="mt-3 text-red-500"
-      >
-        {{ error }}
-      </p>
-    </section>
-  </div>
-  <div
-    v-if="deleting"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-  >
-    <section
-      role="dialog"
-      @keydown.stop
-      aria-modal="true"
-      aria-label="Delete library composition"
-      class="w-full max-w-md space-y-4 rounded-xl bg-surface p-5 text-ink"
+              Place linked
+            </button>
+            <button
+              class="rounded bg-soft p-2"
+              :disabled="busy"
+              :aria-label="`Place copy ${asset.name}`"
+              @click="place(asset, false)"
+            >
+              Place copy
+            </button>
+            <button
+              class="rounded bg-soft p-2"
+              :disabled="busy"
+              :aria-label="`Delete library ${asset.name}`"
+              @click="deleting = asset"
+            >
+              Delete
+            </button>
+            <button
+              class="rounded bg-soft p-2"
+              :disabled="busy || !captureIds.length"
+              :aria-label="`Save new revision of ${asset.name}`"
+              @click="saveSelection(asset)"
+            >
+              Save new revision
+            </button>
+          </div>
+        </article>
+        <p
+          v-if="!filtered.length"
+          class="text-muted"
+        >
+          No saved compositions.
+        </p>
+      </section>
+    </div>
+    <p
+      v-if="error"
+      role="alert"
+      class="mt-3 text-red-500"
     >
+      {{ error }}
+    </p>
+  </dialog>
+  <dialog
+    ref="deleteDialog"
+    aria-label="Delete library composition"
+    class="m-auto w-md max-w-[calc(100%-2rem)] space-y-4 rounded-xl bg-surface p-5 text-ink backdrop:bg-black/50"
+    @close="deleting = undefined"
+  >
+    <template v-if="deleting">
       <h2 class="font-semibold">Delete {{ deleting.name }}?</h2>
       <p>
         Placed snapshots remain in your projects. They can still render, export and detach, but will
@@ -301,20 +300,15 @@ const imageUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIC
       >
         Delete composition
       </button>
-    </section>
-  </div>
-  <div
-    v-if="pending"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    </template>
+  </dialog>
+  <dialog
+    ref="updateDialog"
+    aria-label="Preview library update"
+    class="m-auto w-2xl max-w-[calc(100%-2rem)] space-y-4 rounded-xl bg-surface p-5 text-ink backdrop:bg-black/50"
+    @close="pending = undefined"
   >
-    <section
-      role="dialog"
-      @keydown.stop
-      aria-modal="true"
-      aria-label="Preview library update"
-      class="w-full max-w-2xl space-y-4 rounded-xl bg-surface p-5 text-ink"
-      @keydown.esc="pending = undefined"
-    >
+    <template v-if="pending">
       <h2 class="text-lg font-semibold">Preview update: {{ pending.name }}</h2>
       <label>
         Board side
@@ -362,6 +356,6 @@ const imageUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIC
           Cancel update
         </button>
       </div>
-    </section>
-  </div>
+    </template>
+  </dialog>
 </template>
