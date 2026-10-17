@@ -5,40 +5,51 @@ import { physicalText, defaultText, type TextDefinition } from '../../utils/text
 import { useTextDrawing } from '../../composables/artwork/useTextDrawing'
 import { useDrawing } from '../../composables/artwork/useDrawing'
 const props = defineProps<{ item: Artwork }>()
-const { editText } = useTextDrawing()
+const { editText, cancelEdit, committing, committedItem } = useTextDrawing()
 const { convertToSvg } = useDrawing()
 const draft = ref<TextDefinition>(defaultText())
 const error = ref(''),
   pending = ref(false)
+let request = 0
+let group = {}
 watch(
   () => props.item,
   (item) => {
+    if (committing.value || item === committedItem.value) return
+    cancelEdit()
+    request++
+    group = {}
     draft.value = physicalText(item)
     error.value = ''
+    pending.value = false
   },
-  { immediate: true, deep: true }
+  { immediate: true, deep: true, flush: 'sync' }
 )
-const apply = async () => {
+const apply = async (event: Event) => {
+  if (event.type === 'input' && event.target instanceof HTMLSelectElement) return
+  if (event instanceof InputEvent && event.isComposing) return
+  const operation = ++request
   pending.value = true
   try {
-    await editText(props.item.id, draft.value)
-    error.value = ''
+    await editText(props.item.id, { ...draft.value }, group)
+    if (operation === request) error.value = ''
   } catch (reason) {
-    error.value = reason instanceof Error ? reason.message : 'Unable to outline text.'
+    if (operation === request)
+      error.value = reason instanceof Error ? reason.message : 'Unable to outline text.'
   } finally {
-    pending.value = false
+    if (operation === request) pending.value = false
   }
 }
 </script>
 <template>
   <form
     class="mt-3 space-y-2"
-    @submit.prevent="apply"
+    @submit.prevent
+    @input="apply"
+    @compositionend="apply"
+    @focusin="group = {}"
   >
-    <fieldset
-      :disabled="pending"
-      class="space-y-2"
-    >
+    <fieldset class="space-y-2">
       <legend class="mb-2 font-medium">Editable text</legend>
       <label class="flex flex-col gap-1 text-muted">
         Content
@@ -54,6 +65,7 @@ const apply = async () => {
         Font
         <select
           v-model.number="draft.weight"
+          @change="apply"
           aria-label="Text font"
           class="w-full rounded bg-soft p-2 text-ink"
         >
@@ -77,6 +89,7 @@ const apply = async () => {
         Alignment
         <select
           v-model="draft.align"
+          @change="apply"
           aria-label="Text alignment"
           class="w-full rounded bg-soft p-2 text-ink"
         >
@@ -117,13 +130,14 @@ const apply = async () => {
           class="w-full rounded bg-soft p-2 text-ink"
         />
       </label>
-      <button
-        type="submit"
-        class="rounded bg-accent p-2 text-on-accent"
-      >
-        {{ pending ? 'Outlining…' : 'Apply text' }}
-      </button>
     </fieldset>
+    <p
+      v-if="pending"
+      role="status"
+      class="text-xs text-muted"
+    >
+      Updating text…
+    </p>
     <p
       v-if="error"
       role="alert"
