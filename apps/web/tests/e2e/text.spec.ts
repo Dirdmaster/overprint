@@ -172,3 +172,24 @@ test('downloaded manufacturing text is identical after reopening frozen outlines
   }, original)
   expect(redPixels).toBeGreaterThan(100)
 })
+
+test('live outlining keeps the inspector hint and controls in place', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
+  await page.getByLabel('Choose board export').setInputFiles(demoBoard)
+  await page.getByRole('button', { name: 'Draw text', exact: true }).click()
+  await page.getByRole('img', { name: 'Demo board front board preview' }).click()
+  const hint = page.getByText('Latin text and selected symbols.', { exact: false })
+  const position = () => hint.evaluate(element => ({ top: (element as HTMLElement).offsetTop, height: element.parentElement!.getBoundingClientRect().height }))
+  const before = await position()
+  let release!: () => void
+  const blocked = new Promise<void>(resolve => { release = resolve })
+  await page.route('**/*700*.woff*', async route => { await blocked; await route.continue() })
+  try {
+    await page.getByLabel('Text font').selectOption('700')
+    await expect(page.getByText('Updating text…', { exact: true })).toBeAttached()
+    expect(await position()).toEqual(before)
+  } finally { release() }
+  await expect(page.getByText('Updating text…', { exact: true })).toHaveCount(0)
+  expect(await position()).toEqual(before)
+})

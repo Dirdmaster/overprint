@@ -134,7 +134,7 @@ const apply = async (event: Event) => {
     <p
       v-if="pending"
       role="status"
-      class="text-xs text-muted"
+      class="sr-only"
     >
       Updating text…
     </p>
