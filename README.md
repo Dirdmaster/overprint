@@ -13,7 +13,7 @@ Your circuit stays in KiCad. Overprint handles the artwork.
 ## What you can do
 
 - Place SVG artwork on either side of your board.
-- Draw editable shapes and outlined text with bundled fonts or a searchable Google Fonts catalogue.
+- Draw editable shapes and outlined text with a searchable Google Fonts catalogue.
 - Organize named local projects in a gallery and back up projects and libraries together.
 - Paint silkscreen regions and artwork with Live Paint.
 - Arrange designs with layers, folders and alignment tools.

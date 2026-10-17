@@ -183,6 +183,6 @@ This is one checkpoint in memory, separate from undo/redo. A new controller star
 
 ## Google Fonts
 
-The text inspector includes bundled Geist and a searchable Google Fonts picker. To enable the catalogue in an embedded editor, the host must provide the same-origin `/api/fonts/catalog` and `/api/fonts/file` contracts described in [hosting](../../docs/hosting.md#google-fonts). The Overprint app supplies both endpoints; a static embed without them retains bundled fonts. Keep the Google API key on the host server.
+The text inspector uses a searchable Google Fonts picker. New text starts with Google Fonts Geist. To enable the catalogue in an embedded editor, the host must provide the same-origin `/api/fonts/catalog` and `/api/fonts/file` contracts described in [hosting](../../docs/hosting.md#google-fonts). The Overprint app supplies both endpoints; a static embed without them can still display and export saved outlines, but cannot create or edit font-based text. Keep the Google API key on the host server.
 
 `GoogleFontIdentity` and `TextDefinition` are exported types. Saved Google text stores family, variant, version, opaque source identity, byte digest and embedded licence metadata alongside frozen paths. Loading/displaying/exporting text does not download or regenerate a font. Editing requires the pinned font or an explicit replacement. Google text supports Latin glyphs with kerning, without automatic ligatures, variable axes or complex-script shaping.

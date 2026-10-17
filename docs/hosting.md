@@ -11,7 +11,7 @@ bun install --frozen-lockfile
 bun start
 ```
 
-Open **http://127.0.0.1:4317**. `bun start` builds the current source and the KiCad plugin, then runs the production server under Node.js. It listens only on loopback by default. Ctrl+C stops it. No Cloudflare login or credentials are needed. Installation needs an internet connection to download dependencies; a startup build uses installed dependencies. The editor's bundled fonts and assets are served locally. The optional Google Fonts catalogue requires the configuration below.
+Open **http://127.0.0.1:4317**. `bun start` builds the current source and the KiCad plugin, then runs the production server under Node.js. It listens only on loopback by default. Ctrl+C stops it. No Cloudflare login or credentials are needed. Installation needs an internet connection to download dependencies; a startup build uses installed dependencies. Editor assets are served locally. Drawing new text and changing fonts requires the Google Fonts configuration below.
 
 Choose a different port if another copy is running:
 
@@ -75,7 +75,7 @@ The relay allows 20 MB per ZIP and times out after 60 seconds. Standalone admits
 
 Create a key for the [Google Fonts Developer API](https://developers.google.com/fonts/docs/developer_api) and enable that API in the corresponding Google Cloud project. Set **`NUXT_GOOGLE_FONTS_API_KEY`** in the server environment before starting the standalone app or development server. On Cloudflare Pages, configure it as an encrypted runtime environment variable for the intended preview/production environment. Restart local processes after changing their environment. Do not put the key in public runtime config, browser code or committed files.
 
-Without a key, `/api/fonts/catalog` returns 503 and the picker explains that bundled fonts remain available. Rendering and exporting existing projects do not require the key. There is no live Google dependency in CI: API tests use synthetic catalogues and font fixtures.
+Without a key, `/api/fonts/catalog` returns 503 and drawing new text is unavailable. Rendering and exporting existing projects do not require the key. There is no live Google dependency in CI: API tests use synthetic catalogues and font fixtures.
 
 Both targets expose same-origin GET endpoints:
 

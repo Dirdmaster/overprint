@@ -6,7 +6,7 @@ Overprint is licensed under [MIT](LICENSE). Dependencies and third-party assets 
 
 - Nuxt, Vue, Three.js, fflate and Reka UI: MIT
 - Lucide: ISC
-- Inter and Geist: SIL Open Font License
+- Inter: SIL Open Font License
 - Playwright: Apache-2.0
 
 See the installed packages for their full license notices.
@@ -32,7 +32,7 @@ These dependencies retain their own licenses; Overprint's application code remai
 
 ## Editable text outlines
 
-Geist Latin static Regular (400) and Bold (700) WOFF files are vendored unchanged from `@fontsource/geist` 5.3.0 under the SIL Open Font License 1.1. OpenType.js 2.0.0 is pinned for local path conversion under MIT. Full notices ship in `/text-fonts/LICENSES.txt` for the website and `THIRD_PARTY_NOTICES.txt` in the embedded-editor package. Font files are bundled with each distribution; rendering does not request external fonts. These fonts support a limited Latin character set, not arbitrary scripts or emoji.
+OpenType.js 2.0.0 is pinned for local path conversion under MIT. Selected Google Fonts are downloaded through the host server for browser-local outlining. Saved outlines display and export without a font request. Text outlining supports a limited Latin character set, not arbitrary scripts or emoji.
 
 ## Font picker primitives
 

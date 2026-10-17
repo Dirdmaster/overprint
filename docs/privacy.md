@@ -8,7 +8,7 @@ The KiCad plugin reads the open board, including unsaved edits, without saving o
 
 ## Google Fonts
 
-Bundled fonts need no external requests. Opening the optional Google Fonts picker sends a family search to your Overprint server. The server fetches the Google Fonts catalogue and selected static font files from Google. Your artwork and text content are never sent to the font service; previews and outlines are generated in your browser. The server holds bounded, temporary font/catalogue caches in memory, without saving font files to project storage.
+The app UI uses a bundled Inter font. Creating text or opening the Google Fonts picker sends a family search to your Overprint server. The server fetches the Google Fonts catalogue and selected static font files from Google. Your artwork and text content are never sent to the font service; previews and outlines are generated in your browser. The server holds bounded, temporary font/catalogue caches in memory, without saving font files to project storage.
 
 Saved text contains frozen SVG outlines and font provenance. Opening or exporting it needs no font download. Editing a Google font may require a connection again. Hosting infrastructure can record font request metadata. See [configuration and limits](hosting.md#google-fonts).
 
