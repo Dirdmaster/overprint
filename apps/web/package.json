@@ -29,9 +29,10 @@
     "fzstd": "0.1.1",
     "nuxt": "^4.5.2",
     "occt-import-js": "0.0.23",
+    "opentype.js": "2.0.0",
+    "reka-ui": "2.11.0",
     "three": "^0.186.0",
-    "vue": "^3.5.42",
-    "opentype.js": "2.0.0"
+    "vue": "^3.5.42"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260916.1",
