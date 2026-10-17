@@ -1,7 +1,7 @@
 import type { Artwork } from './artwork'
 import { parseLibraryAsset, type LibraryAsset, type LibraryLink } from './library'
 import { parseProject, type Composition } from './project'
-import { openWorkspaceDatabase, projectThumbnail, type WorkspaceProjectRecord } from './workspaceStore'
+import { MAX_WORKSPACE_PROJECTS, openWorkspaceDatabase, projectThumbnail, type WorkspaceProjectRecord } from './workspaceStore'
 
 const LIMIT = 100_000_000
 export type PreparedWorkspaceBackup = { format: 'overprint-workspace'; version: 1; projects: WorkspaceProjectRecord[]; libraries: LibraryAsset[] }
@@ -9,7 +9,7 @@ const bounded = (text: string) => { if (new TextEncoder().encode(text).byteLengt
 const identifier = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 200
 const validate = async (value: unknown): Promise<PreparedWorkspaceBackup> => {
   const backup = value as PreparedWorkspaceBackup
-  if (!backup || backup.format !== 'overprint-workspace' || backup.version !== 1 || !Array.isArray(backup.projects) || backup.projects.length > 1000 || !Array.isArray(backup.libraries) || backup.libraries.length > 100) throw new Error('Unsupported or oversized workspace backup.')
+  if (!backup || backup.format !== 'overprint-workspace' || backup.version !== 1 || !Array.isArray(backup.projects) || backup.projects.length > MAX_WORKSPACE_PROJECTS || !Array.isArray(backup.libraries) || backup.libraries.length > 100) throw new Error('Unsupported or oversized workspace backup.')
   const projectIds = new Set<string>(), assetIds = new Set<string>()
   const projects: WorkspaceProjectRecord[] = [], libraries: LibraryAsset[] = []
   for (const record of backup.projects) {
@@ -86,9 +86,11 @@ export const restoreWorkspaceBackup = async (prepared: PreparedWorkspaceBackup):
     const tx = db.transaction(['projects', 'libraries'], 'readwrite')
     const projects = tx.objectStore('projects'), libraries = tx.objectStore('libraries')
     let message = 'Could not restore the backup. No copies were imported. Free browser storage and try again.'
+    const projectCount = projects.count()
     const count = libraries.count()
     count.onsuccess = () => {
       try {
+        if (projectCount.result + backup.projects.length > MAX_WORKSPACE_PROJECTS) { message = 'The workspace is limited to 1000 projects. No copies were imported.'; tx.abort(); return }
         if (count.result + backup.libraries.length > 100) { message = 'The local library is limited to 100 compositions. No copies were imported.'; tx.abort(); return }
         for (const project of backup.projects) projects.add(project, project.id)
         for (const asset of backup.libraries) libraries.add(asset)

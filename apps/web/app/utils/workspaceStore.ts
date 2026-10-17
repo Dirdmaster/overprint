@@ -1,6 +1,7 @@
 import { artworkRows } from './artwork'
 import { nativeSilkInks } from './nativeSilk'
 import { assertProjectSize, type Composition } from './project'
+export const MAX_WORKSPACE_PROJECTS = 1000
 export type WorkspaceProjectRecord = { id: string; name: string; revision: number; updatedAt: number; composition: string; thumbnail: string }
 let connection: Promise<IDBDatabase> | undefined
 export const openWorkspaceDatabase = (): Promise<IDBDatabase> => connection ??= new Promise((resolve, reject) => {
@@ -58,14 +59,20 @@ export const saveProject = async (record: WorkspaceProjectRecord, expectedRevisi
     const tx = db.transaction('projects', 'readwrite')
     const store = tx.objectStore('projects')
     let conflict = false
+    let full = false
     const next = { ...record, revision: expectedRevision + 1, updatedAt: Date.now() }
     const request = store.get(record.id)
     request.onsuccess = () => {
       if ((request.result?.revision ?? 0) !== expectedRevision) { conflict = true; tx.abort(); return }
-      try { store.put(next, record.id) } catch { tx.abort() }
+      if (request.result) { try { store.put(next, record.id) } catch { tx.abort() }; return }
+      const count = store.count()
+      count.onsuccess = () => {
+        if (count.result >= MAX_WORKSPACE_PROJECTS) { full = true; tx.abort(); return }
+        try { store.put(next, record.id) } catch { tx.abort() }
+      }
     }
     tx.oncomplete = () => resolve(next)
-    tx.onabort = () => reject(new Error(conflict ? 'This project changed in another tab. Download your work, then reopen the saved project, or save a recovery copy.' : 'Could not save locally. Download your project to keep your work.'))
+    tx.onabort = () => reject(new Error(full ? 'The workspace is limited to 1000 projects. Export a backup and remove a project before adding another.' : conflict ? 'This project changed in another tab. Download your work, then reopen the saved project, or save a recovery copy.' : 'Could not save locally. Download your project to keep your work.'))
   })
 }
 export const createProject = (name: string, project: Composition) => saveProject({ id: crypto.randomUUID(), name: name.trim().slice(0, 200) || 'Untitled project', revision: 0, updatedAt: Date.now(), composition: JSON.stringify(project), thumbnail: projectThumbnail(project) }, 0)
@@ -90,12 +97,18 @@ export const migrateLegacyProject = async (project?: Composition) => {
     const marker = meta.get('legacyMigrated')
     marker.onsuccess = () => {
       if (marker.result) return
-      if (project) {
-        const record: WorkspaceProjectRecord = { id: crypto.randomUUID(), name: project.board.name, revision: 1, updatedAt: Date.now(), composition: JSON.stringify(project), thumbnail: projectThumbnail(project) }
-        tx.objectStore('projects').put(record, record.id)
-        meta.put(record.id, 'activeProjectId')
+      if (!project) { meta.put(true, 'legacyMigrated'); return }
+      const projects = tx.objectStore('projects')
+      const count = projects.count()
+      count.onsuccess = () => {
+        try {
+          if (count.result >= MAX_WORKSPACE_PROJECTS) { tx.abort(); return }
+          const record: WorkspaceProjectRecord = { id: crypto.randomUUID(), name: project.board.name, revision: 1, updatedAt: Date.now(), composition: JSON.stringify(project), thumbnail: projectThumbnail(project) }
+          projects.put(record, record.id)
+          meta.put(record.id, 'activeProjectId')
+          meta.put(true, 'legacyMigrated')
+        } catch { tx.abort() }
       }
-      meta.put(true, 'legacyMigrated')
     }
     tx.oncomplete = () => resolve()
     tx.onabort = () => reject(tx.error ?? new Error('Legacy recovery failed. Original data remains untouched.'))
