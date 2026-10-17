@@ -17,6 +17,7 @@ const open = ref(false),
   offset = ref(0)
 const loading = ref(false),
   error = ref(''),
+  failedPreview = ref(false),
   selected = ref<Family>(),
   variant = ref(''),
   preview = ref(''),
@@ -31,6 +32,7 @@ const search = async (start = 0) => {
   controller = new AbortController()
   loading.value = true
   error.value = ''
+  failedPreview.value = false
   try {
     const response = await fetch(
       `/api/fonts/catalog?${new URLSearchParams({ q: query.value, offset: String(start) })}`,
@@ -80,9 +82,11 @@ const fontChoice = () => ({
   weight: /^(regular|italic)$/.test(variant.value) ? 400 : parseInt(variant.value),
   google: identity()
 })
-watch([selected, variant], async () => {
+const loadPreview = async () => {
   const operation = ++previewRequest
   preview.value = ''
+  error.value = ''
+  failedPreview.value = false
   previewing.value = false
   if (!identity()) return
   previewing.value = true
@@ -96,12 +100,16 @@ watch([selected, variant], async () => {
     if (operation === previewRequest)
       preview.value = `data:image/svg+xml,${encodeURIComponent(outlined.source)}`
   } catch (reason) {
-    if (operation === previewRequest)
+    if (operation === previewRequest) {
+      failedPreview.value = true
       error.value = reason instanceof Error ? reason.message : 'Preview unavailable.'
+    }
   } finally {
     if (operation === previewRequest) previewing.value = false
   }
-})
+}
+watch([selected, variant], loadPreview)
+const retry = () => (failedPreview.value ? loadPreview() : search(offset.value))
 const choose = (family: Family) => {
   error.value = ''
   selected.value = family
@@ -181,7 +189,7 @@ onScopeDispose(() => {
         <button
           type="button"
           class="underline"
-          @click="search()"
+          @click="retry"
         >
           Retry
         </button>
@@ -238,7 +246,7 @@ onScopeDispose(() => {
             </option>
           </select>
         </label>
-        <div class="flex h-16 items-center justify-center rounded bg-soft">
+        <div class="flex h-16 items-center justify-center rounded bg-neutral-900 text-white">
           <span v-if="previewing">Loading preview…</span>
           <img
             v-else-if="preview"

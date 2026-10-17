@@ -9,7 +9,7 @@ const converter = require('opentype.js')
 const woff = readFileSync(new URL('../../app/assets/text-fonts/geist-latin-700-normal.woff', import.meta.url))
 const ttf = process.env.OVERPRINT_REAL_FONT_TTF ? readFileSync(process.env.OVERPRINT_REAL_FONT_TTF) : Buffer.from(converter.parse(woff.buffer.slice(woff.byteOffset, woff.byteOffset + woff.byteLength)).toArrayBuffer())
 const id = 'a'.repeat(64)
-const family = { family: 'Fixture Sans', category: 'sans-serif', version: 'v1', variants: [{ variant: '700', id }] }
+const family = { family: 'Fixture Sans', category: 'sans-serif', version: 'v1', variants: [{ variant: 'regular', id: 'b'.repeat(64) }, { variant: '700', id }] }
 
 test('search, preview and apply a font; frozen text reopens offline and failed edits preserve outlines', async ({ page }) => {
   const queries: string[] = []
@@ -32,6 +32,8 @@ test('search, preview and apply a font; frozen text reopens offline and failed e
   await expect(image).toHaveAttribute('href', before!)
   await page.getByRole('button', { name: 'Fixture Sans', exact: true }).click()
   await expect(page.getByRole('img', { name: 'Font preview Aa Bb 123' })).toBeVisible()
+  await page.getByRole('combobox', { name: 'Font variant', exact: true }).selectOption('700')
+  await expect(page.getByRole('button', { name: 'Use Fixture Sans' })).toBeEnabled()
   await page.getByRole('button', { name: 'Use Fixture Sans' }).click()
   await expect(image).not.toHaveAttribute('href', before!)
   await expect(page.getByText('Updating text…', { exact: true })).toHaveCount(0)
@@ -47,7 +49,7 @@ test('search, preview and apply a font; frozen text reopens offline and failed e
   await page.route('**/api/fonts/file?*', route => route.fulfill({ status: 503 }))
   await page.reload()
   await expect(image).toHaveAttribute('href', after!)
-  expect(downloads).toBe(1)
+  expect(downloads).toBe(2)
   const exporting = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Save project', exact: true }).click()
   const reopened = JSON.parse(readFileSync((await (await exporting).path())!, 'utf8'))
@@ -57,6 +59,15 @@ test('search, preview and apply a font; frozen text reopens offline and failed e
   await expect(page.getByLabel('Text font')).toHaveValue('google')
   await page.getByLabel('Text content').fill('Changed offline')
   await expect(page.getByRole('alert')).toContainText('Existing artwork still displays and exports')
+  await expect(image).toHaveAttribute('href', after!)
+  // A valid but different font under the same identity must not silently replace saved paths.
+  const otherWoff = readFileSync(new URL('../../app/assets/text-fonts/geist-latin-400-normal.woff', import.meta.url))
+  const other = Buffer.from(converter.parse(otherWoff.buffer.slice(otherWoff.byteOffset, otherWoff.byteOffset + otherWoff.byteLength)).toArrayBuffer())
+  await page.route('**/api/fonts/file?*', route => route.fulfill({ contentType: 'font/ttf', body: other }))
+  await page.reload()
+  await page.getByRole('button', { name: 'Text', exact: true }).click()
+  await page.getByLabel('Text content').fill('Changed bytes')
+  await expect(page.getByRole('alert')).toContainText('Font bytes have changed')
   await expect(image).toHaveAttribute('href', after!)
   await page.getByLabel('Text font').selectOption('400')
   await expect(image).not.toHaveAttribute('href', after!)
@@ -78,4 +89,30 @@ test('unconfigured catalogue offers a bundled fallback without changing text', a
   await expect(page.getByRole('alert')).toContainText('not configured')
   await expect(page.locator('[data-artwork-layer] image')).toHaveAttribute('href', before!)
   await expect(page.getByLabel('Text font')).toHaveValue('400')
+})
+
+
+test('pagination and font-download retry work without reselecting the family', async ({ page }) => {
+  let attempts = 0
+  await page.route('**/api/fonts/catalog?*', route => {
+    const offset = Number(new URL(route.request().url()).searchParams.get('offset'))
+    const families = offset ? [family] : Array.from({ length: 40 }, (_, index) => ({ ...family, family: `Family ${index}` }))
+    return route.fulfill({ json: { families, total: 41, offset } })
+  })
+  await page.route('**/api/fonts/file?*', route => ++attempts === 1 ? route.fulfill({ status: 503 }) : route.fulfill({ contentType: 'font/ttf', body: ttf }))
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
+  await page.getByLabel('Choose board export').setInputFiles(demoBoard)
+  await page.getByRole('button', { name: 'Draw text', exact: true }).click()
+  await page.getByRole('img', { name: 'Demo board front board preview' }).click()
+  await page.getByRole('button', { name: 'Browse Google Fonts' }).click()
+  await page.getByRole('button', { name: 'Next fonts' }).click()
+  await expect(page.getByText('41–41 of 41')).toBeVisible()
+  await page.getByRole('button', { name: 'Fixture Sans', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('font is unavailable')
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Use Fixture Sans' })).toBeEnabled()
+  expect(attempts).toBe(2)
+  await page.getByRole('button', { name: 'Use Fixture Sans' }).click()
+  await expect(page.getByLabel('Text font')).toHaveValue('google')
 })
