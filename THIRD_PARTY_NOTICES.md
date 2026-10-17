@@ -29,3 +29,7 @@ The setup guide includes a screenshot of KiCad’s interface. The order guide in
 - fzstd 0.1.1: MIT, copyright Arjun Barrett. License retained in the installed package.
 
 These dependencies retain their own licenses; Overprint's application code remains MIT.
+
+## Editable text outlines
+
+Geist Latin static Regular (400) and Bold (700) WOFF files are vendored unchanged from `@fontsource/geist` 5.3.0 under the SIL Open Font License 1.1. OpenType.js 2.0.0 is pinned for local path conversion under MIT. Full notices ship in `/text-fonts/LICENSES.txt` for the website and `THIRD_PARTY_NOTICES.txt` in the embedded-editor package. Font files are bundled with each distribution; rendering does not request external fonts. These fonts support a limited Latin character set, not arbitrary scripts or emoji.
