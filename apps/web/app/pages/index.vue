@@ -142,7 +142,12 @@ const onDrop = (event: DragEvent) => {
       @remove="remove"
       @import="openProject"
       @new="openImport()"
-    />
+    >
+      <WorkspaceBackup
+        :flush="save"
+        @restored="refresh"
+      />
+    </ProjectGallery>
     <div
       v-if="
         status && !['All changes saved', 'Project opened', 'Recovery copy saved'].includes(status)

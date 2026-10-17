@@ -159,5 +159,6 @@ defineExpose({ show, close })
         </div>
       </article>
     </div>
+    <slot />
   </dialog>
 </template>
