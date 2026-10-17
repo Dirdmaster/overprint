@@ -16,7 +16,7 @@ async function availablePort() {
 for (const runtime of ['bun', 'node']) {
   test(`standalone app serves assets and relays a ZIP under ${runtime}`, { timeout: 20_000 }, async () => {
     const child = spawn(runtime, [runtime === 'bun' ? '--preload' : '--import', './tests/runtime/mock-jlc.mjs', '.output/standalone/server/index.mjs'], {
-      env: { ...process.env, NITRO_HOST: '127.0.0.1', NITRO_PORT: await availablePort() }, stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, NITRO_HOST: '127.0.0.1', NITRO_PORT: await availablePort(), NUXT_GOOGLE_FONTS_API_KEY: 'runtime-font-key' }, stdio: ['ignore', 'pipe', 'pipe'],
     })
     let output = ''
     const ready = new Promise<string>((resolve, reject) => {
@@ -33,7 +33,9 @@ for (const runtime of ['bun', 'node']) {
       const origin = await ready
       const page = await fetch(origin)
       assert.equal(page.status, 200)
-      assert.match(await page.text(), /Overprint/)
+      const html = await page.text()
+      assert.match(html, /Overprint/)
+      assert.doesNotMatch(html, /runtime-font-key/)
       const integrations = await fetch(`${origin}/integrations?path=/story/editor--playground&globals=framework:vue`, { redirect: 'manual' })
       assert.equal(integrations.status, 302)
       assert.equal(integrations.headers.get('location'), '/integrations/?path=/story/editor--playground&globals=framework:vue')
@@ -53,6 +55,20 @@ for (const runtime of ['bun', 'node']) {
       const plugin = await fetch(`${origin}/downloads/overprint-kicad.zip`)
       assert.equal(plugin.status, 200)
       assert.equal(plugin.headers.get('content-type'), 'application/zip')
+      const catalogue = await fetch(`${origin}/api/fonts/catalog?q=runtime`)
+      assert.equal(catalogue.status, 200)
+      const fontResult = await catalogue.json()
+      assert.doesNotMatch(JSON.stringify(fontResult), /runtime-font-key|gstatic/)
+      assert.equal(fontResult.families[0].family, 'Runtime Sans')
+      const choice = fontResult.families[0]
+      const query = new URLSearchParams({ family: choice.family, version: choice.version, ...choice.variants[0] })
+      const font = await fetch(`${origin}/api/fonts/file?${query}`)
+      assert.equal(font.status, 200)
+      assert.equal(font.headers.get('content-type'), 'font/ttf')
+      assert.equal((await font.arrayBuffer()).byteLength, 32)
+      assert.equal((await fetch(`${origin}/api/fonts/catalog`, { method: 'POST', body: 'x' })).status, 405)
+      assert.equal((await fetch(`${origin}/api/fonts/catalog`, { headers: { Origin: 'https://other.example' } })).status, 403)
+      assert.equal((await fetch(`${origin}/api/fonts/catalog?url=https://other.example`)).status, 400)
       const body = new Uint8Array(8_000_000)
       body.set([80, 75, 3, 4, 1, 2, 3, 4])
       const url = `${origin}/api/jlcpcb/upload`
@@ -71,3 +87,22 @@ for (const runtime of ['bun', 'node']) {
     }
   })
 }
+
+test('standalone font catalogue gives a useful unavailable response without configuration', { timeout: 20_000 }, async () => {
+  const child = spawn('node', ['.output/standalone/server/index.mjs'], {
+    env: { ...process.env, NITRO_HOST: '127.0.0.1', NITRO_PORT: await availablePort(), NUXT_GOOGLE_FONTS_API_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  let output = ''
+  const ready = new Promise<string>((resolve, reject) => {
+    child.stdout.on('data', data => { output += data.toString(); const match = output.match(/Listening on (http:\/\/127\.0\.0\.1:\d+)/); if (match) resolve(match[1]!) })
+    child.stderr.on('data', data => { output += data.toString() })
+    child.once('error', reject); child.once('exit', () => reject(new Error(output)))
+  })
+  try {
+    const response = await fetch(`${await ready}/api/fonts/catalog`)
+    assert.equal(response.status, 503)
+    assert.match(await response.text(), /bundled font/)
+  } finally {
+    if (child.exitCode === null) { const exited = once(child, 'exit'); child.kill('SIGTERM'); await exited }
+  }
+})

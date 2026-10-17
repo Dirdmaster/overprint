@@ -32,6 +32,7 @@ export default defineNuxtConfig({
     } : {}),
   },
   runtimeConfig: {
+    googleFontsApiKey: '',
     public: {
       sourceDownload: existsSync(new URL('./public/downloads/overprint-source.zip', import.meta.url)),
       guideScreenshots: ['settings', 'multicolor', 'open-viewer', 'viewer'].every(name => existsSync(new URL(`./public/guides/jlcpcb/${name}.png`, import.meta.url))),
