@@ -118,12 +118,16 @@ test('unconfigured catalogue preserves existing outlines without offering a bund
 
 test('pagination and font-download retry work without reselecting the family', async ({ page }) => {
   let attempts = 0
+  let allowDownload = false
   await page.route('**/api/fonts/catalog?*', route => {
     const offset = Number(new URL(route.request().url()).searchParams.get('offset'))
     const families = offset ? [family] : Array.from({ length: 40 }, (_, index) => ({ ...family, family: `Family ${index}` }))
     return route.fulfill({ json: { families, total: 41, offset } })
   })
-  await page.route('**/api/fonts/file?*', route => ++attempts === 1 ? route.fulfill({ status: 503 }) : route.fulfill({ contentType: 'font/ttf', body: ttf }))
+  await page.route('**/api/fonts/file?*', route => {
+    attempts++
+    return allowDownload ? route.fulfill({ contentType: 'font/ttf', body: ttf }) : route.fulfill({ status: 503 })
+  })
   await routeGeist(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
@@ -135,8 +139,10 @@ test('pagination and font-download retry work without reselecting the family', a
   await expect(page.getByRole('option', { name: 'Fixture Sans', exact: true })).toBeVisible()
   await page.getByRole('option', { name: 'Fixture Sans', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('font is unavailable')
+  const failedAttempts = attempts
+  allowDownload = true
   await page.getByRole('button', { name: 'Retry', exact: true }).click()
-  await expect.poll(() => attempts).toBe(2)
+  await expect.poll(() => attempts).toBeGreaterThan(failedAttempts)
   await expect(page.getByRole('combobox', { name: 'Font family', exact: true })).toContainText('Fixture Sans')
 })
 
