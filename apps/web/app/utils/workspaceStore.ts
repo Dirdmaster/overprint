@@ -1,3 +1,5 @@
+import { artworkRows } from './artwork'
+import { nativeSilkInks } from './nativeSilk'
 import { assertProjectSize, type Composition } from './project'
 export type WorkspaceProjectRecord = { id: string; name: string; revision: number; updatedAt: number; composition: string; thumbnail: string }
 let connection: Promise<IDBDatabase> | undefined
@@ -38,8 +40,16 @@ export const setWorkspaceMeta = async (key: string, value: unknown) => {
 }
 export const projectThumbnail = (project: Composition) => {
   const { bounds, outline } = project.board
-  // Board paths are validated on import. A small board silhouette avoids retaining external resources.
-  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}"><path d="${outline}" fill="${project.mask}"/></svg>`)}`
+  const side = project.side
+  const silk = project.silk ? nativeSilkInks(project.board.layers[`${side}-silkscreen`] ?? [], project.artwork, side, '#ffffff').map(ink => `<path d="${ink.path}" fill="${ink.color}" fill-rule="evenodd"/>`).join('') : ''
+  const artwork = artworkRows(project.artwork, side, true).filter(row => row.visible && !row.item.kind).map(({ item }) => {
+    const cx = item.x + item.width / 2, cy = item.y + item.height / 2
+    return `<image href="data:image/svg+xml,${encodeURIComponent(item.source)}" x="${-item.width / 2}" y="${-item.height / 2}" width="${item.width}" height="${item.height}" transform="translate(${cx} ${cy}) rotate(${item.rotation})${side === 'back' ? ' scale(-1 1)' : ''}"/>`
+  }).join('')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}"><defs><clipPath id="board"><path d="${outline} ${project.board.holes}" clip-rule="evenodd"/></clipPath></defs><g clip-path="url(#board)"${side === 'back' ? ` transform="translate(${2 * bounds.x + bounds.width} 0) scale(-1 1)"` : ''}><path d="${outline}" fill="${project.mask}"/>${silk}${artwork}</g></svg>`
+  // Extremely detailed imported art must not double the workspace storage footprint.
+  if (svg.length > 500_000) return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}"><path d="${outline}" fill="${project.mask}"/></svg>`)}`
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
 export const saveProject = async (record: WorkspaceProjectRecord, expectedRevision: number): Promise<WorkspaceProjectRecord> => {
   assertProjectSize(record.composition)
@@ -52,7 +62,7 @@ export const saveProject = async (record: WorkspaceProjectRecord, expectedRevisi
     const request = store.get(record.id)
     request.onsuccess = () => {
       if ((request.result?.revision ?? 0) !== expectedRevision) { conflict = true; tx.abort(); return }
-      store.put(next, record.id)
+      try { store.put(next, record.id) } catch { tx.abort() }
     }
     tx.oncomplete = () => resolve(next)
     tx.onabort = () => reject(new Error(conflict ? 'This project changed in another tab. Download your work, then reopen the saved project, or save a recovery copy.' : 'Could not save locally. Download your project to keep your work.'))

@@ -3,6 +3,7 @@
 definePageMeta({ layout: false })
 const { board, openBoard } = useComposition()
 const {
+  initialized,
   status,
   open: openProjectFile,
   download,
@@ -50,10 +51,7 @@ const acceptImport = (imported: Parameters<typeof openBoard>[0]) => {
   else openBoard(imported)
   keepArtwork = false
 }
-const ready = ref(false)
-onMounted(() => {
-  ready.value = true
-})
+const ready = computed(() => initialized.value)
 
 const openImport = (setup = false, trigger?: HTMLElement) => {
   importer.value?.show(setup, trigger)
@@ -102,13 +100,15 @@ const onDrop = (event: DragEvent) => {
         />
         <AlphaBadge />
       </div>
-      <button
-        class="header-action"
-        @click="showProjects"
-      >
-        Projects
-      </button>
-      <ThemeToggle />
+      <div class="flex items-center gap-2">
+        <button
+          class="header-action"
+          @click="showProjects"
+        >
+          Projects
+        </button>
+        <ThemeToggle />
+      </div>
     </header>
     <main
       class="relative flex min-h-0 flex-1"

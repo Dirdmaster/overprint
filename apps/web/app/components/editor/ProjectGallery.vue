@@ -86,7 +86,7 @@ defineExpose({ show, close })
       >
         <img
           :src="project.thumbnail"
-          alt="Board silhouette"
+          alt="Project preview"
           class="h-28 w-full object-contain"
         />
         <p class="mt-3 font-medium">

@@ -10,7 +10,7 @@ export const useProjectStorage = () => {
   const projects = ref<WorkspaceProjectRecord[]>([])
   const active = ref<WorkspaceProjectRecord>()
   const busy = ref(false)
-  let ready = false
+  const initialized = ref(false)
   let applying = false
   let blocked = false
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -26,7 +26,7 @@ export const useProjectStorage = () => {
   const report = (error: unknown) => { status.value = error instanceof Error ? error.message : 'Could not save locally. Download your project to keep your work.' }
   const save = (explicit = false): Promise<boolean> => {
     clearTimeout(timer)
-    if (!ready || !board.value) return queue
+    if (!initialized.value || !board.value) return queue
     if (blocked) return Promise.resolve(false)
     const value = snapshot()
     const identity = active.value?.id
@@ -65,6 +65,7 @@ export const useProjectStorage = () => {
     if (busy.value) return
     busy.value = true
     try {
+      if (file.size > 20_000_000) throw new Error('Project exceeds 20 MB.')
       const project = await parseProject(await file.text())
       if (!(await save())) return
       const record = await createProject(file.name.replace(/\.overprint$/i, ''), project)
@@ -133,13 +134,13 @@ export const useProjectStorage = () => {
       if (record) await activate(record)
       await refresh()
     } catch { blocked = true; status.value = 'Saved project could not be restored. It has been kept untouched. Download your current work or save a recovery copy.' }
-    ready = true
+    initialized.value = true
   })
   watch(generation, () => { active.value = undefined; blocked = false }, { flush: 'sync' })
   watch([board, items, side, silk, maskColor, components], () => {
-    if (!ready || blocked || applying) return
+    if (!initialized.value || blocked || applying) return
     clearTimeout(timer); timer = setTimeout(() => void save(), 250)
   }, { deep: true, flush: 'sync' })
   onBeforeUnmount(() => { void save(); clearTimeout(timer); window.removeEventListener('keydown', keyboard); window.removeEventListener('pagehide', flush) })
-  return { status, projects, active, busy, refresh, openSaved, rename, duplicate, remove, recover, open, download, save }
+  return { initialized, status, projects, active, busy, refresh, openSaved, rename, duplicate, remove, recover, open, download, save }
 }
