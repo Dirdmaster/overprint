@@ -4,7 +4,7 @@ import { useArtwork } from '../../composables/artwork/useArtwork'
 import TextInspector from './TextInspector.vue'
 import DrawingInspector from './DrawingInspector.vue'
 import ArtworkAlignment from './ArtworkAlignment.vue'
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   Eye,
   EyeOff,
@@ -18,7 +18,7 @@ import {
   ChevronDown,
   ChevronRight
 } from '@lucide/vue'
-import { artworkRows } from '../../utils/artwork'
+import { artworkRows, readArtwork } from '../../utils/artwork'
 import type { AlignmentBounds } from '../../utils/artworkAlignment'
 const props = defineProps<{ side: string; bounds: AlignmentBounds }>()
 const {
@@ -50,6 +50,40 @@ const current = computed(() =>
     ? layers.value.find((item) => item.id === selection.value)
     : undefined
 )
+const replaceableGraphic = computed(() => {
+  const item = current.value
+  return item && !item.kind && !item.drawing && !item.library ? item : undefined
+})
+const replacementPicker = ref<HTMLInputElement | null>(null)
+const replacementError = ref('')
+const replaceGraphic = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  const target = replaceableGraphic.value
+  if (!file || !target) return
+  replacementError.value = ''
+  try {
+    const replacement = await readArtwork(file)
+    if (!items.value.includes(target) || selection.value !== target.id)
+      throw new Error('The selected artwork changed. Select it and try again.')
+    const width = Math.min(target.width, target.height * replacement.ratio)
+    const height = width / replacement.ratio
+    edit(target.id, {
+      source: replacement.source,
+      x: target.x + (target.width - width) / 2,
+      y: target.y + (target.height - height) / 2,
+      width,
+      height
+    })
+  } catch (cause) {
+    replacementError.value = cause instanceof Error ? cause.message : 'Unable to replace graphic.'
+  } finally {
+    input.value = ''
+  }
+}
+watch(current, () => {
+  replacementError.value = ''
+})
 const destinations = computed(() =>
   layers.value.filter(
     (item) =>
@@ -236,6 +270,42 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
         </select>
       </label>
     </div>
+    <div
+      v-if="replaceableGraphic"
+      class="mt-3"
+    >
+      <button
+        class="rounded bg-soft px-3 py-2 text-ink"
+        @click="replacementPicker?.click()"
+      >
+        Replace SVG
+      </button>
+      <input
+        ref="replacementPicker"
+        type="file"
+        accept=".svg,image/svg+xml"
+        aria-label="Choose replacement SVG"
+        class="hidden"
+        @change="replaceGraphic"
+      />
+      <p class="mt-1 text-xs text-muted">
+        Keeps the graphic centered in its current space, with its rotation and layer.
+      </p>
+      <p
+        v-if="replacementError"
+        role="alert"
+        class="mt-2 text-sm text-red-600"
+      >
+        {{ replacementError }}
+      </p>
+    </div>
+    <p
+      v-else-if="current?.library"
+      class="mt-3 text-xs text-muted"
+    >
+      This graphic is linked to a library composition. Update the library or detach this instance
+      before replacing its SVG.
+    </p>
     <TextInspector
       v-if="current?.drawing?.type === 'text'"
       :key="current.id"
