@@ -10,7 +10,7 @@ Shapes and text remain editable when saved in a [library composition](artwork-li
 
 In **Projects**, choose **Export everything** to download projects and library revisions together as an `.overprint-backup` file. The current project is saved first. To restore it, select **Restore backup**, review the project/library counts, then choose **Import backup copies**. Restore adds new copies and preserves existing work. Restored links point to the restored library copies. Missing library sources retain their frozen artwork and do not attach to an unrelated existing library.
 
-A failed or invalid restore imports nothing. Backup files are limited to 100 MB, with at most 1,000 projects and 100 library compositions in one file. Each project or library composition is limited to 20 MB; each library composition can retain up to 100 revisions. The browser's own storage quota may be lower. **Save project** still downloads an individual portable `.overprint` file.
+A failed or invalid restore imports nothing. Backup files are limited to 100 MB, and the workspace supports at most 1,000 projects and 100 library compositions. Restoring copies respects those combined limits. Each project or library composition is limited to 20 MB; each library composition can retain up to 100 revisions. The browser's own storage quota may be lower. **Save project** still downloads an individual portable `.overprint` file.
 
 Storage belongs to this browser profile and site address. There is no automatic device sync. Clearing site data removes the local workspace, and browser storage is not a substitute for a separate downloaded backup. Old autosave data is retained during migration and malformed originals are not overwritten.
 
