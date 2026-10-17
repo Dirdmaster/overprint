@@ -90,7 +90,7 @@ test('a delayed font change cannot overwrite undo or a newer invalid draft', asy
   const blocked = new Promise<void>(resolve => { release = resolve })
   const started = new Promise<void>(resolve => { requested = resolve })
   await page.route('**/*700*.woff*', async route => { requested(); await blocked; await route.continue() })
-  await page.getByLabel('Text font').selectOption('700')
+  await page.getByLabel('Font style').selectOption('700')
   await started
   await input.fill('🛠')
   await expect(page.getByRole('alert')).toContainText('Unsupported')
@@ -103,7 +103,7 @@ test('a delayed font change cannot overwrite undo or a newer invalid draft', asy
   await input.fill('Latest')
   await expect(image).not.toHaveAttribute('href', original!)
   await expect(page.getByText('Updating text…', { exact: true })).toHaveCount(0)
-  await expect(page.getByLabel('Text font')).toHaveValue('400')
+  await expect(page.getByLabel('Font style')).toHaveValue('400')
   await expect(input).toHaveValue('Latest')
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
   await expect(image).toHaveAttribute('href', original!)
@@ -186,10 +186,10 @@ test('live outlining keeps the inspector hint and controls in place', async ({ p
   const blocked = new Promise<void>(resolve => { release = resolve })
   await page.route('**/*700*.woff*', async route => { await blocked; await route.continue() })
   try {
-    await page.getByLabel('Text font').selectOption('700')
-    await expect(page.getByText('Updating text…', { exact: true })).toBeAttached()
+    await page.getByLabel('Font style').selectOption('700')
+    await expect(page.getByText('Loading font…', { exact: true })).toBeAttached()
     expect(await position()).toEqual(before)
   } finally { release() }
-  await expect(page.getByText('Updating text…', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Loading font…', { exact: true })).toHaveCount(0)
   expect(await position()).toEqual(before)
 })
