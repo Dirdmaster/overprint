@@ -23,6 +23,34 @@ class BranchNamesTests(unittest.TestCase):
                      'chore/release-versions-other']:
             self.assertFalse(valid_branch(name), name)
 
+    def test_dependabot_ci_exception_is_explicit_and_actions_only(self):
+        branches = [
+            'dependabot/github_actions/actions/download-artifact-8.0.2',
+            'dependabot/github_actions/actions/upload-artifact-7.0.2',
+            'dependabot/github_actions/actions/setup-node-7.1.0',
+        ]
+        for name in branches:
+            for trusted in ['true', 'false', '']:
+                result = subprocess.run(
+                    ['python3', str(ROOT / 'scripts/check_branch.py')],
+                    env={**os.environ, 'BRANCH_NAME': name,
+                         'TRUSTED_DEPENDABOT_PR': trusted}, capture_output=True)
+                self.assertEqual(result.returncode == 0, trusted == 'true', name)
+            self.assertFalse(valid_branch(name), 'Local pushes retain contributor policy')
+        for name in ['dependabot/npm_and_yarn/vue-3.0.0',
+                     'dependabot/github_actions/', 'codex/unlinked']:
+            result = subprocess.run(
+                ['python3', str(ROOT / 'scripts/check_branch.py')],
+                env={**os.environ, 'BRANCH_NAME': name,
+                     'TRUSTED_DEPENDABOT_PR': 'true'}, capture_output=True)
+            self.assertNotEqual(result.returncode, 0, name)
+        result = subprocess.run(
+            ['python3', str(ROOT / 'scripts/check_branch.py'), '--push'],
+            input=f'refs/heads/{branches[0]} {"a" * 40} refs/heads/main {"b" * 40}\n',
+            text=True, env={**os.environ, 'TRUSTED_DEPENDABOT_PR': 'true'},
+            capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+
     def test_refspecs_deletions_and_tags(self):
         oid, zero = 'a' * 40, '0' * 40
         lines = [f'refs/heads/fix/15-local {oid} refs/heads/codex/remote {zero}',
