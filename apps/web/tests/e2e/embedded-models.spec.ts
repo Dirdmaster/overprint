@@ -1,5 +1,37 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+
+for (const failure of ['malformed', 'over-limit'] as const) test(`keeps the STEP preview usable when embedded WRL is ${failure}`, async ({ page }) => {
+  const uploads: string[] = [], errors: string[] = []
+  page.on('request', request => { if (request.method() !== 'GET') uploads.push(request.url()) })
+  page.on('pageerror', error => errors.push(error.message))
+  const oversized = Buffer.alloc(9)
+  oversized.writeUInt32LE(0xfd2fb528)
+  oversized[4] = 0xa0
+  oversized.writeUInt32LE(64 * 1024 * 1024, 5)
+  const payload = failure === 'malformed' ? '!!!!' : oversized.toString('base64')
+  const source = readFileSync('tests/fixtures/embedded-mixed.kicad_pcb', 'utf8')
+    .replace(/(\(file \(name "body\.wrl"\) \(type model\) \(data )\|[^|]+\|/, `$1|${payload}|`)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
+  await page.getByLabel('Choose board export').setInputFiles({ name: `${failure}.kicad_pcb`, mimeType: 'text/plain', buffer: Buffer.from(source) })
+  await expect(page.getByRole('img', { name: `${failure} front board preview` })).toBeVisible()
+  await expect(page.getByRole('button', { name: '3D', exact: true })).toBeEnabled({ timeout: 45000 })
+  await page.getByText('1 components', { exact: false }).click()
+  await expect(page.getByText(failure === 'malformed' ? 'Invalid embedded base64 payload.' : 'Embedded model exceeds the 16 MB decoded limit.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: '3D', exact: true }).click()
+  await expect(page.getByRole('img', { name: `${failure} assembled 3D preview` })).toBeVisible()
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Save project', exact: true }).click()
+  const saved = (await (await download).path())!
+  const project = JSON.parse(readFileSync(saved, 'utf8'))
+  expect(project.board.models.status).toBe('partial')
+  expect(project.board.models.includedReferences).toEqual(['U2'])
+  expect(project.board.models.missing[0].reference).toBe('U1')
+  expect(uploads).toEqual([])
+  expect(errors).toEqual([])
+})
+
 for (const name of ['embedded-models', 'embedded-mixed']) test(`imports ${name} locally, renders both sides and restores a downloaded project`, async ({ page }) => {
   const uploads: string[] = [], errors: string[] = []
   page.on('request', request => { if (request.method() !== 'GET') uploads.push(request.url()) })
