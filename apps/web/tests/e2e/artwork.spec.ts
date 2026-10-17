@@ -1,6 +1,41 @@
 import { test, expect } from '@playwright/test'
 import { demoBoard as fixture } from '../fixtures/demoBoard'
 const graphic = { name: 'red-square.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="red"/></svg>') }
+test('replaces an SVG in place and keeps the existing placement through undo and save', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
+  await page.getByLabel('Choose board export').setInputFiles(fixture)
+  await page.getByLabel('Choose SVG graphic').setInputFiles(graphic)
+  await page.getByLabel('Layer name', { exact: true }).fill('Board logo')
+  await page.getByLabel('Layer name', { exact: true }).press('Tab')
+  for (const [key, value] of Object.entries({ x: '8', y: '9', width: '12', rotation: '25' })) {
+    const input = page.getByLabel(`Artwork ${key}`, { exact: true })
+    await input.fill(value)
+    await input.press('Tab')
+  }
+  const replacement = { name: 'updated.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"><rect width="300" height="100" fill="blue"/></svg>') }
+  await page.getByLabel('Choose replacement SVG').setInputFiles(replacement)
+  const image = page.locator('[data-artwork-layer] image').first()
+  await expect.poll(async () => decodeURIComponent((await image.getAttribute('href'))!)).toContain('fill="blue"')
+  await expect(page.getByLabel('Layer name', { exact: true })).toHaveValue('Board logo')
+  for (const [key, value] of Object.entries({ x: '8', y: '13', width: '12', height: '4', rotation: '25' }))
+    await expect(page.getByLabel(`Artwork ${key}`, { exact: true })).toHaveValue(value)
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await expect.poll(async () => decodeURIComponent((await image.getAttribute('href'))!)).toContain('fill="red"')
+  await expect(page.getByLabel('Artwork height', { exact: true })).toHaveValue('12')
+  await page.getByRole('button', { name: 'Redo', exact: true }).click()
+  await expect.poll(async () => decodeURIComponent((await image.getAttribute('href'))!)).toContain('fill="blue"')
+  await page.getByLabel('Choose replacement SVG').setInputFiles({ name: 'bad.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>') })
+  await expect(page.getByRole('alert')).toContainText('Unsupported SVG element')
+  await expect.poll(async () => decodeURIComponent((await image.getAttribute('href'))!)).toContain('fill="blue"')
+  await page.keyboard.press('Control+s')
+  await expect(page.getByRole('status')).toContainText('All changes saved')
+  await page.reload()
+  await page.getByRole('button', { name: 'Board logo', exact: true }).click()
+  await expect.poll(async () => decodeURIComponent((await image.getAttribute('href'))!)).toContain('fill="blue"')
+  for (const [key, value] of Object.entries({ x: '8', y: '13', width: '12', height: '4', rotation: '25' }))
+    await expect(page.getByLabel(`Artwork ${key}`, { exact: true })).toHaveValue(value)
+})
 test('imports an SVG export with its original class-based colors', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
