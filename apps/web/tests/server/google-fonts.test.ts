@@ -1,5 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { createServer } from 'node:http'
+import { gzipSync } from 'node:zlib'
+import { once } from 'node:events'
 import { createGoogleFontsHandler } from '../../server/utils/googleFonts.ts'
 
 const catalogue = { items: [{ family: 'Example Sans', category: 'sans-serif', version: 'v1', subsets: ['latin'], variants: ['regular', '700italic'], files: { regular: 'http://fonts.gstatic.com/s/example/v1/Regular.ttf', '700italic': 'https://fonts.gstatic.com/s/example/v1/BoldItalic.ttf' } }] }
@@ -144,4 +147,29 @@ test('font cache evicts completed entries at its bounded entry count', async () 
   assert.equal(fontCalls, 9)
   assert.equal((await handler(request(`file?${queries[0]}`), 'secret')).status, 200)
   assert.equal(fontCalls, 10)
+})
+
+
+test('accepts an actually gzip-compressed upstream catalogue after fetch decodes its body', async () => {
+  const compressed = gzipSync(JSON.stringify(catalogue))
+  const oversized = gzipSync(new Uint8Array(10_000_001))
+  const server = createServer((incoming, response) => {
+    const body = incoming.url === '/oversized' ? oversized : compressed
+    response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip', 'Content-Length': body.length })
+    response.end(body)
+  })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  const address = server.address()
+  assert.ok(address && typeof address !== 'string')
+  try {
+    const handler = createGoogleFontsHandler({ fetcher: (_, init) => fetch(`http://127.0.0.1:${address.port}`, init) })
+    const response = await handler(request('catalog'), 'secret')
+    assert.equal(response.status, 200, await response.clone().text())
+    assert.equal((await response.json()).families[0].family, 'Example Sans')
+    const limited = createGoogleFontsHandler({ fetcher: (_, init) => fetch(`http://127.0.0.1:${address.port}/oversized`, init) })
+    const rejected = await limited(request('catalog'), 'secret')
+    assert.equal(rejected.status, 502)
+    assert.match(await rejected.text(), /oversized/)
+  } finally { server.closeAllConnections(); await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())) }
 })

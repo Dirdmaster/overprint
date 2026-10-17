@@ -17,7 +17,10 @@ const fontUrl = (value: unknown) => {
   } catch { return }
 }
 const boundedBody = async (response: Response, limit: number, signal: AbortSignal): Promise<Uint8Array<ArrayBuffer>> => {
-  const length = response.headers.get('content-length')
+  // Fetch transparently decodes compressed bodies but can retain their encoded Content-Length.
+  // Only identity lengths describe the bytes read here; every decoded stream is capped below.
+  const encoding = response.headers.get('content-encoding')?.trim().toLowerCase()
+  const length = !encoding || encoding === 'identity' ? response.headers.get('content-length') : null
   if (length !== null && (!/^\d+$/.test(length) || Number(length) > limit)) { await response.body?.cancel(); return fail(502, 'Font service returned an oversized response.') }
   if (!response.body) return fail(502, 'Font service returned an empty response.')
   const reader = response.body.getReader(), chunks: Uint8Array[] = []
