@@ -13,7 +13,6 @@ Group=overprint-agent
 SupplementaryGroups=docker
 WorkingDirectory=/opt/overprint-agent
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStartPre=/usr/bin/python3 -m scripts.repo_agent check --config /etc/overprint-agent/config.json
 ExecStart=/usr/bin/python3 -m scripts.repo_agent serve --config /etc/overprint-agent/config.json
 Restart=on-failure
 RestartSec=15

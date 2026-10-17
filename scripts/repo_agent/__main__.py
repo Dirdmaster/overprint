@@ -37,8 +37,6 @@ def serve(config, controller, github):
     state = Path(config.state_dir)
     with (state / 'service.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        secret(config.codex_key_file)
-        github.preflight()
         runner = DockerRunner(config)
         runner.cleanup()
         controller.recover()
@@ -47,6 +45,7 @@ def serve(config, controller, github):
         for folder in (state / 'jobs').glob('*') if (state / 'jobs').exists() else []:
             for name in ('source', 'input', 'output'):
                 shutil.rmtree(folder / name, ignore_errors=True)
+        check(config, github)
         stopping = threading.Event()
         failures = []
         worker = Worker(config, controller, github, runner)
@@ -78,6 +77,15 @@ def serve(config, controller, github):
                 raise RuntimeError('Worker loop failed; restarting service') from failures[0]
 
 
+def check(config, github):
+    secret(config.codex_key_file)
+    print(json.dumps(github.preflight(), indent=2))
+    subprocess.run(['docker', 'image', 'inspect', config.worker_image],
+                   stdout=subprocess.DEVNULL, check=True, timeout=15)
+    smoke(config.worker_image, directory=config.state_dir)
+    print('Identity, image and isolation checks passed. No inference was tested.')
+
+
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description='Owner-assigned private repository analysis')
@@ -97,12 +105,7 @@ def main():
     if args.command == 'status':
         print(json.dumps(controller.jobs(), indent=2))
     elif args.command == 'check':
-        secret(config.codex_key_file)
-        subprocess.run(['docker', 'image', 'inspect', config.worker_image],
-                       stdout=subprocess.DEVNULL, check=True, timeout=15)
-        print(json.dumps(github.preflight(), indent=2))
-        smoke(config.worker_image, directory=config.state_dir)
-        print('Identity, image and isolation checks passed. No inference was tested.')
+        check(config, github)
     else:
         serve(config, controller, github)
 

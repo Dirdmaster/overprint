@@ -58,6 +58,38 @@ class WorkerTests(unittest.TestCase):
                                worker_image='sha256:' + 'a' * 64, model='test-model',
                                codex_key_file='/etc/agent/model-key', timeout_seconds=30)
 
+    def test_restart_cleans_stale_worker_before_unavailable_github_preflight(self):
+        from repo_agent import __main__ as service
+        self.deliver(self.event())
+        job = self.controller.claim()
+        root = Path(self.tmp.name)
+        folder = root / 'jobs' / job['id']
+        for name in ('source', 'input', 'output'):
+            (folder / name).mkdir(parents=True)
+        report = folder / 'report.md'
+        report.write_text('Retained private report')
+        stale = root / 'stale-container'
+        stale.touch()
+        docker = root / 'docker'
+        docker.write_text(f"#!{sys.executable}\nimport pathlib,sys\np=pathlib.Path({str(stale)!r})\n"
+                          "if sys.argv[1] == 'ps': print('stale' if p.exists() else '')\n"
+                          "elif sys.argv[1:4] == ['rm', '-f', 'stale']: p.unlink()\n")
+        docker.chmod(0o755)
+        def unavailable():
+            self.assertFalse(stale.exists())
+            self.assertEqual(self.controller.jobs()[0]['status'], 'failed')
+            self.assertFalse(any((folder / name).exists() for name in ('source', 'input', 'output')))
+            self.assertEqual(report.read_text(), 'Retained private report')
+            # Cleanup and readiness must share exclusive ownership of the service.
+            import fcntl
+            with (root / 'service.lock').open('w') as lock:
+                with self.assertRaises(BlockingIOError):
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            raise OSError('GitHub unavailable')
+        with patch.dict('os.environ', {'PATH': str(root)}), patch.object(service, 'secret', return_value='test'):
+            with self.assertRaisesRegex(OSError, 'GitHub unavailable'):
+                service.serve(self.config(), self.controller, SimpleNamespace(preflight=unavailable))
+
     def test_docker_has_no_host_control_or_write_token_and_bounds_resources(self):
         command = docker_command(self.config(), {'id': 'abc'}, Path('/tmp/job'))
         joined = ' '.join(command)
@@ -185,6 +217,7 @@ with tempfile.TemporaryDirectory() as folder:
     config = SimpleNamespace(state_dir=folder, codex_key_file=str(key), port=0)
     controller = Controller(Path(folder) / 'db', Policy(1,2,3,4), b'secret')
     service.DockerRunner = lambda config: SimpleNamespace(cleanup=lambda: None)
+    service.check = lambda config, github: None
     def run_once(stop):
         if sys.argv[2] == 'failure':
             raise OSError('synthetic queue failure')

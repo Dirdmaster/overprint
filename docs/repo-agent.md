@@ -73,7 +73,7 @@ cd /opt/overprint-agent
 sudo -u overprint-agent python3 -m scripts.repo_agent check
 ```
 
-This validates the config, secret file protection, read-scoped App access, account IDs, assignee eligibility, installed image, and a real Docker/Sandcastle/Codex isolation smoke. It makes no model call and posts nothing. It is also the systemd start precondition.
+This validates the config, secret file protection, read-scoped App access, account IDs, assignee eligibility, installed image, and a real Docker/Sandcastle/Codex isolation smoke. It makes no model call and posts nothing. Service startup repeats these checks under the service lock after local recovery, before accepting webhook deliveries.
 
 For an image-only smoke without GitHub or model credentials:
 
@@ -112,7 +112,7 @@ sudo systemctl stop overprint-agent
 
 Completed reports live under `/var/lib/overprint-agent/jobs/JOB_ID/report.md`. A bounded private `diagnostics.txt` may explain a failed container. Treat both as untrusted text; they are never executed or rendered by a public endpoint. Temporary source/context/output is removed after each run and on restart. The filesystem is owner-only. Review disk usage and archive/delete old completed job directories during maintenance; database/delivery records are retained for deduplication.
 
-Stopping the service stops its worker containers. On startup, leftover containers carrying this service's label are removed before new work starts. Do not run multiple installations using that label on the same Docker daemon. Updating the image requires stopping the service, rebuilding, recording the new immutable image ID, running `check`, and restarting. Updating controller files uses the installer while stopped. Neither operation auto-updates source from GitHub.
+Stopping the service stops its worker containers. On startup, leftover containers carrying this service's label are removed and interrupted jobs are marked failed under the service lock before external readiness checks. This recovery runs even when GitHub is unavailable; failed readiness still prevents new work. Do not run multiple installations using that label on the same Docker daemon. Updating the image requires stopping the service, rebuilding, recording the new immutable image ID, running `check`, and restarting. Updating controller files uses the installer while stopped. Neither operation auto-updates source from GitHub.
 
 ## Validation and remaining gates
 
