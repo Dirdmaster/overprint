@@ -180,3 +180,9 @@ Inside an `EditorRoot`, `useEditorHistory()` from the React or Vue entry returns
 Plain JavaScript uses `createEditorHistory(controller)`. Its `getState()` returns an immutable snapshot; `subscribe(listener)` returns an unsubscribe function. React and Vue handle subscriptions automatically. The helper does not create or destroy the controller.
 
 This is one checkpoint in memory, separate from undo/redo. A new controller starts empty; loading a different board into the same controller keeps the checkpoint available, including its original board. Nothing is written to disk or sent to a server. Use `getDocument()` and `restore(document)` when your host needs persistent storage.
+
+## Google Fonts
+
+The text inspector includes bundled Geist and a searchable Google Fonts picker. To enable the catalogue in an embedded editor, the host must provide the same-origin `/api/fonts/catalog` and `/api/fonts/file` contracts described in [hosting](../../docs/hosting.md#google-fonts). The Overprint app supplies both endpoints; a static embed without them retains bundled fonts. Keep the Google API key on the host server.
+
+`GoogleFontIdentity` and `TextDefinition` are exported types. Saved Google text stores family, variant, version, opaque source identity, byte digest and embedded licence metadata alongside frozen paths. Loading/displaying/exporting text does not download or regenerate a font. Editing requires the pinned font or an explicit replacement. Google text supports Latin glyphs with kerning, without automatic ligatures, variable axes or complex-script shaping.

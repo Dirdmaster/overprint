@@ -11,7 +11,7 @@ bun install --frozen-lockfile
 bun start
 ```
 
-Open **http://127.0.0.1:4317**. `bun start` builds the current source and the KiCad plugin, then runs the production server under Node.js. It listens only on loopback by default. Ctrl+C stops it. No Cloudflare login or credentials are needed. Installation needs an internet connection to download dependencies; a startup build uses installed dependencies. The editor's fonts and assets are served locally.
+Open **http://127.0.0.1:4317**. `bun start` builds the current source and the KiCad plugin, then runs the production server under Node.js. It listens only on loopback by default. Ctrl+C stops it. No Cloudflare login or credentials are needed. Installation needs an internet connection to download dependencies; a startup build uses installed dependencies. The editor's bundled fonts and assets are served locally. The optional Google Fonts catalogue requires the configuration below.
 
 Choose a different port if another copy is running:
 
@@ -57,7 +57,7 @@ Pages project settings:
 | Build environment | `BUN_VERSION=1.3.14`, `NODE_VERSION=22.18.0`, `SKIP_DEPENDENCY_INSTALL=1` |
 | Compatibility date | `2026-09-16` |
 | Compatibility flag | `nodejs_compat` |
-| Storage bindings / secrets | None |
+| Storage bindings / secrets | No storage bindings; optional `NUXT_GOOGLE_FONTS_API_KEY` secret |
 
 Bun is the package manager for both targets; `bun.lock` is the only dependency lockfile. The Pages build explicitly runs a frozen Bun install, with automatic dependency installation disabled using the [documented build variables](https://developers.cloudflare.com/pages/configuration/build-image/). Set these variables in the Pages build settings, not Worker runtime bindings.
 
@@ -70,6 +70,21 @@ Before public traffic, configure a Cloudflare rate-limiting rule for **POST `/ap
 After deployment, verify one synthetic ZIP reaches JLCPCB from Cloudflare's production network and opens its quote, then check KiCad sync permissions from the real HTTPS origin. Keep Download ZIP available if JLCPCB changes or blocks the undocumented upload endpoint.
 
 The relay allows 20 MB per ZIP and times out after 60 seconds. Standalone admits four simultaneous uploads and can queue up to 80 MB of ZIP data in memory, plus runtime overhead.
+
+## Google Fonts
+
+Create a key for the [Google Fonts Developer API](https://developers.google.com/fonts/docs/developer_api) and enable that API in the corresponding Google Cloud project. Set **`NUXT_GOOGLE_FONTS_API_KEY`** in the server environment before starting the standalone app or development server. On Cloudflare Pages, configure it as an encrypted runtime environment variable for the intended preview/production environment. Restart local processes after changing their environment. Do not put the key in public runtime config, browser code or committed files.
+
+Without a key, `/api/fonts/catalog` returns 503 and the picker explains that bundled fonts remain available. Rendering and exporting existing projects do not require the key. There is no live Google dependency in CI: API tests use synthetic catalogues and font fixtures.
+
+Both targets expose same-origin GET endpoints:
+
+- `/api/fonts/catalog?q=Inter&offset=0`: case-insensitive family search, up to 40 results, with `families`, `total` and `offset`. Families include `family`, `category`, `version`, and `variants` containing `variant` and opaque `id`.
+- `/api/fonts/file?family=Inter&variant=regular&version=...&id=...`: resolve a static TrueType file only when all fields match the current catalogue. Arbitrary URLs, redirects, stale identities and variable font files are rejected.
+
+Only Latin-subset static variants are listed. Catalogue cache lifetime is one hour. Font cache lifetime is 24 hours, bounded to eight files and 8 MB per process/isolate. Responses are limited to 10 MB for the catalogue and 4 MB per font, with a 10-second upstream deadline. Client byte digests detect changes even when an upstream identity is reused. A catalogue update can make an older pinned font unavailable for editing; its saved outlines still work.
+
+Origin checks prevent cross-site browser requests; they are not authentication. Configure rate limiting for `/api/fonts/*` on public hosts to protect Google API quota. Restrict the key to the Fonts Developer API and review hosting request logs. Never log the upstream catalogue URL because it contains the key.
 
 ## Integration documentation
 
@@ -103,6 +118,6 @@ Standalone checks exercise the built server under Bun and Node with a test-only 
 
 ### Why these adapters exist
 
-The installed Nitro 2.13.4 native Bun and Pages adapters buffer incoming bodies. Standalone uses the Node.js server. Pages uses a small entry wrapper only for the upload endpoint; other routes still use Nitro. The shared relay uses Web Streams and Cloudflare's `FixedLengthStream` so JLCPCB receives a multipart Content-Length without collecting the whole ZIP. Redirects are handled manually and rejected; Workers does not implement `redirect: "error"`.
+The installed Nitro 2.13.4 native Bun and Pages adapters buffer incoming bodies. Standalone uses the Node.js server. Pages uses a small entry wrapper for the upload and font endpoints; other routes still use Nitro. The shared relay uses Web Streams and Cloudflare's `FixedLengthStream` so JLCPCB receives a multipart Content-Length without collecting the whole ZIP. Redirects are handled manually and rejected; Workers does not implement `redirect: "error"`.
 
 References: [Pages configuration](https://developers.cloudflare.com/pages/functions/wrangler-configuration/), [Nitro Cloudflare deployment](https://nitro.build/deploy/providers/cloudflare), [FixedLengthStream](https://developers.cloudflare.com/workers/runtime-apis/streams/transformstream/#fixedlengthstream).
