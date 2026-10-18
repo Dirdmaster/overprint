@@ -6,13 +6,26 @@ export type Artwork = {
   drawing?: DrawingDefinition
   library?: LibraryLink
   nativeSilk?: { baseColor?: string; colors: Record<string, string> }
-  kind?: 'layer' | 'folder'; parentId?: string; collapsed?: boolean
+  kind?: 'layer' | 'folder'; parentId?: string; collapsed?: boolean; locked?: boolean
   id: string; name: string; side: string; source: string
   x: number; y: number; width: number; height: number; rotation: number; visible: boolean
 }
 
 export const MAX_ARTWORK_ITEMS = 100
 export const artworkCount = (items: Artwork[]) => items.filter(item => !item?.nativeSilk).length
+
+export const isArtworkLocked = (items: Artwork[], id: string, includeSelf = true): boolean => {
+  const byId = new Map(items.map(item => [item.id, item]))
+  let item = byId.get(id)
+  if (!includeSelf) item = item?.parentId ? byId.get(item.parentId) : undefined
+  const seen = new Set<string>()
+  while (item && !seen.has(item.id)) {
+    if (item.locked) return true
+    seen.add(item.id)
+    item = item.parentId ? byId.get(item.parentId) : undefined
+  }
+  return false
+}
 
 export const readArtwork = async (file: File) => {
   if (file.size > 2_000_000) throw new Error('SVG exceeds 2 MB. Simplify the graphic before importing.')
@@ -42,14 +55,15 @@ export const readArtwork = async (file: File) => {
 }
 
 export const artworkRows = (items: Artwork[], side: string, includeCollapsed = false) => {
-  const rows: { item: Artwork; depth: number; visible: boolean }[] = []
-  const visit = (parentId: string | undefined, depth: number, visible: boolean) => {
+  const rows: { item: Artwork; depth: number; visible: boolean; locked: boolean; inheritedLock: boolean }[] = []
+  const visit = (parentId: string | undefined, depth: number, visible: boolean, parentLocked: boolean) => {
     for (const item of items.filter(item => !item.nativeSilk && item.side === side && item.parentId === parentId)) {
       const shown = visible && item.visible
-      rows.push({ item, depth, visible: shown })
-      if (item.kind && (includeCollapsed || !item.collapsed)) visit(item.id, depth + 1, shown)
+      const locked = parentLocked || !!item.locked
+      rows.push({ item, depth, visible: shown, locked, inheritedLock: parentLocked })
+      if (item.kind && (includeCollapsed || !item.collapsed)) visit(item.id, depth + 1, shown, locked)
     }
   }
-  visit(undefined, 0, true)
+  visit(undefined, 0, true, false)
   return rows
 }
