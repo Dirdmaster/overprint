@@ -33,7 +33,7 @@
     },
     "import": {
       "close": "Close import",
-      "dropHint": "Drop a .kicad_pcb or board export here",
+      "dropHint": "Drop a .kicad_pcb, board export, or .overprint project here",
       "chooseExport": "Choose board export",
       "showSetup": "Exporting from KiCad?",
       "opening": "Opening board…",

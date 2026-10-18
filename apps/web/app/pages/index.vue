@@ -60,9 +60,14 @@ const openProject = () => {
   projectPicker.value?.show()
 }
 const onDrop = (event: DragEvent) => {
-  if (!event.dataTransfer?.files.length) return
+  const files = event.dataTransfer?.files
+  if (!files?.length) return
+  if (files.length === 1 && /\.overprint$/i.test(files[0]!.name)) {
+    void openProjectFile(files[0]!)
+    return
+  }
   openImport()
-  importer.value?.receiveFiles(event.dataTransfer.files)
+  importer.value?.receiveFiles(files)
 }
 </script>
 
@@ -188,6 +193,7 @@ const onDrop = (event: DragEvent) => {
       ref="importer"
       :confirm-replacement="confirmImport"
       @imported="acceptImport"
+      @project-selected="openProjectFile"
     />
   </NuxtLayout>
 </template>
