@@ -4,7 +4,7 @@
       "label": "Welcome to Overprint",
       "scan": "Scan for boards",
       "description": "A silkscreen editor for your KiCad boards.",
-      "dropHint": "or drop a .kicad_pcb or board export here"
+      "dropHint": "or drop a .kicad_pcb, board export, or .overprint project here"
     },
     "projectMenu": "Project menu",
     "projectActions": "Project actions",
