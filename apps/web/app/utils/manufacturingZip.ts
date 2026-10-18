@@ -5,6 +5,7 @@ import { validateFabrication } from './fabrication'
 import { encryptColorSvg } from './colorEnvelope'
 import { withJlcColorHeader } from './gerberCompatibility'
 import { nativeSilkInks, hasNativeSilkEdits } from './nativeSilk'
+import { addGerberRegions, goldItemRings, goldPath, validateGoldRegions } from './enigPaint'
 
 const loadImage = async (source: string) => {
   const image = new Image()
@@ -41,7 +42,7 @@ export const renderInk = async (project: Composition, side: string, region = pro
     }
   }
   for (const { item, visible } of artworkRows(project.artwork, side, true)) {
-    if (!visible || item.kind) continue
+    if (!visible || item.kind || item.gold) continue
     const image = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.source)}`)
     ctx.save()
     const cx = item.x + item.width / 2, cy = item.y + item.height / 2
@@ -56,6 +57,9 @@ export const renderInk = async (project: Composition, side: string, region = pro
   ctx.globalCompositeOperation = 'destination-out'
   ctx.fill(new Path2D(board.holes), 'evenodd')
   for (const path of board.layers[`${side}-mask`] ?? []) ctx.fill(new Path2D(path), 'evenodd')
+  for (const { item, visible } of artworkRows(project.artwork, side, true)) {
+    if (visible && item.gold) ctx.fill(new Path2D(goldPath(goldItemRings(item))), 'evenodd')
+  }
   ctx.restore()
   return canvas.toDataURL('image/png')
 }
@@ -65,6 +69,14 @@ export const makeManufacturingZip = async (project: Composition) => {
   const fabrication = validateFabrication(project.board.fabrication)
   if (![2, 4].includes(fabrication.copperLayers)) throw new Error('The color test currently supports two- and four-layer boards.')
   const files: Record<string, Uint8Array> = Object.fromEntries(Object.entries(fabrication.files).map(([name, text]) => [name.slice(12), strToU8(text)]))
+  for (const [side, prefix] of [['front', 'F'], ['back', 'B']] as const) {
+    const rings = validateGoldRegions(project.board, project.artwork, side)
+    if (!rings.length) continue
+    for (const layer of ['Cu', 'Mask']) {
+      const name = `${prefix}_${layer}.gbr`
+      files[name] = strToU8(addGerberRegions(strFromU8(files[name]!), rings))
+    }
+  }
   const { x, y, width: w, height: h } = project.board.bounds
   // Still experimental: these corner marks do not yet match EasyEDA's
   // inset-outline registration. See the authentic export comparison notes.
@@ -95,8 +107,9 @@ export const makeManufacturingZip = async (project: Composition) => {
   // Edited native ink is fully represented in the color file. Keeping its old
   // conventional silk would also request the original white printing.
   for (const [side, name] of [['front', 'F_Silkscreen'], ['back', 'B_Silkscreen']]) {
-    if (!project.silk || hasNativeSilkEdits(project.board.layers[`${side}-silkscreen`] ?? [], project.artwork, side!)) {
-      const reason = project.silk ? 'KiCad silkscreen replaced by Overprint color ink' : 'KiCad silkscreen hidden in Overprint'
+    const gold = artworkRows(project.artwork, side!, true).some(({ item, visible }) => visible && item.gold)
+    if (!project.silk || gold || hasNativeSilkEdits(project.board.layers[`${side}-silkscreen`] ?? [], project.artwork, side!)) {
+      const reason = project.silk ? 'KiCad silkscreen replaced by Overprint color ink and ENIG openings' : 'KiCad silkscreen hidden in Overprint'
       files[`${name}.gbr`] = strToU8(`G04 ${reason}*\n%FSLAX46Y46*%\n%MOMM*%\nM02*\n`)
     }
   }

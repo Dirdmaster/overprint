@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { unzipSync, strFromU8 } from 'fflate'
 
 const outline = 'M0,0 L30,0 L30,20 L0,20 Z'
 const plaque = 'M2,2 L18,2 L18,18 L2,18 Z M4,16 L10,4 L16,16 Z'
@@ -29,6 +30,55 @@ const save = async (page: Page) => {
   await page.getByRole('button', { name: 'Save project', exact: true }).click()
   return JSON.parse(readFileSync((await (await download).path())!, 'utf8'))
 }
+
+test('ENIG Live Paint saves an editable region and exports paired copper and mask openings', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = crypto.subtle.encrypt.bind(crypto.subtle)
+    Object.assign(window, { goldInk: '' })
+    crypto.subtle.encrypt = async (algorithm, key, data) => {
+      if (typeof algorithm === 'object' && algorithm.name === 'AES-GCM' && !(window as any).goldInk) (window as any).goldInk = new TextDecoder().decode(data)
+      return original(algorithm, key, data)
+    }
+  })
+  const square = (x: number, y: number, size: number) => `M${x},${y} L${x + size},${y} L${x + size},${y + size} L${x},${y + size} Z`
+  const gerber = '%FSLAX46Y46*%\n%MOMM*%\n%ADD10C,0.500*%\nM02*\n'
+  const manufacturing = {
+    version: 1, side: 'front', silk: true, mask: '#202723', fabrication: false, artwork: [],
+    board: { name: 'Paint test', bounds: { x: 0, y: 0, width: 20, height: 20 }, outline: square(0, 0, 20), holes: '',
+      layers: { 'front-silkscreen': [square(8, 8, 2)], 'back-silkscreen': [], 'front-copper': [square(2, 2, 2)], 'back-copper': [], 'front-mask': [square(2, 2, 2)], 'back-mask': [] },
+      fabrication: { version: 1, copperLayers: 2, originMm: [0, 0], files: {
+        ...Object.fromEntries(['F_Cu', 'B_Cu', 'F_Mask', 'B_Mask', 'F_Silkscreen', 'B_Silkscreen', 'Edge_Cuts'].map((name) => [`fabrication/${name}.gbr`, gerber])),
+        'fabrication/drill.drl': 'M48\nM30\n'
+      } } }
+  }
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open project', exact: true }).click()
+  await page.getByLabel('Choose project file').setInputFiles({ name: 'enig.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(manufacturing)) })
+  await page.getByRole('button', { name: 'Live paint (K)' }).click()
+  await page.getByRole('button', { name: 'ENIG gold' }).click()
+  await paint(page, 9, 9)
+  expect((await save(page)).artwork[0].gold.path).toBe(square(8, 8, 2))
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  expect((await save(page)).artwork).toHaveLength(0)
+  await page.getByRole('button', { name: 'Redo', exact: true }).click()
+  await page.getByRole('button', { name: 'Send to JLCPCB', exact: true }).click()
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
+  const files = unzipSync(readFileSync((await (await download).path())!))
+  for (const name of ['F_Cu.gbr', 'F_Mask.gbr']) {
+    expect(strFromU8(files[name]!)).toContain('G36*\nX0008000000Y-0008000000D02*')
+  }
+  expect(strFromU8(files['B_Cu.gbr']!)).not.toContain('G36*')
+  expect(strFromU8(files['F_Silkscreen.gbr']!)).toContain('replaced by Overprint color ink and ENIG openings')
+  const alpha = await page.evaluate(async () => {
+    const svg = new DOMParser().parseFromString((window as any).goldInk, 'image/svg+xml')
+    const image = new Image(); image.src = svg.querySelector('image')!.getAttribute('xlink:href')!; await image.decode()
+    const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height
+    const context = canvas.getContext('2d')!; context.drawImage(image, 0, 0)
+    return [9, 12].map((x) => context.getImageData(Math.floor(x / 20 * image.width), Math.floor(9 / 20 * image.height), 1, 1).data[3])
+  })
+  expect(alpha).toEqual([0, 255])
+})
 
 test('paints an enclosed silkscreen cutout, preserves its island, and saves with undo', async ({ page }) => {
   await open(page)

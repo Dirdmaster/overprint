@@ -5,6 +5,7 @@ import { flattenSvgStyles } from './svgStyles'
 export type Artwork = {
   drawing?: DrawingDefinition
   library?: LibraryLink
+  gold?: { path: string; bounds: { x: number; y: number; width: number; height: number } }
   nativeSilk?: { baseColor?: string; colors: Record<string, string> }
   kind?: 'layer' | 'folder'; parentId?: string; collapsed?: boolean; locked?: boolean
   id: string; name: string; side: string; source: string

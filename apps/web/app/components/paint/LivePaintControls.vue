@@ -16,7 +16,7 @@ const props = withDefaults(
   }>(),
   { customColors: true, showPaintTarget: true }
 )
-const { color, presets: defaultPresets, pointer, adjacent } = useLivePaint()
+const { color, material, presets: defaultPresets, pointer, adjacent } = useLivePaint()
 const presets = computed(() => props.presets ?? defaultPresets)
 const { items, selection } = useArtwork()
 const targetName = computed(() =>
@@ -35,12 +35,14 @@ const targetName = computed(() =>
     title="Drag to fill · A/D or ←/→ colors"
   >
     <ColorSwatchPicker
+      v-if="material === 'ink'"
       v-model="color"
       label="Fill color"
       :presets="presets"
       :custom="customColors"
     />
     <div
+      v-if="material === 'ink'"
       class="flex flex-1 gap-1"
       role="group"
       aria-label="Paint swatches"
@@ -61,6 +63,20 @@ const targetName = computed(() =>
         />
       </button>
     </div>
+    <span
+      v-else
+      class="min-w-0 flex-1 font-medium text-ink"
+    >
+      Gold finish
+    </span>
+    <button
+      type="button"
+      class="h-8 shrink-0 rounded-md border border-line bg-soft px-2 font-medium text-ink"
+      :aria-label="material === 'ink' ? 'ENIG gold' : 'Color ink'"
+      @click="material = material === 'ink' ? 'enig' : 'ink'"
+    >
+      {{ material === 'ink' ? 'ENIG' : 'Ink' }}
+    </button>
     <div
       v-if="showPaintTarget"
       class="flex w-full items-center gap-2 text-muted"
@@ -70,7 +86,7 @@ const targetName = computed(() =>
         :title="targetName"
         aria-label="Paint target"
       >
-        {{ targetName }}
+        {{ material === 'enig' ? `Gold from ${targetName}` : targetName }}
       </span>
       <button
         v-if="selection && !isNativeSilk(selection)"
@@ -93,7 +109,16 @@ const targetName = computed(() =>
         opacity: pointer.valid ? 1 : 0.45
       }"
     >
-      <div class="flex items-center gap-0.5 rounded bg-surface/90 p-1 shadow-sm">
+      <div
+        v-if="material === 'enig'"
+        class="rounded bg-surface/90 px-2 py-1 font-semibold text-ink shadow-sm"
+      >
+        ENIG
+      </div>
+      <div
+        v-else
+        class="flex items-center gap-0.5 rounded bg-surface/90 p-1 shadow-sm"
+      >
         <span
           v-for="(swatch, index) in adjacent"
           :key="index"

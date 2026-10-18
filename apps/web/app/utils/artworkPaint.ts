@@ -102,6 +102,29 @@ export const createArtworkPaint = (host: SVGGElement, artwork: Artwork[], side: 
     }
     return source
   }
+  const goldRegion = (target: ArtworkPaintHit, surface: SVGGElement) => {
+    const entry = entries.find(entry => entry.item.id === target.artworkId)
+    const node = entry?.nodes[target.index]
+    const matrix = node?.getScreenCTM(), parent = surface.getScreenCTM()
+    if (!node || !matrix || !parent || target.cutout ||
+        !['path', 'rect', 'circle', 'ellipse', 'polygon'].includes(node.localName) ||
+        (node.localName === 'path' && ((node.getAttribute('d')?.match(/[Mm]/g)?.length ?? 0) !== 1 || !/z\s*$/i.test(node.getAttribute('d') ?? '')))) {
+      throw new Error('ENIG needs one closed, filled vector shape without cutouts.')
+    }
+    const transform = parent.inverse().multiply(matrix)
+    const length = node.getTotalLength()
+    const scale = Math.max(Math.hypot(transform.a, transform.b), Math.hypot(transform.c, transform.d))
+    const steps = Math.max(16, Math.ceil(length * scale / 0.03))
+    if (!Number.isFinite(length) || steps > 8192) throw new Error('This shape is too complex for ENIG. Simplify it first.')
+    const points = Array.from({ length: steps }, (_, index) => {
+      const point = node.getPointAtLength(length * index / steps).matrixTransform(transform)
+      return { x: Math.round(point.x * 1e5) / 1e5, y: Math.round(point.y * 1e5) / 1e5 }
+    })
+    const x = Math.min(...points.map(point => point.x)), y = Math.min(...points.map(point => point.y))
+    const right = Math.max(...points.map(point => point.x)), bottom = Math.max(...points.map(point => point.y))
+    if (!(right > x && bottom > y)) throw new Error('This shape has no ENIG area.')
+    return { path: `M${points.map(point => `${point.x},${point.y}`).join(' L')} Z`, bounds: { x, y, width: right - x, height: bottom - y } }
+  }
   const highlight = (target: ArtworkPaintHit, overlay: SVGGElement, color: string) => {
     overlay.replaceChildren()
     const node = entries.find(entry => entry.item.id === target.artworkId)?.nodes[target.index]
@@ -121,5 +144,5 @@ export const createArtworkPaint = (host: SVGGElement, artwork: Artwork[], side: 
       overlay.append(clone)
     }
   }
-  return { hit, recolor, highlight, unsupported: entries.some(entry => entry.unsupported), dispose: () => entries.forEach(entry => entry.group.remove()) }
+  return { hit, recolor, goldRegion, highlight, unsupported: entries.some(entry => entry.unsupported), dispose: () => entries.forEach(entry => entry.group.remove()) }
 }

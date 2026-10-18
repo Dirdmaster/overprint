@@ -32,6 +32,10 @@ export const parseProject = async (text: string): Promise<Composition> => {
     ids.add(item.id)
     if (item.kind !== undefined && !['layer', 'folder'].includes(item.kind)) throw new Error('Invalid layer type.')
     if (item.collapsed !== undefined && typeof item.collapsed !== 'boolean') throw new Error('Invalid layer state.')
+    if (item.gold !== undefined) {
+      const gold = item.gold
+      if (item.kind || !gold || !path(gold.path) || !gold.bounds || !['x', 'y', 'width', 'height'].every(key => numeric(gold.bounds[key])) || gold.bounds.width <= 0 || gold.bounds.height <= 0 || !item.source.includes('data-overprint-fill="true"')) throw new Error('Invalid ENIG artwork.')
+    }
     if (item.locked !== undefined && typeof item.locked !== 'boolean') throw new Error('Invalid layer lock state.')
     if (item.nativeSilk !== undefined) {
       const ink = item.nativeSilk

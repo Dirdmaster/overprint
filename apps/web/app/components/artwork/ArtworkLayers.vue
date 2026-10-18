@@ -55,7 +55,7 @@ const current = computed(() =>
 )
 const replaceableGraphic = computed(() => {
   const item = current.value
-  return item && !item.kind && !item.drawing && !item.library ? item : undefined
+  return item && !item.kind && !item.drawing && !item.library && !item.gold ? item : undefined
 })
 const replacementPicker = ref<HTMLInputElement | null>(null)
 const replacementError = ref('')
