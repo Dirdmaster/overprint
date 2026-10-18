@@ -8,27 +8,12 @@ const {
   open: openProjectFile,
   download,
   save,
-  projects,
-  active,
-  busy,
-  refresh,
-  openSaved,
-  rename,
-  duplicate,
-  remove,
+  leaveSaved,
   recover
 } = useProjectStorage()
-const gallery = useTemplateRef('gallery')
+const route = useRoute()
 const showProjects = async () => {
-  await save()
-  await refresh()
-  gallery.value?.show()
-}
-const selectProject = async (id: string) => {
-  if (await openSaved(id)) {
-    syncDialog.value?.disconnect()
-    gallery.value?.close()
-  }
+  if (await leaveSaved()) await navigateTo('/projects')
 }
 const importer = useTemplateRef('importer')
 const jlcExport = useTemplateRef('jlcExport')
@@ -64,6 +49,12 @@ const onDrop = (event: DragEvent) => {
   openImport()
   importer.value?.receiveFiles(event.dataTransfer.files)
 }
+onMounted(() => {
+  if (route.query.import === 'pcb') {
+    openImport()
+    void navigateTo('/', { replace: true })
+  }
+})
 </script>
 
 <template>
@@ -131,23 +122,6 @@ const onDrop = (event: DragEvent) => {
         @open-project="openProject"
       />
     </main>
-    <ProjectGallery
-      ref="gallery"
-      :projects="projects"
-      :active-id="active?.id"
-      :busy="busy"
-      @open="selectProject"
-      @rename="rename"
-      @duplicate="duplicate"
-      @remove="remove"
-      @import="openProject"
-      @new="openImport()"
-    >
-      <WorkspaceBackup
-        :flush="save"
-        @restored="refresh"
-      />
-    </ProjectGallery>
     <div
       v-if="
         status && !['All changes saved', 'Project opened', 'Recovery copy saved'].includes(status)
