@@ -1,17 +1,18 @@
 import { computed } from 'vue'
 import { useEditorRef } from '../editor/editorState'
-import { artworkCount, artworkRows, MAX_ARTWORK_ITEMS, type Artwork } from '../../utils/artwork'
+import { artworkCount, artworkRows, isArtworkLocked, MAX_ARTWORK_ITEMS, type Artwork } from '../../utils/artwork'
 import { isNativeSilk } from '../../utils/nativeSilk'
 export const useArtwork = () => {
   const items = useEditorRef<Artwork[]>('artwork', () => [])
   const canAdd = computed(() => artworkCount(items.value) < MAX_ARTWORK_ITEMS)
   const selected = useEditorRef<string[]>('artwork-selected-ids', () => [])
-  const visibleGraphics = computed(() => ['front', 'back'].flatMap(side => artworkRows(items.value, side, true).filter(row => row.visible && !row.item.kind).map(row => row.item)))
-  const selectionIds = computed(() => selected.value.filter(id => isNativeSilk(id) || items.value.some(item => item.id === id && (selected.value.length === 1 || visibleGraphics.value.some(graphic => graphic.id === id)))))
+  const visibleGraphics = computed(() => ['front', 'back'].flatMap(side => artworkRows(items.value, side, true).filter(row => row.visible && !row.locked && !row.item.kind).map(row => row.item)))
+  const selectionIds = computed(() => selected.value.filter(id => isNativeSilk(id) || items.value.some(item => item.id === id && !isArtworkLocked(items.value, id) && (selected.value.length === 1 || visibleGraphics.value.some(graphic => graphic.id === id)))))
   // Existing single-object tools use the last selected graphic as their active target.
-  const selection = computed({ get: () => selectionIds.value.at(-1) ?? null, set: (id: string | null) => { selected.value = id ? [id] : [] } })
+  const selection = computed({ get: () => selectionIds.value.at(-1) ?? null, set: (id: string | null) => { selected.value = id && (isNativeSilk(id) || !isArtworkLocked(items.value, id)) ? [id] : [] } })
   const selectedArtwork = computed(() => visibleGraphics.value.filter(item => selectionIds.value.includes(item.id)))
   const select = (id: string, additive = false) => {
+    if (isArtworkLocked(items.value, id)) return
     const item = visibleGraphics.value.find(item => item.id === id)
     if (!additive || !item) { selection.value = id; return }
     const ids = selectedArtwork.value.filter(value => value.side === item.side).map(value => value.id)
@@ -23,27 +24,47 @@ export const useArtwork = () => {
   const checkpoint = () => { past.value = [...past.value.slice(-49), copy(items.value)]; future.value = [] }
   const undo = () => { const previous = past.value.at(-1); if (!previous) return; future.value.push(copy(items.value)); items.value = previous; past.value.pop() }
   const redo = () => { const next = future.value.at(-1); if (!next) return; past.value.push(copy(items.value)); items.value = next; future.value.pop() }
+  const canPatchOwn = (id: string, patch: Partial<Artwork>) => {
+    const item = items.value.find(item => item.id === id)
+    if (!item || item.nativeSilk) return false
+    if (!isArtworkLocked(items.value, id)) return true
+    return (!isArtworkLocked(items.value, id, false) && Object.keys(patch).every(key => ['locked', 'visible', 'collapsed'].includes(key)))
+      || Object.keys(patch).every(key => ['visible', 'collapsed'].includes(key))
+  }
+  const canPatch = (id: string, patch: Partial<Artwork>) => {
+    if (!canPatchOwn(id, patch)) return false
+    const target = items.value.find(item => item.id === id)
+    if (!target?.library) return true
+    const shared = Object.fromEntries(Object.entries(patch).filter(([key]) => ['x', 'y', 'width', 'height', 'rotation', 'visible', 'name'].includes(key)))
+    return !Object.keys(shared).length || items.value.every(item => item.library?.instanceId !== target.library!.instanceId || canPatchOwn(item.id, shared))
+  }
   const patchItems = (changes: { id: string; patch: Partial<Artwork> }[]) => {
+    if (!changes.length || changes.some(change => !canPatch(change.id, change.patch))) return false
     const byId = new Map(changes.map(change => [change.id, change.patch]))
     for (const change of changes) {
       const target = items.value.find(item => item.id === change.id)
       if (!target?.library) continue
       const allowed = Object.fromEntries(Object.entries(change.patch).filter(([key]) => ['x', 'y', 'width', 'height', 'rotation', 'visible', 'name'].includes(key)))
-      for (const member of items.value.filter(item => item.library?.instanceId === target.library!.instanceId)) byId.set(member.id, allowed)
+      if (Object.keys(allowed).length && items.value.some(item => item.library?.instanceId === target.library!.instanceId && !canPatch(item.id, allowed))) return false
+      for (const member of items.value.filter(item => item.library?.instanceId === target.library!.instanceId)) byId.set(member.id, { ...byId.get(member.id), ...allowed })
     }
     items.value = items.value.map(item => byId.has(item.id) ? { ...item, ...byId.get(item.id) } : item)
+    return true
   }
-  const edit = (id: string, patch: Partial<Artwork>) => { checkpoint(); patchItems([{ id, patch }]) }
+  const edit = (id: string, patch: Partial<Artwork>) => { if (!canPatch(id, patch)) return; checkpoint(); patchItems([{ id, patch }]) }
   const descendants = (id: string): string[] => items.value.filter(item => item.parentId === id).flatMap(item => [item.id, ...descendants(item.id)])
+  const protectedSubtree = (id: string) => [id, ...descendants(id)].some(value => isArtworkLocked(items.value, value))
   const removeIds = (values: string[]) => {
-    const ids = new Set(values.filter(id => !isNativeSilk(id)).flatMap(id => [id, ...descendants(id)]))
+    const ids = new Set(values.filter(id => !isNativeSilk(id) && !protectedSubtree(id)).flatMap(id => [id, ...descendants(id)]))
     for (const item of items.value.filter(item => ids.has(item.id) && item.library)) for (const member of items.value.filter(member => member.library?.instanceId === item.library!.instanceId)) ids.add(member.id)
+    if ([...ids].some(id => isArtworkLocked(items.value, id))) return
     if (!ids.size) return
     checkpoint(); items.value = items.value.filter(item => !ids.has(item.id)); selection.value = null
   }
   const remove = (id: string) => removeIds([id])
   const removeSelected = () => removeIds(selectionIds.value)
   const applyPositions = (changes: Pick<Artwork, 'id' | 'x' | 'y'>[]) => {
+    if (changes.some(change => !canPatch(change.id, { x: change.x, y: change.y }))) return
     const byId = new Map(changes.map(item => [item.id, item]))
     if (!items.value.some(item => { const next = byId.get(item.id); return next && (Math.abs(next.x - item.x) > 1e-9 || Math.abs(next.y - item.y) > 1e-9) })) return
     if (changes.some(item => !Number.isFinite(item.x) || !Number.isFinite(item.y) || Math.abs(item.x) > 10000 || Math.abs(item.y) > 10000)) return
@@ -52,7 +73,8 @@ export const useArtwork = () => {
   }
   const destination = (side: string) => {
     const current = items.value.find(item => !item.nativeSilk && item.id === selection.value && item.side === side)
-    return current?.kind ? current.id : current?.parentId
+    const id = current?.kind ? current.id : current?.parentId
+    return id && !isArtworkLocked(items.value, id) ? id : undefined
   }
   const create = (kind: 'layer' | 'folder', side: string) => {
     if (!canAdd.value) return
@@ -63,12 +85,12 @@ export const useArtwork = () => {
   const reparent = (id: string, parentId?: string) => {
     const item = items.value.find(item => item.id === id)
     const parent = items.value.find(item => item.id === parentId)
-    if (!item || item.library || item.nativeSilk || parent?.nativeSilk || id === parentId || descendants(id).includes(parentId ?? '') || (parentId && (!parent?.kind || parent.side !== item.side))) return
+    if (!item || item.library || item.nativeSilk || protectedSubtree(id) || (parentId && isArtworkLocked(items.value, parentId)) || parent?.nativeSilk || id === parentId || descendants(id).includes(parentId ?? '') || (parentId && (!parent?.kind || parent.side !== item.side))) return
     edit(id, { parentId })
   }
   const reorder = (id: string, offset: number) => {
     const index = items.value.findIndex(item => item.id === id)
-    if (index < 0 || items.value[index]?.nativeSilk) return
+    if (index < 0 || items.value[index]?.nativeSilk || protectedSubtree(id)) return
     let target = index + offset
     while (target >= 0 && target < items.value.length && (items.value[target]!.nativeSilk || items.value[target]!.side !== items.value[index]!.side || items.value[target]!.parentId !== items.value[index]!.parentId)) target += offset
     if (target < 0 || target >= items.value.length) return
@@ -78,9 +100,10 @@ export const useArtwork = () => {
   const moveLayer = (id: string, targetId: string | null, position: 'before' | 'after' | 'inside') => {
     const item = items.value.find(item => item.id === id)
     const target = items.value.find(item => item.id === targetId)
-    if (!item || item.nativeSilk || target?.nativeSilk || id === targetId || descendants(id).includes(targetId ?? '')) return
+    if (!item || item.nativeSilk || protectedSubtree(id) || target?.nativeSilk || id === targetId || descendants(id).includes(targetId ?? '')) return
     if (targetId && (!target || target.side !== item.side || (position === 'inside' && !target.kind))) return
     const parentId = position === 'inside' ? target?.id : target?.parentId
+    if (parentId && isArtworkLocked(items.value, parentId)) return
     if (item.library && parentId) return
     const next = items.value.filter(item => item.id !== id)
     const index = !target ? 0 : position === 'inside' ? next.length : next.indexOf(target) + (position === 'before' ? 1 : 0)
@@ -91,5 +114,5 @@ export const useArtwork = () => {
     selection.value = id
   }
   const reset = () => { items.value = []; past.value = []; future.value = []; selection.value = null }
-  return { items, patchItems, canAdd, selection, selectionIds, selectedArtwork, select, applyPositions, removeSelected, past, future, checkpoint, undo, redo, edit, remove, reorder, moveLayer, reset, create, destination, descendants, reparent }
+  return { items, patchItems, canPatch, protectedSubtree, canAdd, selection, selectionIds, selectedArtwork, select, applyPositions, removeSelected, past, future, checkpoint, undo, redo, edit, remove, reorder, moveLayer, reset, create, destination, descendants, reparent }
 }

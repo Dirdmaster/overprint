@@ -10,7 +10,7 @@ import { useNativeSilk } from '../../composables/artwork/useNativeSilk'
 import { useArtwork } from '../../composables/artwork/useArtwork'
 import { shallowRef, computed, watch, onMounted, onBeforeUnmount, useTemplateRef, useId } from 'vue'
 import type { BoardPackage } from '../../utils/boardPackage'
-import { artworkRows } from '../../utils/artwork'
+import { artworkRows, isArtworkLocked } from '../../utils/artwork'
 import { createArtworkPaint, type ArtworkPaintHit } from '../../utils/artworkPaint'
 import { createPaintRegions, paintRegionSource, type PaintRegion } from '../../utils/paintRegions'
 import { isNativeSilk, nativeSilkSettings } from '../../utils/nativeSilk'
@@ -29,7 +29,7 @@ const scoped = computed(() => {
   if (!current.value) return []
   const ids = new Set([current.value.id, ...descendants(current.value.id)])
   return artworkRows(items.value, props.side, true)
-    .filter((row) => row.visible && !row.item.kind && ids.has(row.item.id))
+    .filter((row) => row.visible && !row.locked && !row.item.kind && ids.has(row.item.id))
     .map((row) => row.item)
 })
 let artworkPaint: ReturnType<typeof createArtworkPaint> | undefined
@@ -99,6 +99,7 @@ const fill = (region: Target) => {
   if (!stroke || stroke.visited.has(key)) return
   stroke.visited.add(key)
   if ('artworkId' in region) {
+    if (isArtworkLocked(items.value, region.artworkId)) return
     if (items.value.find((item) => item.id === region.artworkId)?.drawing) {
       emit(
         'error',
@@ -156,6 +157,7 @@ const fill = (region: Target) => {
       item.source.includes(`d="${region.path}"`)
   )?.item
   if (existing?.source === source) return
+  if (existing && isArtworkLocked(items.value, existing.id)) return
   if (!existing && !canAdd.value) {
     emit('error', 'This project already has 100 layers, folders, and graphics.')
     return

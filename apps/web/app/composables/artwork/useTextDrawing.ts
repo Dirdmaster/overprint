@@ -28,9 +28,10 @@ export const useTextDrawing = () => {
   const editText = async (id: string, patch: Partial<TextDefinition>, group?: object) => {
     const item = artwork.items.value.find(item => item.id === id)
     if (item?.drawing?.type !== 'text') throw new Error('Select editable text.')
+    if (!artwork.canPatch(id, { source: item.source })) return false
     const currentBoard = board.value, operation = ++generation
     const rendered = await outlineText({ ...physicalText(item), ...patch })
-    if (!alive || currentBoard !== board.value || operation !== generation || artwork.items.value.find(value => value.id === id) !== item) return false
+    if (!alive || currentBoard !== board.value || operation !== generation || artwork.items.value.find(value => value.id === id) !== item || !artwork.canPatch(id, { source: rendered.source })) return false
     if (item.source === rendered.source && JSON.stringify(item.drawing) === JSON.stringify(rendered.drawing)) return true
     const now = Date.now()
     const merge = group && lastEdit?.group === group && lastEdit.item === item && lastEdit.history === artwork.past.value && !artwork.future.value.length && now - lastEdit.time < 1000

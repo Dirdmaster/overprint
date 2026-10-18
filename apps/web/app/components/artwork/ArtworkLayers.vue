@@ -8,6 +8,8 @@ import { computed, ref, watch } from 'vue'
 import {
   Eye,
   EyeOff,
+  LockKeyhole,
+  LockKeyholeOpen,
   Trash2,
   ArrowUp,
   ArrowDown,
@@ -34,7 +36,8 @@ const {
   undo,
   redo,
   reparent,
-  descendants
+  descendants,
+  protectedSubtree
 } = useArtwork()
 const { dragging, dropTarget, start, over, drop, clear, leave } = useLayerDrag()
 watch(() => props.side, clear)
@@ -117,13 +120,14 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
       No artwork yet
     </p>
     <div
-      v-for="{ item, depth } in rows"
+      v-for="{ item, depth, locked, inheritedLock } in rows"
       :key="item.id"
       :data-layer-row="item.id"
       class="relative flex items-center gap-2 rounded-md p-1"
       :style="{ paddingLeft: `${depth * 12 + 4}px` }"
       :class="[
         selectionIds.includes(item.id) ? 'bg-soft' : '',
+        locked ? 'text-muted' : '',
         dragging === item.id ? 'opacity-40' : '',
         dropTarget?.id === item.id && dropTarget.position === 'inside'
           ? 'bg-soft ring-2 ring-inset ring-accent'
@@ -152,6 +156,23 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
         />
       </button>
       <button
+        class="rounded p-1 text-muted hover:bg-soft disabled:cursor-not-allowed disabled:opacity-60"
+        :aria-label="
+          inheritedLock
+            ? `${item.name} locked by parent`
+            : `${item.locked ? 'Unlock' : 'Lock'} ${item.name}`
+        "
+        :aria-pressed="locked"
+        :title="inheritedLock ? 'Locked by parent' : item.locked ? 'Unlock layer' : 'Lock layer'"
+        :disabled="inheritedLock"
+        @click="edit(item.id, { locked: !item.locked })"
+      >
+        <component
+          :is="locked ? LockKeyhole : LockKeyholeOpen"
+          class="size-4"
+        />
+      </button>
+      <button
         v-if="item.kind"
         class="text-muted"
         :aria-label="`${item.collapsed ? 'Expand' : 'Collapse'} ${item.name}`"
@@ -169,8 +190,13 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
       />
       <button
         class="min-w-0 flex-1 truncate py-2 text-left"
-        draggable="true"
-        title="Drag to reorder or move into a folder"
+        :draggable="!protectedSubtree(item.id)"
+        :title="
+          protectedSubtree(item.id)
+            ? 'Locked artwork cannot move'
+            : 'Drag to reorder or move into a folder'
+        "
+        :disabled="locked"
         :aria-pressed="selectionIds.includes(item.id)"
         @dragstart="start($event, item)"
         @dragend="clear"
@@ -181,6 +207,7 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
       <button
         class="p-1 text-muted"
         :aria-label="`Delete ${item.name}`"
+        :disabled="protectedSubtree(item.id)"
         @click="remove(item.id)"
       >
         <Trash2 class="size-4" />

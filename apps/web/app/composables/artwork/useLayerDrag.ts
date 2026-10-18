@@ -1,16 +1,16 @@
 import { useArtwork } from './useArtwork'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import type { Artwork } from '../../utils/artwork'
+import { isArtworkLocked, type Artwork } from '../../utils/artwork'
 
 type LayerDrop = { id: string | null; position: 'before' | 'after' | 'inside' }
 
 export const useLayerDrag = () => {
-  const { items, descendants, moveLayer } = useArtwork()
+  const { items, descendants, protectedSubtree, moveLayer } = useArtwork()
   const dragging = ref<string | null>(null)
   const dropTarget = ref<LayerDrop | null>(null)
   const clear = () => { dragging.value = null; dropTarget.value = null }
   const start = (event: DragEvent, item: Artwork) => {
-    if (!event.dataTransfer) return
+    if (!event.dataTransfer || protectedSubtree(item.id)) return
     dragging.value = item.id
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('application/x-overprint-layer', item.id)
@@ -20,13 +20,14 @@ export const useLayerDrag = () => {
     event.stopPropagation()
     dropTarget.value = null
     const source = items.value.find(item => item.id === dragging.value)
-    if (!source || (target && (target.id === source.id || target.side !== source.side || descendants(source.id).includes(target.id)))) return
+    if (!source || protectedSubtree(source.id) || (target && (target.id === source.id || target.side !== source.side || descendants(source.id).includes(target.id)))) return
     event.preventDefault()
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
     if (!target) { dropTarget.value = { id: null, position: 'after' }; return }
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
     const fraction = (event.clientY - rect.top) / rect.height
     const position = target.kind && fraction >= 0.25 && fraction <= 0.75 ? 'inside' : fraction < 0.5 ? 'before' : 'after'
+    if (position === 'inside' && isArtworkLocked(items.value, target.id)) return
     dropTarget.value = { id: target.id, position }
   }
   const drop = (event: DragEvent) => {
