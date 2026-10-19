@@ -2,7 +2,7 @@
 // relative to that subpath's start; normalize only the initial moveto.
 const number = '[-+]?(?:\\d*\\.\\d+|\\d+\\.?\\d*)(?:[eE][-+]?\\d+)?'
 const move = new RegExp(`^([Mm])\\s*(${number})[\\s,]*(${number})([\\s\\S]*)$`)
-const closedPaths = (path: string) => {
+export const closedSvgPaths = (path: string) => {
   let origin: { x: number; y: number } | undefined = { x: 0, y: 0 }
   const result: string[] = []
   for (const part of path.match(/[Mm][^Mm]*/g) ?? []) {
@@ -24,7 +24,7 @@ const closedPaths = (path: string) => {
 
 export const createSvgCutouts = (node: SVGGeometryElement) => {
   if (node.localName !== 'path') return () => undefined
-  const paths = closedPaths(node.getAttribute('d') ?? '')
+  const paths = closedSvgPaths(node.getAttribute('d') ?? '')
   if (paths.length < 2) return () => undefined
   const context = document.createElement('canvas').getContext('2d')!
   const contours = paths.map(path => {
