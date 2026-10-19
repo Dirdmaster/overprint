@@ -7,6 +7,26 @@ const graphic = { id: 'bow', name: 'bow.svg', source, x: 3, y: 3, width: 20, hei
 const save = async (page: Page) => { const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Save project', exact: true }).click(); return JSON.parse(readFileSync((await (await download).path())!, 'utf8')) }
 const point = async (page: Page, id: string, u: number, v: number) => page.locator(`[data-artwork-layer="${id}"] image`).evaluate((image: SVGImageElement, [u, v]: number[]) => { const p = new DOMPoint(image.x.baseVal.value + image.width.baseVal.value * u!, image.y.baseVal.value + image.height.baseVal.value * v!).matrixTransform(image.getScreenCTM()!); return { x: p.x, y: p.y } }, [u, v])
 
+test('selected SVG shapes become editable ENIG layers while keeping the original graphic', async ({ page }) => {
+  const source = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><rect x="0" y="0" width="2" height="2" fill="#fc7f9e"/></svg>'
+  const project = { version: 1, side: 'front', silk: false, mask: '#202723', fabrication: false,
+    board: { name: 'Gold SVG', bounds: { x: 0, y: 0, width: 20, height: 20 }, outline: 'M0,0 L20,0 L20,20 L0,20 Z', holes: '',
+      layers: { 'front-silkscreen': [], 'front-copper': [], 'front-mask': [] } },
+    artwork: [{ id: 'shape', name: 'shape.svg', side: 'front', source, x: 8, y: 8, width: 2, height: 2, rotation: 0, visible: true }] }
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open project', exact: true }).click()
+  await page.getByLabel('Choose project file').setInputFiles({ name: 'gold-svg.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) })
+  await page.getByRole('button', { name: 'shape.svg', exact: true }).click()
+  await page.getByRole('button', { name: 'Live paint (K)' }).click()
+  await page.getByRole('button', { name: 'ENIG gold' }).click()
+  const hit = await point(page, 'shape', .5, .5)
+  await page.mouse.click(hit.x, hit.y)
+  const saved = await save(page)
+  expect(saved.artwork).toHaveLength(2)
+  expect(saved.artwork[0].source).toBe(source)
+  expect(saved.artwork[1].gold.path).toMatch(/^M8,8 /)
+})
+
 for (const side of ['front', 'back']) test(`paints selected curved SVG on ${side} in place and preserves undo and reload`, async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Open project', exact: true }).click()

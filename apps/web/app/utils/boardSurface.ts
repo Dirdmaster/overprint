@@ -1,6 +1,7 @@
 import { artworkRows, type Artwork } from './artwork'
 import type { BoardPackage } from './boardPackage'
 import { nativeSilkInks } from './nativeSilk'
+import { goldItemRings, goldPath } from './enigPaint'
 
 // Preview pixels only. Manufacturing uses its independent 1200 DPI ink renderer.
 export const boardSurface = async (board: BoardPackage, artwork: Artwork[], side: string, silk: boolean, background: string, fabrication = false) => {
@@ -18,7 +19,7 @@ export const boardSurface = async (board: BoardPackage, artwork: Artwork[], side
     }
   }
   for (const { item, visible } of artworkRows(artwork, side, true)) {
-    if (!visible || item.kind) continue
+    if (!visible || item.kind || item.gold) continue
     const image = new Image()
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.source)}`
     await image.decode()
@@ -36,6 +37,10 @@ export const boardSurface = async (board: BoardPackage, artwork: Artwork[], side
   context.fillStyle = '#cfac61'
   for (const path of board.layers[`${side}-copper`] ?? []) context.fill(new Path2D(path), 'evenodd')
   context.restore()
+  context.fillStyle = '#cfac61'
+  for (const { item, visible } of artworkRows(artwork, side, true)) {
+    if (visible && item.gold) context.fill(new Path2D(goldPath(goldItemRings(item))), 'evenodd')
+  }
   if (fabrication) {
     context.save(); context.globalAlpha = .65; context.fillStyle = '#91a1a8'
     for (const path of board.layers[`${side}-fabrication`] ?? []) context.fill(new Path2D(path), 'evenodd')
