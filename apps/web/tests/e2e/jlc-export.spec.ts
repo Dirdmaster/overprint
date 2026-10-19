@@ -124,21 +124,12 @@ test('downloads current artwork and native fabrication, then sends to a new quot
     const captured = (window as unknown as { colorSvgForTest: string[] }).colorSvgForTest
     const parse = (source: string) => new DOMParser().parseFromString(source, 'image/svg+xml')
     const top = parse(captured[0]!), bottom = parse(captured[1]!), outline = parse(captured[2]!)
-    const box = top.documentElement.getAttribute('viewBox')!.split(' ').map(Number)
-    const transform = bottom.querySelector('g')!.getAttribute('transform')!
-    // An off-center native point must land at its reflected bottom-view position.
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-    const group = document.createElementNS(svg.namespaceURI, 'g') as SVGGElement
-    group.setAttribute('transform', transform); svg.append(group)
-    const point = new DOMPoint(box[0]! + box[2]! * .2, box[1]! + box[3]! * .3)
-    const reflected = point.matrixTransform(group.transform.baseVal.consolidate()!.matrix)
     return {
       version: top.documentElement.getAttribute('eda-version'),
       sameBox: outline.documentElement.getAttribute('viewBox') === top.documentElement.getAttribute('viewBox'),
       outline: outline.querySelector('path')?.getAttribute('d'),
       fill: outline.querySelector('path')?.getAttribute('fill'),
-      reflectedX: reflected.x, expectedX: box[0]! + box[2]! * .8,
-      reflectedY: reflected.y, expectedY: point.y,
+      rearTransforms: bottom.querySelectorAll('[transform]').length,
     }
   })
   const original = JSON.parse(strFromU8(unzipSync(fixture.buffer)['geometry.json']!))
@@ -149,8 +140,7 @@ test('downloads current artwork and native fabrication, then sends to a new quot
   expect(geometry.sameBox).toBe(true)
   expect(geometry.outline).toBe(expectedOutline)
   expect(geometry.fill).toBe('none')
-  expect(geometry.reflectedX).toBeCloseTo(geometry.expectedX, 3)
-  expect(geometry.reflectedY).toBeCloseTo(geometry.expectedY, 3)
+  expect(geometry.rearTransforms).toBe(0)
 
   let received = false
   let uploadAttempts = 0

@@ -33,7 +33,7 @@ const project = (silk: boolean) => ({
   }],
 })
 
-for (const silk of [true, false]) test(`downloaded rear artwork has correct orientation and exclusions with native silk ${silk ? 'visible' : 'hidden'}`, async ({ page }, testInfo) => {
+for (const tiled of [false, true]) for (const silk of [true, false]) test(`downloaded ${tiled ? 'tiled ' : ''}rear artwork has correct orientation and exclusions with native silk ${silk ? 'visible' : 'hidden'}`, async ({ page }, testInfo) => {
   // Substitute only the recipient public key. Inspect the actual downloaded
   // encrypted archive with our private key, without capturing exporter internals.
   const keys = generateKeyPairSync('rsa', { modulusLength: 2048 })
@@ -45,9 +45,15 @@ for (const silk of [true, false]) test(`downloaded rear artwork has correct orie
       return importKey(format as 'spki', keyData, algorithm, extractable, usages)
     }) as typeof crypto.subtle.importKey
   }, publicKey)
+  const composition = project(silk)
+  if (tiled) {
+    composition.board.bounds.width = 180
+    composition.board.outline = 'M10,20 L190,20 L190,40 L14,40 L14,37 L10,37 Z'
+    composition.board.layers['back-silkscreen'].push(rectangle(68, 21, 4, 2), rectangle(128, 21, 4, 2))
+  }
   await page.goto('/')
   await page.getByRole('button', { name: 'Open project', exact: true }).click()
-  await page.getByLabel('Choose project file').setInputFiles({ name: 'asymmetric.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project(silk))) })
+  await page.getByLabel('Choose project file').setInputFiles({ name: 'asymmetric.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(composition)) })
   await expect(page.getByRole('img', { name: 'Asymmetric rear export back board preview' })).toBeVisible()
   await page.getByRole('button', { name: 'Send to JLCPCB', exact: true }).click()
   const downloadEvent = page.waitForEvent('download')
@@ -73,7 +79,7 @@ for (const silk of [true, false]) test(`downloaded rear artwork has correct orie
     return Buffer.concat([decipher.update(bytes.subarray(512, -16)), decipher.final()]).toString()
   }
   const rear = decryptSvg('Fabrication_ColorfulBottomSilkscreen.FCBS')
-  const result = await page.evaluate(async ({ rear }) => {
+  const result = await page.evaluate(async ({ rear, tiled }) => {
     const svg = new DOMParser().parseFromString(rear, 'image/svg+xml')
     const embedded = new Image()
     embedded.src = svg.querySelector('image')!.getAttribute('xlink:href')!
@@ -82,24 +88,44 @@ for (const silk of [true, false]) test(`downloaded rear artwork has correct orie
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(rear)}`
     await image.decode()
     const canvas = document.createElement('canvas')
-    canvas.width = 1500; canvas.height = 1000
+    canvas.width = (tiled ? 180 : 30) * 50; canvas.height = 1000
     const ctx = canvas.getContext('2d')!
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
     // Coordinates below are millimetres in the finished rear view, not native
     // top-view coordinates. Literal expected points were worked out separately.
-    const at = (x: number, y: number) => [...ctx.getImageData((x - 10) * 50, (y - 20) * 50, 1, 1).data]
-    return {
-      pixels: {
-        red: at(29, 32), blue: at(33, 26),
-        rearSilk: at(14, 23), frontSilkLocation: at(24, 23),
-        rearMask: at(18, 28), frontMaskLocation: at(18, 32),
-        hole: at(38, 35), notch: at(38, 39), solidCorner: at(12, 39),
-      },
-      embeddedWidth: embedded.width, embeddedHeight: embedded.height,
-      image: canvas.toDataURL('image/png').split(',')[1]!,
+    const at = (x: number, y: number) => [...ctx.getImageData((x + (tiled ? 150 : 0) - 10) * 50, (y - 20) * 50, 1, 1).data]
+    const seams = () => tiled ? [69.9, 70.1, 129.9, 130.1].map(x => at(x - 150, 22)) : []
+    const sample = () => ({
+      red: at(29, 32), blue: at(33, 26),
+      rearSilk: at(14, 23), frontSilkLocation: at(24, 23),
+      rearMask: at(18, 28), frontMaskLocation: at(18, 32),
+      hole: at(38, 35), notch: at(38, 39), solidCorner: at(12, 39),
+    })
+    const pixels = sample()
+    const imageData = canvas.toDataURL('image/png').split(',')[1]!
+    // Stitch the embedded PNGs using only their declared positions. Their
+    // own pixels must already have the finished orientation, with no SVG flip.
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    for (const element of svg.querySelectorAll('image')) {
+      const tile = new Image()
+      tile.src = element.getAttribute('xlink:href')!
+      await tile.decode()
+      const mm = (name: string) => Number(element.getAttribute(name)) * .254
+      ctx.drawImage(tile, (mm('x') - 10) * 50, (mm('y') - 20) * 50, mm('width') * 50, mm('height') * 50)
     }
-  }, { rear })
-  expect(result.embeddedWidth).toBe(1418)
+    return {
+      pixels, embeddedPixels: sample(), seams: seams(),
+      transforms: svg.querySelectorAll('[transform]').length,
+      tileCount: svg.querySelectorAll('image').length,
+      embeddedWidth: embedded.width, embeddedHeight: embedded.height,
+      image: imageData,
+    }
+  }, { rear, tiled })
+  expect(result.embeddedPixels).toEqual(result.pixels)
+  expect(result.seams).toEqual(tiled ? Array(4).fill(silk ? [255, 255, 255, 255] : [32, 39, 35, 255]) : [])
+  expect(result.transforms).toBe(0)
+  expect(result.tileCount).toBe(tiled ? 3 : 1)
+  expect(result.embeddedWidth).toBe(tiled ? 2834 : 1418)
   expect(result.embeddedHeight).toBe(945)
   expect(result.pixels).toEqual({
     red: [255, 0, 0, 255], blue: [0, 0, 255, 255],
