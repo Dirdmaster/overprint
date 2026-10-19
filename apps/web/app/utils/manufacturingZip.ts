@@ -70,11 +70,14 @@ export const makeManufacturingZip = async (project: Composition) => {
   if (![2, 4].includes(fabrication.copperLayers)) throw new Error('The color test currently supports two- and four-layer boards.')
   const files: Record<string, Uint8Array> = Object.fromEntries(Object.entries(fabrication.files).map(([name, text]) => [name.slice(12), strToU8(text)]))
   for (const [side, prefix] of [['front', 'F'], ['back', 'B']] as const) {
-    const rings = validateGoldRegions(project.board, project.artwork, side)
-    if (!rings.length) continue
-    for (const layer of ['Cu', 'Mask']) {
-      const name = `${prefix}_${layer}.gbr`
-      files[name] = strToU8(addGerberRegions(strFromU8(files[name]!), rings))
+    const regions = validateGoldRegions(project.board, project.artwork, side)
+    if (regions.copper.length) {
+      const name = `${prefix}_Cu.gbr`
+      files[name] = strToU8(addGerberRegions(strFromU8(files[name]!), regions.copper))
+    }
+    if (regions.mask.length) {
+      const name = `${prefix}_Mask.gbr`
+      files[name] = strToU8(addGerberRegions(strFromU8(files[name]!), regions.mask))
     }
   }
   const { x, y, width: w, height: h } = project.board.bounds

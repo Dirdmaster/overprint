@@ -5,6 +5,7 @@ import type { Artwork } from './artwork'
 import type { BoardPackage } from './boardPackage'
 
 export type GoldRegion = { path: string; bounds: { x: number; y: number; width: number; height: number } }
+export type GoldExportRegions = { copper: Point[][]; mask: Point[][] }
 type Point = { X: number; Y: number }
 const SCALE = 100000
 const CLEARANCE_MM = 0.25
@@ -114,18 +115,16 @@ export const validateGoldRegions = (board: BoardPackage, artwork: Artwork[], sid
     return true
   }
   const gold = artwork.filter((item) => item.side === side && item.gold && visible(item))
-  if (!gold.length) return []
+  if (!gold.length) return { copper: [], mask: [] }
   if (!Array.isArray(board.layers[`${side}-copper`]) || !Array.isArray(board.layers[`${side}-mask`])) {
     throw new Error('ENIG requires copper and solder-mask geometry from a current board import.')
   }
   const outline = polygonRings(board.outline)
-  const blocked = [
-    ...(board.holes ? [polygonRings(board.holes)] : []),
-    ...(board.layers[`${side}-copper`] ?? []).map(polygonRings),
-    ...(board.layers[`${side}-mask`] ?? []).map(polygonRings)
-  ]
+  const holes = board.holes ? polygonRings(board.holes) : []
+  const copper = (board.layers[`${side}-copper`] ?? []).map(polygonRings)
+  const mask = (board.layers[`${side}-mask`] ?? []).map(polygonRings)
   const placed: Point[][] = []
-  const solid: Point[][] = []
+  const result: GoldExportRegions = { copper: [], mask: [] }
   for (const item of gold) {
     const rings = goldItemRings(item)
     const polygons = goldContours(rings)
@@ -135,14 +134,24 @@ export const validateGoldRegions = (board: BoardPackage, artwork: Artwork[], sid
     const contours = [polygons[0].outer, ...polygons[0].holes]
     const clearance = expand(contours, CLEARANCE_MM)
     if (area(clip(clearance, outline, ClipperLib.ClipType.ctDifference)) > 1 ||
-        blocked.some((rings) => rings.length && area(clip(clearance, rings, ClipperLib.ClipType.ctIntersection)) > 1) ||
+        (holes.length && area(clip(clearance, holes, ClipperLib.ClipType.ctIntersection)) > 1) ||
+        mask.some((rings) => rings.length && area(clip(clearance, rings, ClipperLib.ClipType.ctIntersection)) > 1) ||
         area(clip(clearance, placed, ClipperLib.ClipType.ctIntersection)) > 1) {
-      throw new Error(`ENIG layer “${item.name}” is within ${CLEARANCE_MM} mm of a board edge, hole, pad, copper, or another gold region.`)
+      throw new Error(`ENIG layer “${item.name}” is within ${CLEARANCE_MM} mm of a board edge, hole, mask opening, or another gold region.`)
+    }
+    const nearbyCopper = copper.flatMap((rings, index) => rings.length && area(clip(clearance, rings, ClipperLib.ClipType.ctIntersection)) > 1 ? [index] : [])
+    const overlappingCopper = nearbyCopper.filter(index => area(clip(contours, copper[index]!, ClipperLib.ClipType.ctIntersection)) > 1)
+    const coveringCopper = overlappingCopper.find(index => area(clip(contours, copper[index]!, ClipperLib.ClipType.ctDifference)) <= 1)
+    const exposeExisting = coveringCopper !== undefined && overlappingCopper.length === 1
+    if (!exposeExisting && nearbyCopper.length) {
+      throw new Error(`ENIG layer “${item.name}” is within ${CLEARANCE_MM} mm of existing copper. Paint wholly over one continuous copper region or in clear space.`)
     }
     placed.push(...contours)
-    solid.push(...solidGoldRegions(polygons))
+    const solid = solidGoldRegions(polygons)
+    result.mask.push(...solid)
+    if (!exposeExisting) result.copper.push(...solid)
   }
-  return solid
+  return result
 }
 
 export const goldPath = (rings: Point[][]) => rings.map((ring) => `M${ring.map(({ X, Y }) => `${X / SCALE},${Y / SCALE}`).join(' L')} Z`).join(' ')

@@ -21,7 +21,7 @@ test('gold follows layer transforms and rejects copper, holes and edges', () => 
   assert.equal(polygonRings('M0 0 L2 0 L2 2 L0 2 Z')[0]!.length, 4)
   assert.equal(goldItemRings(gold())[0]![0]!.X, 800000)
   assert.equal(goldItemRings(gold(square(8, 8, 2), 10, 10))[0]![0]!.X, 1000000)
-  assert.equal(validateGoldRegions(board, [gold()], 'front').length, 1)
+  assert.equal(validateGoldRegions(board, [gold()], 'front').copper.length, 1)
   assert.throws(() => validateGoldRegions(board, [gold(square(8, 8, 2), 3, 3)], 'front'), /within 0.25 mm/)
   assert.throws(() => validateGoldRegions(board, [gold(square(8, 8, 2), 15, 15)], 'front'), /within 0.25 mm/)
   assert.throws(() => validateGoldRegions(board, [gold(square(8, 8, 2), 19, 8)], 'front'), /within 0.25 mm/)
@@ -51,7 +51,7 @@ test('ENIG accepts a native silkscreen region with an enclosed cutout', () => {
   }
   const centerPad = square(9.8, 9.8, 0.2)
   const cleanBoard = { ...board, layers: { 'front-copper': [centerPad], 'front-mask': [centerPad] } }
-  const solid = validateGoldRegions(cleanBoard, [item], 'front')
+  const solid = validateGoldRegions(cleanBoard, [item], 'front').mask
   const at = (x: number, y: number) => solid.some(ring => ClipperLib.Clipper.PointInPolygon({ X: x * 100000, Y: y * 100000 }, ring) !== 0)
   assert.equal(at(8.5, 8.5), true)
   assert.equal(at(10, 10), false)
@@ -60,4 +60,13 @@ test('ENIG accepts a native silkscreen region with an enclosed cutout', () => {
   const gerber = '%FSLAX46Y46*%\n%MOMM*%\n%ADD10C,0.500*%\nM02*\n'
   assert.ok(addGerberRegions(gerber, solid).includes('G36*'))
   assert.equal(addGerberRegions(gerber, solid).includes('%LPC*%'), false)
+})
+
+test('ENIG exposes a continuous native copper fill without adding copper', () => {
+  const filledBoard = { ...board, layers: { 'front-copper': [square(1, 1, 18)], 'front-mask': [] } }
+  const regions = validateGoldRegions(filledBoard, [gold()], 'front')
+  assert.deepEqual(regions.copper, [])
+  assert.equal(regions.mask.length, 1)
+  const partialBoard = { ...board, layers: { 'front-copper': [square(1, 1, 10)], 'front-mask': [] } }
+  assert.throws(() => validateGoldRegions(partialBoard, [gold(square(8, 8, 2), 10, 8)], 'front'), /Paint wholly over one continuous copper region/)
 })
