@@ -1,4 +1,6 @@
 import ClipperLib from 'clipper-lib'
+import { ShapeUtils } from 'three/src/extras/ShapeUtils.js'
+import { Vector2 } from 'three/src/math/Vector2.js'
 import type { Artwork } from './artwork'
 import type { BoardPackage } from './boardPackage'
 
@@ -74,6 +76,31 @@ const expand = (rings: Point[][], distance: number): Point[][] => {
 }
 const area = (rings: Point[][]) => rings.reduce((sum, ring) => sum + Math.abs(ClipperLib.Clipper.Area(ring)), 0)
 
+const goldContours = (rings: Point[][]): ClipperLib.ExPolygons => {
+  const clipper = new ClipperLib.Clipper()
+  clipper.AddPaths(rings, ClipperLib.PolyType.ptSubject, true)
+  const tree = new ClipperLib.PolyTree()
+  clipper.Execute(ClipperLib.ClipType.ctUnion, tree, ClipperLib.PolyFillType.pftEvenOdd, ClipperLib.PolyFillType.pftEvenOdd)
+  return ClipperLib.JS.PolyTreeToExPolygons(tree)
+}
+
+// Gerber clear polarity would erase native copper and mask inside a cutout.
+// Triangulate the filled area into dark-only regions so the opening is untouched.
+const solidGoldRegions = (polygons: ClipperLib.ExPolygons): Point[][] => polygons.flatMap(({ outer, holes }) => {
+  if (!holes.length) return [outer]
+  const all = [...outer, ...holes.flat()]
+  const vertices = (ring: Point[]) => ring.map(({ X, Y }) => new Vector2(X / SCALE, Y / SCALE))
+  const faces = ShapeUtils.triangulateShape(vertices(outer), holes.map(vertices))
+  if (faces.length > 16384) throw new Error('This ENIG cutout is too complex to export safely.')
+  const triangles = faces.map(face => face.map(index => all[index]!))
+  const expected = Math.abs(ClipperLib.Clipper.Area(outer)) - area(holes)
+  const actual = area(triangles)
+  if (!triangles.length || Math.abs(actual - expected) > Math.max(10000, expected * 0.00001)) {
+    throw new Error('This ENIG cutout could not be converted to safe copper geometry.')
+  }
+  return triangles
+})
+
 export const validateGoldRegions = (board: BoardPackage, artwork: Artwork[], side: string) => {
   const byId = new Map(artwork.map((item) => [item.id, item]))
   const visible = (item: Artwork): boolean => {
@@ -98,18 +125,24 @@ export const validateGoldRegions = (board: BoardPackage, artwork: Artwork[], sid
     ...(board.layers[`${side}-mask`] ?? []).map(polygonRings)
   ]
   const placed: Point[][] = []
+  const solid: Point[][] = []
   for (const item of gold) {
     const rings = goldItemRings(item)
-    if (rings.length !== 1) throw new Error(`ENIG layer “${item.name}” has cutouts. Paint a solid enclosed region instead.`)
-    const clearance = expand(rings, CLEARANCE_MM)
+    const polygons = goldContours(rings)
+    if (polygons.length !== 1 || !polygons[0]?.outer.length) {
+      throw new Error(`ENIG layer “${item.name}” needs one enclosed region.`)
+    }
+    const contours = [polygons[0].outer, ...polygons[0].holes]
+    const clearance = expand(contours, CLEARANCE_MM)
     if (area(clip(clearance, outline, ClipperLib.ClipType.ctDifference)) > 1 ||
         blocked.some((rings) => rings.length && area(clip(clearance, rings, ClipperLib.ClipType.ctIntersection)) > 1) ||
         area(clip(clearance, placed, ClipperLib.ClipType.ctIntersection)) > 1) {
       throw new Error(`ENIG layer “${item.name}” is within ${CLEARANCE_MM} mm of a board edge, hole, pad, copper, or another gold region.`)
     }
-    placed.push(...rings)
+    placed.push(...contours)
+    solid.push(...solidGoldRegions(polygons))
   }
-  return placed
+  return solid
 }
 
 export const goldPath = (rings: Point[][]) => rings.map((ring) => `M${ring.map(({ X, Y }) => `${X / SCALE},${Y / SCALE}`).join(' L')} Z`).join(' ')

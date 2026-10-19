@@ -1,8 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import ClipperLib from 'clipper-lib'
 import { addGerberRegions, goldItemRings, polygonRings, validateGoldRegions } from '../../app/utils/enigPaint.ts'
 import type { Artwork } from '../../app/utils/artwork.ts'
 import type { BoardPackage } from '../../app/utils/boardPackage.ts'
+import { createPaintRegions } from '../../app/utils/paintRegions.ts'
 
 const square = (x: number, y: number, size: number) => `M${x},${y} L${x + size},${y} L${x + size},${y + size} L${x},${y + size} Z`
 const board: BoardPackage = {
@@ -24,7 +26,7 @@ test('gold follows layer transforms and rejects copper, holes and edges', () => 
   assert.throws(() => validateGoldRegions(board, [gold(square(8, 8, 2), 15, 15)], 'front'), /within 0.25 mm/)
   assert.throws(() => validateGoldRegions(board, [gold(square(8, 8, 2), 19, 8)], 'front'), /within 0.25 mm/)
   assert.throws(() => validateGoldRegions({ ...board, layers: {} }, [gold()], 'front'), /copper and solder-mask geometry/)
-  assert.throws(() => validateGoldRegions(board, [gold(`${square(8, 8, 2)} ${square(8.5, 8.5, 0.5)}`)], 'front'), /has cutouts/)
+  assert.doesNotThrow(() => validateGoldRegions(board, [gold(`${square(8, 8, 2)} ${square(8.5, 8.5, 0.5)}`)], 'front'))
 })
 
 test('native Gerber commands survive copper and mask region addition', () => {
@@ -36,4 +38,26 @@ test('native Gerber commands survive copper and mask region addition', () => {
   assert.ok(changed.endsWith('G37*\nM02*\n'))
   assert.equal((changed.match(/M02\*/g) ?? []).length, 1)
   assert.throws(() => addGerberRegions('%MOMM*%\nM02*', goldItemRings(gold())), /supported coordinate format/)
+})
+
+test('ENIG accepts a native silkscreen region with an enclosed cutout', () => {
+  const outer = square(8, 8, 4)
+  const inner = square(9, 9, 2)
+  const region = createPaintRegions([`${outer} ${inner}`])({ x: 8.5, y: 8.5 })!
+  assert.equal(polygonRings(region.path).length, 2)
+  const item = {
+    ...gold(region.path), ...region.bounds,
+    gold: { path: region.path, bounds: region.bounds }
+  }
+  const centerPad = square(9.8, 9.8, 0.2)
+  const cleanBoard = { ...board, layers: { 'front-copper': [centerPad], 'front-mask': [centerPad] } }
+  const solid = validateGoldRegions(cleanBoard, [item], 'front')
+  const at = (x: number, y: number) => solid.some(ring => ClipperLib.Clipper.PointInPolygon({ X: x * 100000, Y: y * 100000 }, ring) !== 0)
+  assert.equal(at(8.5, 8.5), true)
+  assert.equal(at(10, 10), false)
+  const edgePad = square(9.1, 9.8, 0.1)
+  assert.throws(() => validateGoldRegions({ ...cleanBoard, layers: { 'front-copper': [edgePad], 'front-mask': [edgePad] } }, [item], 'front'), /within 0.25 mm/)
+  const gerber = '%FSLAX46Y46*%\n%MOMM*%\n%ADD10C,0.500*%\nM02*\n'
+  assert.ok(addGerberRegions(gerber, solid).includes('G36*'))
+  assert.equal(addGerberRegions(gerber, solid).includes('%LPC*%'), false)
 })

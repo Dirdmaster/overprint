@@ -10,12 +10,13 @@ const project = {
   board: { name: 'Paint test', bounds: { x: 0, y: 0, width: 30, height: 20 }, outline, holes: 'M5,13 L6,13 L6,14 L5,14 Z',
     layers: { 'front-silkscreen': [plaque, island, 'M21,3 L28,3 L21,9'], 'back-silkscreen': [plaque, island, 'M21,3 L28,3 L21,9 Z'], 'front-mask': ['M7,13 L8,13 L8,14 L7,14 Z'] } },
 }
-const open = async (page: Page) => {
+const open = async (page: Page, data = project) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Open project', exact: true }).click()
-  await page.getByLabel('Choose project file').setInputFiles({ name: 'paint.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) })
+  await page.getByLabel('Choose project file').setInputFiles({ name: 'paint.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) })
   await expect(page.getByRole('img', { name: 'Paint test front board preview' })).toBeVisible()
 }
+
 const point = async (page: Page, x: number, y: number) => page.getByRole('img', { name: /Paint test .* board preview/ }).evaluate((svg, [x, y]) => {
   const group = svg.querySelector(':scope > g') as SVGGraphicsElement
   const p = new DOMPoint(x, y).matrixTransform(group.getScreenCTM()!)
@@ -30,6 +31,19 @@ const save = async (page: Page) => {
   await page.getByRole('button', { name: 'Save project', exact: true }).click()
   return JSON.parse(readFileSync((await (await download).path())!, 'utf8'))
 }
+
+test('ENIG paints a native silkscreen region containing a cutout', async ({ page }) => {
+  const data = structuredClone(project)
+  data.board.holes = ''
+  data.board.layers['front-copper'] = []
+  data.board.layers['front-mask'] = []
+  await open(page, data)
+  await page.getByRole('button', { name: 'Live paint (K)', exact: true }).click()
+  await page.getByRole('button', { name: 'ENIG gold' }).click()
+  await paint(page, 3, 3)
+  await expect(page.locator('[data-artwork-layer] image')).toHaveCount(1)
+  expect((await save(page)).artwork[0].gold.path.match(/M/g)).toHaveLength(2)
+})
 
 test('ENIG Live Paint saves an editable region and exports paired copper and mask openings', async ({ page }) => {
   await page.addInitScript(() => {
@@ -66,7 +80,9 @@ test('ENIG Live Paint saves an editable region and exports paired copper and mas
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
   const files = unzipSync(readFileSync((await (await download).path())!))
   for (const name of ['F_Cu.gbr', 'F_Mask.gbr']) {
-    expect(strFromU8(files[name]!)).toContain('G36*\nX0008000000Y-0008000000D02*')
+    const gerber = strFromU8(files[name]!)
+    expect(gerber).toContain('G36*')
+    expect(gerber).toMatch(/X0008000000Y-0008000000D0[12]\*/)
   }
   expect(strFromU8(files['B_Cu.gbr']!)).not.toContain('G36*')
   expect(strFromU8(files['F_Silkscreen.gbr']!)).toContain('replaced by Overprint color ink and ENIG openings')
