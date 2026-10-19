@@ -31,6 +31,9 @@ export const renderInk = async (project: Composition, side: string, region = pro
   const ctx = canvas.getContext('2d')!
   ctx.scale(canvas.width / region.width, canvas.height / region.height)
   ctx.translate(-region.x, -region.y)
+  // Export pixels already facing the selected side, including every tile.
+  // Do not rely on the manufacturer's SVG renderer applying a group mirror.
+  if (side === 'back') { ctx.translate(2 * x + width, 0); ctx.scale(-1, 1) }
   ctx.save()
   ctx.clip(new Path2D(board.outline), 'evenodd')
   ctx.fillStyle = project.mask
@@ -101,7 +104,7 @@ export const makeManufacturingZip = async (project: Composition) => {
       const image = await renderInk(project, side, region)
       images.push(`<image x="${region.x/.254}" y="${region.y/.254}" width="${region.width/.254}" height="${region.height/.254}" xlink:href="${image}"/>`)
     }
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" eda-version="2.4(2026-05-08)" width="${w}mm" height="${h}mm" viewBox="${view}" boardBox="${view}" mark-points="${marks.flat().map(v => v / .254).join(' ')}"><g${side === 'back' ? ` transform="translate(${(2*x+w)/.254} 0) scale(-1 1)"` : ''}>${images.join('')}</g></svg>`
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" eda-version="2.4(2026-05-08)" width="${w}mm" height="${h}mm" viewBox="${view}" boardBox="${view}" mark-points="${marks.flat().map(v => v / .254).join(' ')}">${images.join('')}</svg>`
     files[`Fabrication_Colorful${name}Silkscreen.${suffix}`] = await encryptColorSvg(svg)
   }
   files['Fabrication_ColorfulBoardOutlineLayer.FCBO'] = await encryptColorSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" viewBox="${view}"><g transform="scale(${1/.254})"><path d="${project.board.outline}" fill="none" stroke="green" stroke-width="${2*.254}"/></g></svg>`)

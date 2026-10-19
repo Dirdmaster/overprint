@@ -315,7 +315,8 @@ test('front and mirrored back fills reach manufacturing ink with islands and pad
       const ctx = canvas.getContext('2d')!; ctx.drawImage(image, 0, 0)
       return points.map(([x, y]) => [...ctx.getImageData(Math.floor(x! / 30 * image.width), Math.floor(y! / 20 * image.height), 1, 1).data])
     }
-    return { front: await pixels(capture[0]!, [[10, 15], [10, 11], [5.5, 13.5], [7.5, 13.5]]), back: await pixels(capture[1]!, [[22, 4], [27, 8]]) }
+    // Embedded rear pixels now use the finished back-facing coordinates.
+    return { front: await pixels(capture[0]!, [[10, 15], [10, 11], [5.5, 13.5], [7.5, 13.5]]), back: await pixels(capture[1]!, [[8, 4], [3, 8]]) }
   })
   expect(ink.front).toEqual([[255, 212, 38, 255], [255, 255, 255, 255], [0, 0, 0, 0], [0, 0, 0, 0]])
   expect(ink.back).toEqual([[255, 212, 38, 255], [32, 39, 35, 255]])
