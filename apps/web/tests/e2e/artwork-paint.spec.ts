@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 
 const source = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 20 100 60"><g transform="translate(5 0)"><path id="ribbon" fill="#fc7f9e" stroke="#000" d="M10 50 C10 20 50 20 50 50 C50 80 10 80 10 50Z"/><circle id="knot" cx="70" cy="50" r="12" fill="#f4ebe2"/></g></svg>'
-const board = { name: 'SVG paint', bounds: { x: 0, y: 0, width: 30, height: 20 }, outline: 'M0 0 L30 0 L30 20 L0 20 Z', holes: '', layers: { 'front-silkscreen': ['M0 0 L30 0 L30 20 L0 20 Z'], 'back-silkscreen': ['M0 0 L30 0 L30 20 L0 20 Z'] } }
+const board = { name: 'SVG paint', bounds: { x: 0, y: 0, width: 30, height: 20 }, outline: 'M0 0 L30 0 L30 20 L0 20 Z', holes: '', layers: { 'front-silkscreen': ['M0 0 L30 0 L30 20 L0 20 Z'], 'back-silkscreen': ['M0 0 L30 0 L30 20 L0 20 Z'], 'front-copper': [], 'front-mask': [], 'back-copper': [], 'back-mask': [] } }
 const graphic = { id: 'bow', name: 'bow.svg', source, x: 3, y: 3, width: 20, height: 12, rotation: 30, visible: true }
 const save = async (page: Page) => { const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Save project', exact: true }).click(); return JSON.parse(readFileSync((await (await download).path())!, 'utf8')) }
 const point = async (page: Page, id: string, u: number, v: number) => page.locator(`[data-artwork-layer="${id}"] image`).evaluate((image: SVGImageElement, [u, v]: number[]) => { const p = new DOMPoint(image.x.baseVal.value + image.width.baseVal.value * u!, image.y.baseVal.value + image.height.baseVal.value * v!).matrixTransform(image.getScreenCTM()!); return { x: p.x, y: p.y } }, [u, v])
@@ -24,7 +24,7 @@ test('selected SVG shapes become editable ENIG layers while keeping the original
   const saved = await save(page)
   expect(saved.artwork).toHaveLength(2)
   expect(saved.artwork[0].source).toBe(source)
-  expect(saved.artwork[1].gold.path).toMatch(/^M8,8 /)
+  expect(saved.artwork[1].gold.bounds).toEqual({ x: 8, y: 8, width: 2, height: 2 })
 })
 
 for (const side of ['front', 'back']) test(`paints selected curved SVG on ${side} in place and preserves undo and reload`, async ({ page }) => {
@@ -173,4 +173,56 @@ test('a drag can visit shapes before and after inserting a cutout face', async (
   for (const [x, y] of [[80, 15], [25, 30], [80, 45]]) expect(await inkPixel(page, painted, x!, y!)).toEqual([255, 212, 38, 255])
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
   expect((await save(page)).artwork[0].source).toBe(original)
+})
+
+for (const side of ['front', 'back']) test(`paints a hollow curved SVG face as ENIG on ${side}`, async ({ page }) => {
+  await socketProject(page, side)
+  await page.getByLabel('ENIG gold', { exact: true }).click()
+  const eye = await point(page, 'bow', .35, .5)
+  const other = await point(page, 'bow', .7, .5)
+  const points = await page.getByRole('img', { name: `SVG paint ${side} board preview` }).evaluate((svg, positions) => positions.map(p => { const q = new DOMPoint(p.x, p.y).matrixTransform(svg.querySelector(':scope > g')!.getScreenCTM()!.inverse()); return { x: q.x, y: q.y } }), [eye, other])
+  await page.mouse.click(eye.x, eye.y)
+  await expect(page.getByRole('button', { name: 'Delete ENIG gold', exact: true })).toHaveCount(1)
+  const result = await save(page)
+  expect(result.artwork[0].source).toBe(sockets)
+  expect(result.artwork).toHaveLength(2)
+  const gold = result.artwork[1]
+  expect(gold.side).toBe(side)
+  expect(await page.evaluate(({ path, points }) => { const ctx = document.createElement('canvas').getContext('2d')!; return points.map(p => ctx.isPointInPath(new Path2D(path), p.x, p.y, 'evenodd')) }, { path: gold.gold.path, points })).toEqual([true, false])
+  expect(gold.gold.bounds.width).toBeLessThan(5)
+  expect(gold.gold.bounds.height).toBeLessThan(5)
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  expect((await save(page)).artwork).toHaveLength(1)
+  await page.getByRole('button', { name: 'Redo', exact: true }).click()
+  expect((await save(page)).artwork[1].gold).toEqual(gold.gold)
+})
+
+for (const fillRule of ['evenodd', 'nonzero']) test(`ENIG preserves compound SVG regions with ${fillRule} fill`, async ({ page }) => {
+  // Same-winding nested contours are a hole only with evenodd fill.
+  const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><path fill="white" fill-rule="${fillRule}" d="M10 10H90V50H10Z m20 10h40v20H30Z"/></svg>`
+  await socketProject(page, 'front', source)
+  await page.getByLabel('ENIG gold', { exact: true }).click()
+  const filled = await point(page, 'bow', .2, .5), center = await point(page, 'bow', .5, .5)
+  const positions = await page.getByRole('img', { name: 'SVG paint front board preview' }).evaluate((svg, points) => points.map(p => { const q = new DOMPoint(p.x, p.y).matrixTransform(svg.querySelector(':scope > g')!.getScreenCTM()!.inverse()); return { x: q.x, y: q.y } }), [filled, center])
+  await page.mouse.click(filled.x, filled.y)
+  await expect(page.getByRole('button', { name: 'Delete ENIG gold', exact: true })).toHaveCount(1)
+  const result = await save(page)
+  expect(result.artwork[0].source).toBe(source)
+  const path = result.artwork[1].gold.path
+  const contains = await page.evaluate(({ path, positions }) => { const ctx = document.createElement('canvas').getContext('2d')!; return positions.map(p => ctx.isPointInPath(new Path2D(path), p.x, p.y, 'evenodd')) }, { path, positions })
+  expect(contains).toEqual([true, fillRule === 'nonzero'])
+})
+
+test('ENIG in an SVG hollow face preserves its enclosed island', async ({ page }) => {
+  const source = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><path fill="white" fill-rule="evenodd" d="M5 5H95V55H5Z M15 15H85V45H15Z M40 25H60V35H40Z"/></svg>'
+  await socketProject(page, 'front', source)
+  await page.getByLabel('ENIG gold', { exact: true }).click()
+  const face = await point(page, 'bow', .25, .5), island = await point(page, 'bow', .5, .5)
+  const positions = await page.getByRole('img', { name: 'SVG paint front board preview' }).evaluate((svg, points) => points.map(p => { const q = new DOMPoint(p.x, p.y).matrixTransform(svg.querySelector(':scope > g')!.getScreenCTM()!.inverse()); return { x: q.x, y: q.y } }), [face, island])
+  await page.mouse.click(face.x, face.y)
+  await expect(page.getByRole('button', { name: 'Delete ENIG gold', exact: true })).toHaveCount(1)
+  const result = await save(page)
+  expect(result.artwork[0].source).toBe(source)
+  const path = result.artwork[1].gold.path
+  expect(await page.evaluate(({ path, positions }) => { const ctx = document.createElement('canvas').getContext('2d')!; return positions.map(p => ctx.isPointInPath(new Path2D(path), p.x, p.y, 'evenodd')) }, { path, positions })).toEqual([true, false])
 })

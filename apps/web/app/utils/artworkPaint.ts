@@ -1,5 +1,7 @@
 import type { Artwork } from './artwork'
-import { createSvgCutouts } from './svgCutouts'
+import { createSvgCutouts, closedSvgPaths } from './svgCutouts'
+import ClipperLib from 'clipper-lib'
+import { goldPath } from './enigPaint'
 
 const shapes = 'path, rect, circle, ellipse, polygon, polyline'
 const ns = 'http://www.w3.org/2000/svg'
@@ -106,24 +108,48 @@ export const createArtworkPaint = (host: SVGGElement, artwork: Artwork[], side: 
     const entry = entries.find(entry => entry.item.id === target.artworkId)
     const node = entry?.nodes[target.index]
     const matrix = node?.getScreenCTM(), parent = surface.getScreenCTM()
-    if (!node || !matrix || !parent || target.cutout ||
-        !['path', 'rect', 'circle', 'ellipse', 'polygon'].includes(node.localName) ||
-        (node.localName === 'path' && ((node.getAttribute('d')?.match(/[Mm]/g)?.length ?? 0) !== 1 || !/z\s*$/i.test(node.getAttribute('d') ?? '')))) {
-      throw new Error('ENIG needs one closed, filled vector shape without cutouts.')
+    if (!node || !matrix || !parent || !['path', 'rect', 'circle', 'ellipse', 'polygon'].includes(node.localName)) {
+      throw new Error('ENIG needs a closed vector region.')
     }
     const transform = parent.inverse().multiply(matrix)
-    const length = node.getTotalLength()
     const scale = Math.max(Math.hypot(transform.a, transform.b), Math.hypot(transform.c, transform.d))
-    const steps = Math.max(16, Math.ceil(length * scale / 0.03))
-    if (!Number.isFinite(length) || steps > 8192) throw new Error('This shape is too complex for ENIG. Simplify it first.')
-    const points = Array.from({ length: steps }, (_, index) => {
-      const point = node.getPointAtLength(length * index / steps).matrixTransform(transform)
-      return { x: Math.round(point.x * 1e5) / 1e5, y: Math.round(point.y * 1e5) / 1e5 }
-    })
+    const path = target.cutout ?? (node.localName === 'path' ? node.getAttribute('d') ?? '' : undefined)
+    const contours = path === undefined ? undefined : closedSvgPaths(path)
+    if (contours && (!contours.length || contours.length !== (path!.match(/[Mm]/g)?.length ?? 0))) {
+      throw new Error('ENIG needs closed vector contours. Close this path before painting it.')
+    }
+    // Sample each contour independently. Sampling a whole compound path joins
+    // unrelated contours and loses the hollow face selected by Live Paint.
+    const probes = contours?.map(d => {
+      const probe = document.createElementNS(ns, 'path')
+      probe.setAttribute('d', d)
+      node.parentNode!.append(probe)
+      return probe
+    }) ?? [node]
+    let totalSteps = 0
+    let rings: { X: number; Y: number }[][]
+    try {
+      rings = probes.map(probe => {
+        const length = probe.getTotalLength()
+        const steps = Math.max(16, Math.ceil(length * scale / 0.03))
+        totalSteps += steps
+        if (!Number.isFinite(length) || totalSteps > 8192) throw new Error('This shape is too complex for ENIG. Simplify it first.')
+        return Array.from({ length: steps }, (_, index) => {
+          const point = probe.getPointAtLength(length * index / steps).matrixTransform(transform)
+          return { X: Math.round(point.x * 1e5), Y: Math.round(point.y * 1e5) }
+        })
+      })
+    } finally {
+      if (contours) probes.forEach(probe => probe.remove())
+    }
+    const fillRule = target.cutout || getComputedStyle(node).fillRule === 'evenodd'
+      ? ClipperLib.PolyFillType.pftEvenOdd : ClipperLib.PolyFillType.pftNonZero
+    rings = ClipperLib.Clipper.SimplifyPolygons(rings, fillRule)
+    const points = rings.flat().map(({ X, Y }) => ({ x: X / 1e5, y: Y / 1e5 }))
     const x = Math.min(...points.map(point => point.x)), y = Math.min(...points.map(point => point.y))
     const right = Math.max(...points.map(point => point.x)), bottom = Math.max(...points.map(point => point.y))
     if (!(right > x && bottom > y)) throw new Error('This shape has no ENIG area.')
-    return { path: `M${points.map(point => `${point.x},${point.y}`).join(' L')} Z`, bounds: { x, y, width: right - x, height: bottom - y } }
+    return { path: goldPath(rings), bounds: { x, y, width: right - x, height: bottom - y } }
   }
   const highlight = (target: ArtworkPaintHit, overlay: SVGGElement, color: string) => {
     overlay.replaceChildren()
