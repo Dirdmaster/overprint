@@ -4,7 +4,7 @@ The preview background is **printed ink over white solder mask**. Export combine
 
 Hiding native silkscreen removes it from the export. Recoloring it replaces the conventional silkscreen with color printing on that side. Copper, mask and outline commands are retained with compatibility comments; drills remain unchanged.
 
-ENIG Live Paint layers are an exception to unchanged copper and mask: Overprint adds matching decorative copper and solder-mask openings to the affected side's native Gerbers, and clears the color file above each gold region. It checks 0.25 mm clearance from native geometry before export. Select ENIG as the surface finish at JLCPCB; finish applies to all exposed copper, including ordinary pads. Extra exposed gold area may affect pricing. [JLCPCB describes the exposed-copper finish](https://jlcpcb.com/blog/basic-design-of-solder-mask) and [ENIG area charges](https://jlcpcb.com/help/article/in-what-cases-will-there-be-charged-extra).
+ENIG Live Paint layers are an exception to unchanged copper and mask: Overprint adds matching decorative copper and solder-mask openings to the affected side's native Gerbers, and clears the color file above each gold region. Enclosed cutouts stay mask-covered, without decorative copper. It checks 0.25 mm clearance from native geometry before export. Select ENIG as the surface finish at JLCPCB; finish applies to all exposed copper, including ordinary pads. Extra exposed gold area may affect pricing. [JLCPCB describes the exposed-copper finish](https://jlcpcb.com/blog/basic-design-of-solder-mask) and [ENIG area charges](https://jlcpcb.com/help/article/in-what-cases-will-there-be-charged-extra).
 
 ## Size limits
 
