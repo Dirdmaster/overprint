@@ -1,13 +1,17 @@
 import { test, expect } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { demoBoard } from '../fixtures/demoBoard'
+const projectRows = (page: import('@playwright/test').Page) =>
+  page.locator('section[aria-labelledby="all-projects-title"] article')
 
-test('workspace backup restores project copies and rejects damaged input without replacing work', async ({ page }, testInfo) => {
+test('workspace backup restores project copies and rejects damaged input without replacing work', async ({
+  page
+}, testInfo) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
   await page.getByRole('button', { name: 'Projects', exact: true }).click()
-  await expect(page.getByRole('article')).toHaveCount(1)
+  await expect(projectRows(page)).toHaveCount(1)
   const downloadEvent = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export everything', exact: true }).click()
   const download = await downloadEvent
@@ -18,18 +22,29 @@ test('workspace backup restores project copies and rejects damaged input without
   expect(saved.projects).toHaveLength(1)
   expect(saved.libraries).toHaveLength(0)
   await page.getByLabel('Choose workspace backup').setInputFiles(path)
-  await expect(page.getByText('1 project and 0 library compositions', { exact: true })).toBeVisible()
+  await expect(
+    page.getByText('1 project and 0 library compositions', { exact: true })
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Import backup copies', exact: true }).click()
-  await expect(page.getByRole('article')).toHaveCount(2)
-  await page.getByLabel('Choose workspace backup').setInputFiles({ name: 'broken.overprint-backup', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...saved, projects: [...saved.projects, saved.projects[0]] })) })
+  await expect(projectRows(page)).toHaveCount(2)
+  await page
+    .getByLabel('Choose workspace backup')
+    .setInputFiles({
+      name: 'broken.overprint-backup',
+      mimeType: 'application/json',
+      buffer: Buffer.from(
+        JSON.stringify({ ...saved, projects: [...saved.projects, saved.projects[0]] })
+      )
+    })
   await expect(page.getByRole('alert')).toContainText('Duplicate project')
-  await expect(page.getByRole('article')).toHaveCount(2)
+  await expect(projectRows(page)).toHaveCount(2)
   await page.reload()
-  await page.getByRole('button', { name: 'Projects', exact: true }).click()
-  await expect(page.getByRole('article')).toHaveCount(2)
+  await expect(projectRows(page)).toHaveCount(2)
 })
 
-test('workspace copies remap linked sources and keep missing sources independent of existing libraries', async ({ page }, testInfo) => {
+test('workspace copies remap linked sources and keep missing sources independent of existing libraries', async ({
+  page
+}, testInfo) => {
   const exportAll = async (name: string) => {
     const event = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Export everything', exact: true }).click()
@@ -40,7 +55,15 @@ test('workspace copies remap linked sources and keep missing sources independent
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
-  await page.getByLabel('Choose SVG graphic').setInputFiles({ name: 'logo.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0H10V10Z" fill="#ff0000"/></svg>') })
+  await page
+    .getByLabel('Choose SVG graphic')
+    .setInputFiles({
+      name: 'logo.svg',
+      mimeType: 'image/svg+xml',
+      buffer: Buffer.from(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0H10V10Z" fill="#ff0000"/></svg>'
+      )
+    })
   await page.getByRole('button', { name: 'Library', exact: true }).click()
   await page.getByLabel('Composition name', { exact: true }).fill('Backup logo')
   await page.getByRole('button', { name: 'Save selection', exact: true }).click()
@@ -51,24 +74,44 @@ test('workspace copies remap linked sources and keep missing sources independent
   await page.getByRole('button', { name: 'Projects', exact: true }).click()
   const original = await exportAll('original.overprint-backup')
   await page.getByLabel('Choose workspace backup').setInputFiles(original.path)
-  await expect(page.getByText('1 project and 1 library compositions', { exact: true })).toBeVisible()
+  await expect(
+    page.getByText('1 project and 1 library compositions', { exact: true })
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Import backup copies', exact: true }).click()
-  await expect(page.getByRole('article')).toHaveCount(2)
+  await expect(projectRows(page)).toHaveCount(2)
   const combined = await exportAll('combined.overprint-backup')
   expect(combined.value.libraries).toHaveLength(2)
-  const importedProject = combined.value.projects.find((p: any) => p.id !== original.value.projects[0].id)
-  const importedAsset = combined.value.libraries.find((a: any) => a.id !== original.value.libraries[0].id)
-  const oldLink = JSON.parse(original.value.projects[0].composition).artwork.find((a: any) => a.library).library
-  const newLink = JSON.parse(importedProject.composition).artwork.find((a: any) => a.library).library
+  const importedProject = combined.value.projects.find(
+    (p: any) => p.id !== original.value.projects[0].id
+  )
+  const importedAsset = combined.value.libraries.find(
+    (a: any) => a.id !== original.value.libraries[0].id
+  )
+  const oldLink = JSON.parse(original.value.projects[0].composition).artwork.find(
+    (a: any) => a.library
+  ).library
+  const newLink = JSON.parse(importedProject.composition).artwork.find(
+    (a: any) => a.library
+  ).library
   expect(newLink.assetId).toBe(importedAsset.id)
   expect(newLink.revisionId).toBe(importedAsset.revisions[0].id)
   expect(newLink.instanceId).not.toBe(oldLink.instanceId)
-  await page.getByLabel('Choose workspace backup').setInputFiles({ name: 'missing.overprint-backup', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...original.value, libraries: [] })) })
+  await page
+    .getByLabel('Choose workspace backup')
+    .setInputFiles({
+      name: 'missing.overprint-backup',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({ ...original.value, libraries: [] }))
+    })
   await page.getByRole('button', { name: 'Import backup copies', exact: true }).click()
-  await expect(page.getByRole('article')).toHaveCount(3)
+  await expect(projectRows(page)).toHaveCount(3)
   const missing = await exportAll('missing-restored.overprint-backup')
-  const missingProject = missing.value.projects.find((p: any) => !combined.value.projects.some((old: any) => old.id === p.id))
-  const missingLink = JSON.parse(missingProject.composition).artwork.find((a: any) => a.library).library
+  const missingProject = missing.value.projects.find(
+    (p: any) => !combined.value.projects.some((old: any) => old.id === p.id)
+  )
+  const missingLink = JSON.parse(missingProject.composition).artwork.find(
+    (a: any) => a.library
+  ).library
   expect(missing.value.libraries.some((a: any) => a.id === missingLink.assetId)).toBe(false)
   expect(missingLink.snapshot.artwork[0].source).toContain('#ff0000')
   await page.getByLabel('Choose workspace backup').setInputFiles(original.path)
@@ -86,7 +129,9 @@ test('workspace copies remap linked sources and keep missing sources independent
   expect(afterFailure.value.libraries).toHaveLength(2)
 })
 
-test('full workspace stays exportable and rejects project creation and backup copies at the same limit', async ({ page }, testInfo) => {
+test('full workspace stays exportable and rejects project creation and backup copies at the same limit', async ({
+  page
+}, testInfo) => {
   test.setTimeout(60000)
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
@@ -98,12 +143,17 @@ test('full workspace stays exportable and rejects project creation and backup co
   await (await download).saveAs(path)
   const original = JSON.parse(await readFile(path, 'utf8'))
   // Seed a full browser-storage fixture without requiring a thousand UI interactions.
-  await page.evaluate(async record => {
-    const db = await new Promise<IDBDatabase>(resolve => { const r = indexedDB.open('overprint-workspace', 1); r.onsuccess = () => resolve(r.result) })
+  await page.evaluate(async (record) => {
+    const db = await new Promise<IDBDatabase>((resolve) => {
+      const r = indexedDB.open('overprint-workspace', 1)
+      r.onsuccess = () => resolve(r.result)
+    })
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction('projects', 'readwrite')
-      for (let i = 1; i < 1000; i++) tx.objectStore('projects').add({ ...record, id: `fixture-${i}` }, `fixture-${i}`)
-      tx.oncomplete = () => resolve(); tx.onabort = () => reject(tx.error)
+      for (let i = 1; i < 1000; i++)
+        tx.objectStore('projects').add({ ...record, id: `fixture-${i}` }, `fixture-${i}`)
+      tx.oncomplete = () => resolve()
+      tx.onabort = () => reject(tx.error)
     })
     db.close()
   }, original.projects[0])
@@ -115,8 +165,14 @@ test('full workspace stays exportable and rejects project creation and backup co
   const fullPath = testInfo.outputPath('full.overprint-backup')
   await (await fullDownload).saveAs(fullPath)
   expect(JSON.parse(await readFile(fullPath, 'utf8')).projects).toHaveLength(1000)
-  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  await page.getByRole('link', { name: 'Back to editor' }).click()
   await page.getByRole('button', { name: 'Open project', exact: true }).click()
-  await page.getByLabel('Choose project file').setInputFiles({ name: 'extra.overprint', mimeType: 'application/json', buffer: Buffer.from(original.projects[0].composition) })
+  await page
+    .getByLabel('Choose project file')
+    .setInputFiles({
+      name: 'extra.overprint',
+      mimeType: 'application/json',
+      buffer: Buffer.from(original.projects[0].composition)
+    })
   await expect(page.getByRole('status')).toContainText('1000 projects')
 })

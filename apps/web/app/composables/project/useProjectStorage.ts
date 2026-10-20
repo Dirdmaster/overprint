@@ -15,6 +15,7 @@ export const useProjectStorage = () => {
   let blocked = false
   let timer: ReturnType<typeof setTimeout> | undefined
   let queue = Promise.resolve(true)
+  let leavingAfterSave = false
   const refresh = async () => { projects.value = (await listProjects()).sort((a, b) => b.updatedAt - a.updatedAt) }
   const snapshot = (): Composition => JSON.parse(JSON.stringify({ version: 1, board: board.value!, artwork: items.value, side: side.value, silk: silk.value, mask: maskColor.value, fabrication: components.value }))
   const apply = (p: Composition) => {
@@ -45,6 +46,11 @@ export const useProjectStorage = () => {
       } catch (error) { blocked = true; report(error); return false }
     })
     return queue
+  }
+  const leaveSaved = async () => {
+    if (!(await save())) return false
+    leavingAfterSave = true
+    return true
   }
   const activate = async (record: WorkspaceProjectRecord) => {
     const value = await parseProject(record.composition)
@@ -145,6 +151,6 @@ export const useProjectStorage = () => {
     if (!initialized.value || blocked || applying) return
     clearTimeout(timer); timer = setTimeout(() => void save(), 250)
   }, { deep: true, flush: 'sync' })
-  onBeforeUnmount(() => { void save(); clearTimeout(timer); window.removeEventListener('keydown', keyboard); window.removeEventListener('pagehide', flush) })
-  return { initialized, status, projects, active, busy, refresh, openSaved, rename, duplicate, remove, recover, open, download, save }
+  onBeforeUnmount(() => { if (!leavingAfterSave) void save(); clearTimeout(timer); window.removeEventListener('keydown', keyboard); window.removeEventListener('pagehide', flush) })
+  return { initialized, status, projects, active, busy, refresh, openSaved, rename, duplicate, remove, recover, open, download, save, leaveSaved }
 }
