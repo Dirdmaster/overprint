@@ -1,0 +1,16 @@
+# Replace with the public DNS name of this VM. Point its A/AAAA record here.
+agent.example.com {
+    @webhook {
+        path /webhook
+        method POST
+    }
+    handle @webhook {
+        request_body {
+            max_size 1MB
+        }
+        reverse_proxy 127.0.0.1:8787
+    }
+    handle {
+        respond "Not found" 404
+    }
+}

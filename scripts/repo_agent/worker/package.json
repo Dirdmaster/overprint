@@ -1,0 +1,9 @@
+{
+  "name": "overprint-private-agent-worker",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@ai-hero/sandcastle": "0.12.0",
+    "@openai/codex": "0.155.1"
+  }
+}

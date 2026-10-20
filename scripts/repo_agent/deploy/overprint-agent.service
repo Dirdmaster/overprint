@@ -1,0 +1,38 @@
+[Unit]
+Description=Overprint owner-assigned private repository agent
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=overprint-agent
+Group=overprint-agent
+SupplementaryGroups=docker
+WorkingDirectory=/opt/overprint-agent
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -m scripts.repo_agent serve --config /etc/overprint-agent/config.json
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=60
+UMask=0077
+StateDirectory=overprint-agent
+StateDirectoryMode=0700
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/overprint-agent
+MemoryMax=512M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

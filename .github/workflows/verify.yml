@@ -94,3 +94,18 @@ jobs:
             apps/web/test-results
             packages/editor/test-results
           retention-days: 7
+
+  agent-worker:
+    name: Private agent isolation smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build pinned worker image
+        run: docker build -t overprint-agent-worker:ci scripts/repo_agent/worker
+      - name: Verify Docker and Codex isolation without inference
+        run: |
+          worker_image=$(docker image inspect overprint-agent-worker:ci --format '{{.Id}}')
+          python3 -m scripts.repo_agent smoke --image "$worker_image"

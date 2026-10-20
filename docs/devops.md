@@ -96,3 +96,7 @@ For the current Git integration, pause automatic deployments in Cloudflare Pages
 CI keeps Pages artifacts for 7 days, release assets for 14 days and failed browser traces for 7 days. Download traces from the failed run for diagnosis. Do not upload real customer boards to CI to reproduce failures.
 
 Reference: [Cloudflare Direct Upload with CI](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/).
+
+## Private repository agent
+
+[VM agent setup](repo-agent.md) describes the separately deployed owner-assigned analysis worker, its read-only boundaries, private reports, and live validation gates. It does not run in the website or release workflow.

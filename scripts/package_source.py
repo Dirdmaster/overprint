@@ -16,7 +16,7 @@ def included(name):
     roots = {'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'CONTEXT.md',
              'package.json', 'bun.lock', 'nuxt.config.ts', 'wrangler.jsonc',
              'turbo.json', '.gitignore', 'lefthook.yml', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/devops.md',
-             'docs/codebase.md', 'docs/export.md', 'docs/live-paint.md', 'docs/layers.md', 'docs/hosting.md', 'docs/privacy.md', 'docs/release.md', 'docs/assets/jlcpcb-guide.md'}
+             'docs/codebase.md', 'docs/repo-agent.md', 'docs/export.md', 'docs/live-paint.md', 'docs/layers.md', 'docs/hosting.md', 'docs/privacy.md', 'docs/release.md', 'docs/assets/jlcpcb-guide.md'}
     prefixes = ('apps/web/', 'apps/editor-workbench/', 'packages/editor/', 'packages/kicad/', 'scripts/', '.github/', '.changeset/')
     guide_images = {'apps/web/public/guides/kicad/add-repository.png',
                     *{f'apps/web/public/guides/jlcpcb/{step}.png'
