@@ -238,10 +238,12 @@ def tab_candidate(first, second, shapes, placements, clearance, existing_tabs):
                 continue
             outline = shapes[i].exterior
             center = outline.project(point)
+            shoulders = [outline.interpolate((center + offset) % outline.length)
+                         for offset in (-TAB_WIDTH / 2, TAB_WIDTH / 2)]
+            if shoulders[0].distance(shoulders[1]) < TAB_WIDTH - .05:
+                break  # The full tab must meet one edge without wrapping around a corner.
             edge_points = [outline.interpolate((center + offset * BITE_PITCH) % outline.length)
                            for offset in range(-2, 3)]
-            if edge_points[0].distance(edge_points[-1]) < 2.95:
-                break  # Use a straight enough edge for the row of perforations.
             # Put the row just into the sacrificial tab to retain clearance
             # from copper near the finished PCB edge.
             bites = [affinity.translate(edge_point, direction * dx * BITE_OFFSET, direction * dy * BITE_OFFSET)
