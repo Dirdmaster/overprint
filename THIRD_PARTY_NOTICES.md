@@ -37,3 +37,7 @@ OpenType.js 2.0.0 is pinned for local path conversion under MIT. Selected Google
 ## Font picker primitives
 
 Reka UI 2.11.0 provides accessible combobox and popover behavior under MIT. Its full notice is retained in [Reka UI notices](docs/licenses/reka-ui.md) and in the embedded editor notices.
+
+## Browser panel fabrication
+
+The panel CAM runtime uses [Pyodide 0.29.3](https://github.com/pyodide/pyodide/tree/0.29.3) under MPL-2.0, Gerbonara under Apache-2.0, and the Pyodide builds of NumPy and Shapely, including GEOS. The [package provenance](apps/web/vendor/panel-cam/README.md), Pyodide license, and wheels containing their own notices ship with the runtime.
