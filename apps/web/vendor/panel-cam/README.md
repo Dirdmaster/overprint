@@ -1,6 +1,10 @@
 # Browser panel CAM dependencies
 
-The unmodified Pyodide 0.29.3 npm runtime is served locally alongside these wheels. Gerbonara 1.6.3 comes from [PyPI](https://pypi.org/project/gerbonara/1.6.3/). The NumPy and Shapely wheels are the builds listed in the runtime's lock file. The wheels retain their license notices. Pyodide and its dependency source and build recipes are available in the [Pyodide 0.29.3 release](https://github.com/pyodide/pyodide/tree/0.29.3).
+The unmodified Pyodide 0.29.3 npm runtime is served locally alongside these wheels. Gerbonara 1.6.3 comes from [PyPI](https://pypi.org/project/gerbonara/1.6.3/). The NumPy and Shapely wheels are the builds listed in the runtime's lock file. The wheels are unmodified. The corresponding source is available from the [Pyodide 0.29.3 release](https://github.com/pyodide/pyodide/tree/0.29.3), the [Pyodide package build recipes](https://github.com/pyodide/pyodide-recipes), [Gerbonara 1.6.3](https://pypi.org/project/gerbonara/1.6.3/#files), [NumPy 2.2.5](https://github.com/numpy/numpy/tree/v2.2.5), and [Shapely 2.0.7](https://github.com/shapely/shapely/tree/2.0.7).
+
+Shapely’s wheel contains the dynamically loaded GEOS 3.12.1 libraries. The [GEOS source archive](https://download.osgeo.org/geos/geos-3.12.1.tar.bz2) and [LGPL 2.1 text](geos-license.txt) correspond to that version. Self-hosted installations can replace the Shapely wheel with a compatible build using the same Pyodide ABI.
+
+Gerbonara uses [Apache 2.0](gerbonara-license.txt). It also ships the KiCad stroke font as source in `gerbonara/data/newstroke_font.cpp`. That file includes the upstream copyright attribution and is covered by [GPL 2.0 or later](kicad-newstroke-license.txt).
 
 | Wheel | SHA-256 |
 | --- | --- |

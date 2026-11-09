@@ -40,4 +40,4 @@ Reka UI 2.11.0 provides accessible combobox and popover behavior under MIT. Its 
 
 ## Browser panel fabrication
 
-The panel CAM runtime uses [Pyodide 0.29.3](https://github.com/pyodide/pyodide/tree/0.29.3) under MPL-2.0, Gerbonara under Apache-2.0, and the Pyodide builds of NumPy and Shapely, including GEOS. The [package provenance](apps/web/vendor/panel-cam/README.md), Pyodide license, and wheels containing their own notices ship with the runtime.
+The panel CAM runtime uses [Pyodide 0.29.3](https://github.com/pyodide/pyodide/tree/0.29.3) under MPL-2.0, Gerbonara under Apache-2.0, and the Pyodide builds of NumPy and Shapely, including GEOS. The [package provenance](apps/web/vendor/panel-cam/README.md) records the upstream sources. Pyodide, Gerbonara, GEOS, and the KiCad stroke font license texts ship alongside the wheels.
