@@ -147,9 +147,9 @@ test('exports replaced ink below artwork and omits only the edited conventional 
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
   const files = unzipSync(readFileSync((await (await download).path())!))
-  expect(strFromU8(files['F_Silkscreen.gbr']!)).not.toContain('original F_Silkscreen')
-  expect(strFromU8(files['B_Silkscreen.gbr']!)).toContain('original B_Silkscreen')
-  expect(strFromU8(files['F_Cu.gbr']!)).toContain('original F_Cu')
+  expect(strFromU8(files['Gerber_TopSilkscreenLayer.GTO']!)).not.toContain('original F_Silkscreen')
+  expect(strFromU8(files['Gerber_BottomSilkscreenLayer.GBO']!)).toContain('original B_Silkscreen')
+  expect(strFromU8(files['Gerber_TopLayer.GTL']!)).toContain('original F_Cu')
   expect(strFromU8(files['drill.drl']!)).toBe(board.fabrication.files['fabrication/drill.drl'])
   const pixels = await page.evaluate(async () => {
     const svg = new DOMParser().parseFromString((window as any).capturedInk[0], 'image/svg+xml')

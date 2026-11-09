@@ -4,7 +4,7 @@ import type { Composition } from './project'
 import { validateFabrication } from './fabrication'
 import { encryptColorSvg } from './colorEnvelope'
 import { colorRegistration } from './colorRegistration'
-import { withJlcColorHeader } from './gerberCompatibility'
+import { jlcFabricationFilename, withJlcColorHeader } from './gerberCompatibility'
 import { nativeSilkInks, hasNativeSilkEdits } from './nativeSilk'
 import { addGerberRegions, goldItemRings, goldPath, validateGoldRegions } from './enigPaint'
 
@@ -129,10 +129,20 @@ export const makeManufacturingZip = async (project: Composition) => {
     }
   }
   const date = new Date()
-  for (const name of Object.keys(files)) {
-    if (name.endsWith('.gbr')) files[name] = strToU8(withJlcColorHeader(strFromU8(files[name]!), date))
+  const named = Object.entries(files).map(([name, bytes]) => {
+    const gerber = name.endsWith('.gbr')
+    const text = gerber || name.endsWith('.drl') ? strFromU8(bytes) : ''
+    return { name, jlcName: jlcFabricationFilename(name, text), bytes: gerber ? strToU8(withJlcColorHeader(text, date)) : bytes }
+  })
+  const counts = new Map<string, number>()
+  for (const { jlcName } of named) {
+    counts.set(jlcName, (counts.get(jlcName) ?? 0) + 1)
   }
-  const zip = zipSync(files)
+  // Older saved projects can contain several drill files of the same type.
+  // Use their original names if the standard name would drop a file.
+  const zip = zipSync(Object.fromEntries(named.map(({ name, jlcName, bytes }) => [
+    counts.get(jlcName) === 1 ? jlcName : name, bytes,
+  ])))
   if (zip.byteLength > 20_000_000) throw new Error('The generated ZIP exceeds the 20 MB upload limit.')
   return new Blob([new Uint8Array(zip)], { type: 'application/zip' })
 }

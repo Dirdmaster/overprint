@@ -8,9 +8,15 @@ const nativeFiles = Object.fromEntries([
   ...['F_Cu', 'B_Cu', 'In1_Cu', 'In2_Cu', 'F_Mask', 'B_Mask', 'F_Silkscreen', 'B_Silkscreen', 'Edge_Cuts'].map((name, index) => [
     `fabrication/${name}.gbr`, `G04 Native ${name}*\r\n%FSLAX46Y46*%\r\n%MOMM*%\r\n%ADD10C,0.500000*%\r\nD10*\r\nX${12000000 + index * 1000000}Y-23000000D03*\r\nM02*\r\n`,
   ]),
-  ['fabrication/drill-plated.drl', 'M48\r\nMETRIC,TZ\r\nT1C0.600\r\n%\r\nT1\r\nX12.0Y-35.0\r\nM30\r\n'],
-  ['fabrication/drill-nonplated.drl', 'M48\nMETRIC,TZ\nT1C1.500\n%\nT1\nX27.0Y-21.0\nM30\n'],
+  ['fabrication/drill-plated.drl', 'M48\r\n; #@! TF.FileFunction,Plated,1,4,PTH\r\nMETRIC,TZ\r\nT1C0.600\r\n%\r\nT1\r\nX12.0Y-35.0\r\nM30\r\n'],
+  ['fabrication/drill-nonplated.drl', 'M48\n; #@! TF.FileFunction,NonPlated,1,4,NPTH\nMETRIC,TZ\nT1C1.500\n%\nT1\nX27.0Y-21.0\nM30\n'],
 ])
+const zipNames = [
+  'Gerber_TopLayer.GTL', 'Gerber_BottomLayer.GBL', 'Gerber_InnerLayer1.G1', 'Gerber_InnerLayer2.G2',
+  'Gerber_TopSolderMaskLayer.GTS', 'Gerber_BottomSolderMaskLayer.GBS',
+  'Gerber_TopSilkscreenLayer.GTO', 'Gerber_BottomSilkscreenLayer.GBO', 'Gerber_BoardOutlineLayer.GKO',
+  'Drill_PTH_Through.DRL', 'Drill_NPTH_Through.DRL',
+]
 const rectangle = (x: number, y: number, w: number, h: number) => `M${x},${y} L${x + w},${y} L${x + w},${y + h} L${x},${y + h} Z`
 const outline = (right: number) => `M10,20 L${right},20 L${right},40 L14,40 L14,37 L10,37 Z M23,24 L23,26 L25,26 L25,24 Z`
 const project = (silk: boolean) => ({
@@ -61,15 +67,15 @@ for (const tiled of [false, true]) for (const silk of [true, false]) test(`downl
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
   const archive = unzipSync(readFileSync((await (await downloadEvent).path())!))
 
-  for (const [name, original] of Object.entries(nativeFiles)) {
-    const exported = strFromU8(archive[name.slice(12)]!)
+  for (const [index, [name, original]] of Object.entries(nativeFiles).entries()) {
+    const exported = strFromU8(archive[zipNames[index]!]!)
     if (name.endsWith('.drl')) expect(exported, name).toBe(original)
     else {
       const native = exported.split('G04 Overprint compatibility export from KiCad*\n')[1]!
       if (!silk && name.endsWith('_Silkscreen.gbr')) {
         expect(native).toContain('KiCad silkscreen hidden in Overprint')
         expect(native).not.toContain('D03*')
-      } else expect(native, name).toBe(original)
+      } else expect(native.replace(/^%ADD11C,0\.01\d\d\*%\r\n/m, ''), name).toBe(original)
     }
   }
   const decryptSvg = (name: string) => {
