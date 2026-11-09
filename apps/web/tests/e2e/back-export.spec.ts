@@ -12,11 +12,12 @@ const nativeFiles = Object.fromEntries([
   ['fabrication/drill-nonplated.drl', 'M48\nMETRIC,TZ\nT1C1.500\n%\nT1\nX27.0Y-21.0\nM30\n'],
 ])
 const rectangle = (x: number, y: number, w: number, h: number) => `M${x},${y} L${x + w},${y} L${x + w},${y + h} L${x},${y + h} Z`
+const outline = (right: number) => `M10,20 L${right},20 L${right},40 L14,40 L14,37 L10,37 Z M23,24 L23,26 L25,26 L25,24 Z`
 const project = (silk: boolean) => ({
   version: 1, side: 'back', silk, mask: '#202723', fabrication: false,
   board: {
     name: 'Asymmetric rear export', bounds: { x: 10, y: 20, width: 30, height: 20 },
-    outline: 'M10,20 L40,20 L40,40 L14,40 L14,37 L10,37 Z',
+    outline: outline(40),
     holes: rectangle(11, 34, 2, 2),
     layers: {
       'back-silkscreen': [rectangle(35, 22, 2, 2), rectangle(15, 25, 8, 8)],
@@ -48,7 +49,7 @@ for (const tiled of [false, true]) for (const silk of [true, false]) test(`downl
   const composition = project(silk)
   if (tiled) {
     composition.board.bounds.width = 180
-    composition.board.outline = 'M10,20 L190,20 L190,40 L14,40 L14,37 L10,37 Z'
+    composition.board.outline = outline(190)
     composition.board.layers['back-silkscreen'].push(rectangle(68, 21, 4, 2), rectangle(128, 21, 4, 2))
   }
   await page.goto('/')
@@ -79,7 +80,15 @@ for (const tiled of [false, true]) for (const silk of [true, false]) test(`downl
     return Buffer.concat([decipher.update(bytes.subarray(512, -16)), decipher.final()]).toString()
   }
   const rear = decryptSvg('Fabrication_ColorfulBottomSilkscreen.FCBS')
-  const result = await page.evaluate(async ({ rear, tiled }) => {
+  const front = decryptSvg('Fabrication_ColorfulTopSilkscreen.FCTS')
+  const registration = strFromU8(archive['Fabrication_ColorfulBoardOutlineMark.FCBM']!)
+  expect(registration).toMatch(/%ADD\d+C,0\.508\*%/)
+  expect(registration).toContain('X1400000Y-3700000D01*')
+  expect(registration).toContain('X2300000Y-2400000D02*')
+  const flashes = [...registration.matchAll(/X(-?\d+)Y(-?\d+)D03\*/g)]
+    .map(([, x, y]) => [Number(x) / 100_000, Number(y) / 100_000])
+  expect(flashes).toHaveLength(3)
+  const result = await page.evaluate(async ({ rear, front, tiled, flashes, outline }) => {
     const svg = new DOMParser().parseFromString(rear, 'image/svg+xml')
     const embedded = new Image()
     embedded.src = svg.querySelector('image')!.getAttribute('xlink:href')!
@@ -118,8 +127,14 @@ for (const tiled of [false, true]) for (const silk of [true, false]) test(`downl
       const right = Math.floor((index + 1) * fullPixels / images.length)
       ctx.drawImage(tile, left / fullPixels * canvas.width, 0, (right - left) / fullPixels * canvas.width, canvas.height)
     }
+    const profile = new Path2D(outline)
+    ctx.lineWidth = .508
     return {
       pixels, embeddedPixels: sample(), seams: seams(),
+      marks: [svg, new DOMParser().parseFromString(front, 'image/svg+xml')].map(doc =>
+        doc.documentElement.getAttribute('mark-points')!.split(' ').map(value => Number(value) * .254)),
+      marksOnBoard: flashes.map(([x, y]) =>
+        ctx.isPointInPath(profile, x!, -y!, 'evenodd') && !ctx.isPointInStroke(profile, x!, -y!)),
       groupScale: groupMatrix?.a,
       groupCenterMm: (groupMatrix?.e ?? NaN) * .254 / 2,
       imageScaleSigns: images.map(element => element.parentElement === group ? Math.sign(element.transform.baseVal.consolidate()?.matrix.a ?? NaN) : 0),
@@ -127,7 +142,12 @@ for (const tiled of [false, true]) for (const silk of [true, false]) test(`downl
       embeddedWidth: embedded.width, embeddedHeight: embedded.height,
       image: imageData,
     }
-  }, { rear, tiled })
+  }, { rear, front, tiled, flashes, outline: composition.board.outline })
+  expect(result.marksOnBoard).toEqual([true, true, true])
+  for (const points of result.marks) {
+    expect(points).toHaveLength(6)
+    for (const [i, coordinate] of flashes.flat().entries()) expect(points[i]).toBeCloseTo(coordinate, 8)
+  }
   expect(result.embeddedPixels).toEqual(result.pixels)
   expect(result.seams).toEqual(tiled ? Array(4).fill(silk ? [255, 255, 255, 255] : [32, 39, 35, 255]) : [])
   expect(result.groupScale).toBe(-1)

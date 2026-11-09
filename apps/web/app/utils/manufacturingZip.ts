@@ -3,6 +3,7 @@ import { artworkRows } from './artwork'
 import type { Composition } from './project'
 import { validateFabrication } from './fabrication'
 import { encryptColorSvg } from './colorEnvelope'
+import { colorRegistration } from './colorRegistration'
 import { withJlcColorHeader } from './gerberCompatibility'
 import { nativeSilkInks, hasNativeSilkEdits } from './nativeSilk'
 import { addGerberRegions, goldItemRings, goldPath, validateGoldRegions } from './enigPaint'
@@ -83,9 +84,7 @@ export const makeManufacturingZip = async (project: Composition) => {
     }
   }
   const { x, y, width: w, height: h } = project.board.bounds
-  // Still experimental: these corner marks do not yet match EasyEDA's
-  // inset-outline registration. See the authentic export comparison notes.
-  const marks = [[x + .0762, -y - h + .0762], [x + .0762, -y - .0762], [x + w - .0762, -y - .0762]]
+  const registration = colorRegistration(project.board)
   const view = [x, y, w, h].map(v => v / .254).join(' ')
   const twiceCenterX = (2 * x + w) / .254
   for (const [side, name, suffix] of [['front', 'Top', 'FCTS'], ['back', 'Bottom', 'FCBS']] as const) {
@@ -115,12 +114,11 @@ export const makeManufacturingZip = async (project: Composition) => {
     const ink = side === 'back'
       ? `<g transform="scale(-1 1) translate(${-twiceCenterX} 0)">${images.join('')}</g>`
       : images.join('')
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" eda-version="2.4(2026-05-08)" width="${w}mm" height="${h}mm" viewBox="${view}" boardBox="${view}" mark-points="${marks.flat().map(v => v / .254).join(' ')}">${ink}</svg>`
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" eda-version="2.4(2026-05-08)" width="${w}mm" height="${h}mm" viewBox="${view}" boardBox="${view}" mark-points="${registration.svgMarks}">${ink}</svg>`
     files[`Fabrication_Colorful${name}Silkscreen.${suffix}`] = await encryptColorSvg(svg)
   }
   files['Fabrication_ColorfulBoardOutlineLayer.FCBO'] = await encryptColorSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" viewBox="${view}"><g transform="scale(${1/.254})"><path d="${project.board.outline}" fill="none" stroke="green" stroke-width="${2*.254}"/></g></svg>`)
-  const coordinate = (point: number[], op: string) => `X${Math.round(point[0]!*1e5)}Y${Math.round(point[1]!*1e5)}D${op}*`
-  files['Fabrication_ColorfulBoardOutlineMark.FCBM'] = strToU8(['G04 Overprint experimental color*','%FSLAX25Y25*%','%MOMM*%','%LPD*%','%ADD10C,0.15*%','%ADD11C,1*%','D10*',coordinate([x,-y-h],'02'),...[[x+w,-y-h],[x+w,-y],[x,-y],[x,-y-h]].map(p=>coordinate(p,'01')),'D11*',...marks.map(p=>coordinate(p,'03')),'M02*'].join('\n'))
+  files['Fabrication_ColorfulBoardOutlineMark.FCBM'] = strToU8(registration.gerber)
   // Edited native ink is fully represented in the color file. Keeping its old
   // conventional silk would also request the original white printing.
   for (const [side, name] of [['front', 'F_Silkscreen'], ['back', 'B_Silkscreen']]) {
