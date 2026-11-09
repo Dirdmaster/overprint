@@ -1,6 +1,7 @@
 import type { BoardPackage } from '../boardPackage'
 
 export const PANEL_RAIL = 5
+export const MAX_PANEL_DESIGNS = 10
 export const MAX_PANEL_COPIES = 36
 export const MAX_PANEL_PIXELS = 256_000_000
 export const ROTATIONS = [0, 90, 180, 270] as const

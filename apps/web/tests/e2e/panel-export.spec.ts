@@ -63,7 +63,7 @@ const checkColor = async (page: Page, layer: Uint8Array, index: number, samples:
   expect(proof.pixels).toEqual(samples.map(sample => sample[2]))
 }
 
-test('exports a repeated asymmetric panel directly from an Overprint project', async ({ page }) => {
+test('exports a repeated asymmetric panel directly from an Overprint project', async ({ page }, testInfo) => {
   test.setTimeout(90_000)
   const offOrigin: string[] = []
   page.on('request', request => {
@@ -80,7 +80,9 @@ test('exports a repeated asymmetric panel directly from an Overprint project', a
   await expect(page.getByRole('img', { name: 'Panel back preview' })).toBeVisible()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
-  const files = unzipSync(readFileSync((await (await download).path())!))
+  const zip = await download
+  await zip.saveAs(testInfo.outputPath('repeat-panel.zip'))
+  const files = unzipSync(readFileSync((await zip.path())!))
   expect(strFromU8(files['Gerber_TopLayer.GTL']!)).toContain('X0041000000Y-0014500000D03')
   expect(strFromU8(files['Drill_PTH_Through.DRL']!)).toContain('X0041.000000Y-014.500000')
   expect(strFromU8(files['Drill_NPTH_Through.DRL']!)).toContain('C0000.500000')
@@ -97,4 +99,53 @@ test('exports a repeated asymmetric panel directly from an Overprint project', a
     [45, 11.5, green], [41, 14.5, transparent],
   ])
   expect(offOrigin.filter(url => url.includes('.whl') || url.includes('pyodide'))).toEqual([])
+})
+
+test('exports a mixed panel with one individually rotated saved board', async ({ page }, testInfo) => {
+  test.setTimeout(90_000)
+  await captureColorKeys(page)
+  await page.goto('/')
+  await importCoupon(page, 'coupon-a')
+  await importCoupon(page, 'coupon-b')
+  await page.getByRole('button', { name: 'Projects', exact: true }).click()
+  await page.getByRole('button', { name: 'New panel', exact: true }).click()
+  await page.getByLabel('Add saved project').selectOption({ label: 'coupon-a' })
+  await page.getByLabel('Add saved project').selectOption({ label: 'coupon-b' })
+  await page.getByLabel('coupon-a copies', { exact: true }).fill('1')
+  const build = page.getByRole('button', { name: 'Build preview', exact: true })
+  await expect(build).toBeDisabled()
+  await page.getByRole('checkbox', { name: /same board material/ }).check()
+  await page.getByText('Adjust placements', { exact: true }).click()
+  await page.getByLabel('Copy 2 rotation').selectOption('180')
+  const x = page.getByLabel('Copy 2 X (mm)', { exact: true })
+  await x.fill('30')
+  await x.press('Tab')
+  await build.click()
+  await expect(page.getByRole('alert')).toContainText('overlap or leave less than')
+  await expect(page.getByRole('button', { name: 'Download ZIP' })).toBeDisabled()
+  await x.fill('35')
+  await x.press('Tab')
+  await build.click()
+  await expect(page.getByRole('img', { name: 'Panel front preview' })).toBeVisible({ timeout: 40_000 })
+  await expect(page.getByText(/72.50 × 46.00 mm.*2 copies.*2 designs/)).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('mixed-front.png') })
+  await page.getByRole('button', { name: /^back$/i }).click()
+  await page.screenshot({ path: testInfo.outputPath('mixed-back.png') })
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
+  const zip = await download
+  await zip.saveAs(testInfo.outputPath('mixed-panel.zip'))
+  const files = unzipSync(readFileSync((await zip.path())!))
+  expect(strFromU8(files['Gerber_TopLayer.GTL']!)).toContain('X0057000000Y-0016500000D03')
+  expect(strFromU8(files['Gerber_TopSolderMaskLayer.GTS']!)).toContain('X0057000000Y-0016500000D03')
+  expect(strFromU8(files['Gerber_TopLayer.GTL']!)).toContain('G36*')
+  expect(strFromU8(files['Gerber_TopSolderMaskLayer.GTS']!)).toContain('G36*')
+  expect(strFromU8(files['Drill_PTH_Through.DRL']!)).toContain('X0057.000000Y-016.500000')
+  const transparent = [0, 0, 0, 0], green = [21, 123, 48, 255], blue = [32, 76, 187, 255]
+  await checkColor(page, files['Fabrication_ColorfulTopSilkscreen.FCTS']!, 0, [
+    [1, 1, transparent], [9.5, 11.5, green], [57, 16.5, transparent], [60.5, 19.2, green], [53, 16.5, blue], [53, 14.5, transparent],
+  ])
+  await checkColor(page, files['Fabrication_ColorfulBottomSilkscreen.FCBS']!, 1, [
+    [1, 1, transparent], [17.5, 11.5, green], [57, 16.5, transparent], [53, 19.2, green], [60.5, 16.5, blue], [53, 14.5, blue],
+  ])
 })
