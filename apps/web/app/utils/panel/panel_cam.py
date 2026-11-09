@@ -1,4 +1,5 @@
 """Build panel fabrication from the Gerbers and drills in saved projects."""
+from collections import defaultdict
 from copy import deepcopy
 from dataclasses import replace
 from itertools import combinations, pairwise
@@ -19,12 +20,41 @@ from shapely.strtree import STRtree
 
 RESOLUTION = .000001
 ARC_ERROR = .002
-TAB_WIDTH = 4
+OUTLINE_JOIN_TOLERANCE = .01
+TAB_WIDTH = 5
 BITE_DIAMETER = .5
+BITE_PITCH = .75
+BITE_OFFSET = .28
 BITE_CLEARANCE = .25
 SETTINGS = FileSettings(unit=MM, number_format=(4, 6))
 PROFILE = "fabrication/Edge_Cuts.gbr"
 DRILL_ROLE = re.compile(r"TF\.FileFunction,(NonPlated|Plated),(\d+),(\d+),([A-Za-z]+)")
+
+
+def join_outline_endpoints(segments):
+    endpoints = defaultdict(list)
+    for index, points in enumerate(segments):
+        if points[0] != points[-1]:
+            endpoints[points[0]].append((index, 0))
+            endpoints[points[-1]].append((index, -1))
+    if any(len(matches) > 2 for matches in endpoints.values()):
+        raise ValueError("The saved Gerber outline has an ambiguous junction.")
+
+    # Prefer exact Gerber connections. KiCad arc endpoints may differ from the
+    # adjoining line by a few coordinate units after plotting.
+    unmatched = [(point, matches[0]) for point, matches in endpoints.items() if len(matches) == 1]
+    points = [Point(point) for point, _ in unmatched]
+    tree = STRtree(points)
+    for i, point in enumerate(points):
+        neighbors = [j for j in tree.query(point, predicate="dwithin", distance=OUTLINE_JOIN_TOLERANCE) if j != i]
+        if len(neighbors) != 1:
+            raise ValueError("The saved Gerber needs a closed, unambiguous PCB outline.")
+        j = neighbors[0]
+        if j > i:
+            midpoint = ((point.x + points[j].x) / 2, (point.y + points[j].y) / 2)
+            for endpoint in (i, j):
+                segment, position = unmatched[endpoint][1]
+                segments[segment][position] = midpoint
 
 
 def profile_shape(layer):
@@ -39,8 +69,9 @@ def profile_shape(layer):
         if isinstance(obj, Arc):
             # Preserve native endpoints exactly when neighboring arc radii round differently.
             points[1:1] = [line.p2 for line in obj.approximate(max_error=ARC_ERROR)[:-1]]
-        segments.append(LineString([(x, -y) for x, y in points]))
-    segments = [set_precision(line, RESOLUTION) for line in segments]
+        segments.append([(x, -y) for x, y in points])
+    join_outline_endpoints(segments)
+    segments = [set_precision(LineString(points), RESOLUTION) for points in segments]
     _, cuts, dangles, invalid = polygonize_full(segments)
     shape = build_area(MultiLineString([line for line in segments if not line.is_empty]))
     if not all(g.is_empty for g in (cuts, dangles, invalid)) or shape.geom_type != "Polygon" or not shape.is_valid:
@@ -190,7 +221,8 @@ def tab_candidate(first, second, shapes, placements, clearance, existing_tabs):
     for distance in positions:
         start = edge.interpolate(distance)
         end = nearest_points(start, b)[1]
-        if start.distance(end) > clearance:
+        length = start.distance(end)
+        if length > clearance or not length:
             continue
         tab = LineString([start, end]).buffer(TAB_WIDTH / 2, cap_style="square")
         if any(tab.distance(existing) < 2 for existing in existing_tabs):
@@ -200,15 +232,24 @@ def tab_candidate(first, second, shapes, placements, clearance, existing_tabs):
         if min(tab.intersection(a).area, tab.intersection(b).area) < 2:
             continue
         holes = []
-        for i, point in [(first, start), (second, end)]:
+        dx, dy = (end.x - start.x) / length, (end.y - start.y) / length
+        for i, point, direction in [(first, start, 1), (second, end, -1)]:
             if i == len(placements):  # The rail side is solid.
                 continue
             outline = shapes[i].exterior
             center = outline.project(point)
-            bites = [outline.interpolate((center + offset) % outline.length) for offset in (-1, 0, 1)]
-            if bites[0].distance(bites[-1]) < 1.98:
-                break  # Leave room for a straight break along the board edge.
-            if not all(tab.buffer(-.35).covers(bite) and placement.clear(bite) for bite in bites for placement in placements):
+            edge_points = [outline.interpolate((center + offset * BITE_PITCH) % outline.length)
+                           for offset in range(-2, 3)]
+            if edge_points[0].distance(edge_points[-1]) < 2.95:
+                break  # Use a straight enough edge for the row of perforations.
+            # Put the row just into the sacrificial tab to retain clearance
+            # from copper near the finished PCB edge.
+            bites = [affinity.translate(edge_point, direction * dx * BITE_OFFSET, direction * dy * BITE_OFFSET)
+                     for edge_point in edge_points]
+            safe_tab = tab.buffer(-.35)
+            if any(shapes[i].covers(bite) or not safe_tab.covers(bite) for bite in bites):
+                break
+            if not all(placement.clear(bite) for bite in bites for placement in placements):
                 break
             holes.extend(bites)
         else:

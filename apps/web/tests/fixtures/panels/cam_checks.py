@@ -35,6 +35,14 @@ class PanelCamChecks(unittest.TestCase):
         self.assertEqual(len(shape.interiors), 1)
         self.assertAlmostEqual(Polygon(shape.interiors[0]).area, 12.566, delta=0.03)
 
+    def test_repairs_only_unambiguous_saved_outline_gaps(self):
+        raw = layer(
+            "%ADD10C,0.05*%", "D10*", "X0Y0D02*", "X20000000Y0D01*", "X20000000Y-20000000D01*",
+            "X0Y-20000000D01*", "X0Y-4000D01*")
+        self.assertAlmostEqual(profile_shape(read_gerber("small-gap.gbr", raw)).area, 400, delta=0.05)
+        with self.assertRaisesRegex(ValueError, "closed, unambiguous PCB outline"):
+            profile_shape(read_gerber("open.gbr", raw.replace("Y-4000", "Y-40000")))
+
     def test_slot_round_trips_with_its_tool_and_rotation(self):
         raw = "M48\nMETRIC\nT01C0.8\n%\nT01\nX10.0Y-10.0G85X12.0Y-10.0\nM30\n"
         drill = ExcellonFile.from_string(raw)
@@ -55,6 +63,15 @@ class PanelCamChecks(unittest.TestCase):
         files["fabrication/drill-1.drl"] = files["fabrication/drill-1.drl"].replace("X16.0Y-27.0", "X10.0Y-27.0")
         with self.assertRaisesRegex(ValueError, r"Edge coupon: A saved drill or slot touches"):
             build_panel({"sources": [{"name": "Edge coupon", "files": files, "bounds": board["bounds"]}]})
+
+    def test_breakaway_tabs_use_five_clear_holes_each(self):
+        source = ({}, {}, box(0, 0, 20, 20), [])
+        placement = Placement(source, {"name": "Coupon", "x": 0, "y": 0, "rotation": 0})
+        substrate, bites = make_profile([placement], 2.5, 5)
+        self.assertEqual(len(bites), 10)
+        self.assertTrue(all(substrate.contains(bite) and not placement.shape.covers(bite) for bite in bites))
+        for row in (bites[:5], bites[5:]):
+            self.assertTrue(all(abs(a.distance(b) - .75) < .001 for a, b in pairwise(row)))
 
     def test_rejects_a_board_isolated_in_the_middle_of_a_panel(self):
         source = ({}, {}, box(0, 0, 20, 20), [])
