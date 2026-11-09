@@ -28,7 +28,7 @@ const project = (silk: boolean) => ({
     layers: {
       'back-silkscreen': [rectangle(35, 22, 2, 2), rectangle(15, 25, 8, 8)],
       'front-silkscreen': [rectangle(25, 22, 2, 2)],
-      'back-mask': [rectangle(31, 27, 2, 2)],
+      'back-mask': [rectangle(31, 27, 2, 2), rectangle(32, 27, 2, 2)],
       'front-mask': [rectangle(31, 31, 2, 2)],
     },
     fabrication: { version: 1, copperLayers: 4, originMm: [0, 0], files: nativeFiles },
@@ -113,7 +113,7 @@ for (const tiled of [false, true]) for (const silk of [true, false]) test(`downl
     const sample = () => ({
       red: at(29, 32), blue: at(33, 26),
       rearSilk: at(14, 23), frontSilkLocation: at(24, 23),
-      rearMask: at(18, 28), frontMaskLocation: at(18, 32),
+      rearMask: at(17.5, 28), frontMaskLocation: at(18, 32),
       hole: at(38, 35), notch: at(38, 39), solidCorner: at(12, 39),
     })
     const pixels = sample()
@@ -133,10 +133,25 @@ for (const tiled of [false, true]) for (const silk of [true, false]) test(`downl
       const right = Math.floor((index + 1) * fullPixels / images.length)
       ctx.drawImage(tile, left / fullPixels * canvas.width, 0, (right - left) / fullPixels * canvas.width, canvas.height)
     }
+    const embeddedPixels = sample()
+    const embeddedSeams = seams()
+
+    // Replace the PNGs with opaque pixels to verify the SVG's own exclusions.
+    const swatch = document.createElement('canvas')
+    swatch.width = swatch.height = 1
+    swatch.getContext('2d')!.fillRect(0, 0, 1, 1)
+    for (const element of images) element.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', swatch.toDataURL())
+    const clipped = new Image()
+    clipped.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(svg))}`
+    await clipped.decode()
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(clipped, 0, 0, canvas.width, canvas.height)
+
     const profile = new Path2D(outline)
     ctx.lineWidth = .508
     return {
-      pixels, embeddedPixels: sample(), seams: seams(),
+      pixels, embeddedPixels, seams: embeddedSeams,
+      clipAlpha: [at(17.5, 28), at(38, 35), at(38, 39), at(26, 25), at(12, 39)].map(pixel => pixel[3]),
       marks: [svg, new DOMParser().parseFromString(front, 'image/svg+xml')].map(doc =>
         doc.documentElement.getAttribute('mark-points')!.split(' ').map(value => Number(value) * .254)),
       marksOnBoard: flashes.map(([x, y]) =>
@@ -155,6 +170,7 @@ for (const tiled of [false, true]) for (const silk of [true, false]) test(`downl
     for (const [i, coordinate] of flashes.flat().entries()) expect(points[i]).toBeCloseTo(coordinate, 8)
   }
   expect(result.embeddedPixels).toEqual(result.pixels)
+  expect(result.clipAlpha).toEqual([0, 0, 0, 0, 255])
   expect(result.seams).toEqual(tiled ? Array(4).fill(silk ? [255, 255, 255, 255] : [32, 39, 35, 255]) : [])
   expect(result.groupScale).toBe(-1)
   expect(result.groupCenterMm).toBeCloseTo(tiled ? 100 : 25)

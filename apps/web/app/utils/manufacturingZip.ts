@@ -1,4 +1,5 @@
 import { zipSync, strToU8, strFromU8 } from 'fflate'
+import ClipperLib from 'clipper-lib'
 import { artworkRows } from './artwork'
 import type { Composition } from './project'
 import { validateFabrication } from './fabrication'
@@ -6,7 +7,7 @@ import { encryptColorSvg } from './colorEnvelope'
 import { colorRegistration } from './colorRegistration'
 import { jlcFabricationFilename, withJlcColorHeader } from './gerberCompatibility'
 import { nativeSilkInks, hasNativeSilkEdits } from './nativeSilk'
-import { addGerberRegions, goldItemRings, goldPath, validateGoldRegions } from './enigPaint'
+import { addGerberRegions, goldItemRings, goldPath, polygonRings, validateGoldRegions } from './enigPaint'
 
 const loadImage = async (source: string) => {
   const image = new Image()
@@ -16,7 +17,7 @@ const loadImage = async (source: string) => {
 }
 
 // Rasterize only ink, never the gold/copper preview or fabrication overlay.
-const renderInk = async (project: Composition, side: string, region: typeof project.board.bounds) => {
+const renderInk = async (project: Composition, side: string, region: typeof project.board.bounds, exclusions: string[]) => {
   const { board } = project
   const { x, y, width, height } = board.bounds
   const scale = 1200 / 25.4
@@ -58,13 +59,24 @@ const renderInk = async (project: Composition, side: string, region: typeof proj
     ctx.restore()
   }
   ctx.globalCompositeOperation = 'destination-out'
-  ctx.fill(new Path2D(board.holes), 'evenodd')
-  for (const path of board.layers[`${side}-mask`] ?? []) ctx.fill(new Path2D(path), 'evenodd')
-  for (const { item, visible } of artworkRows(project.artwork, side, true)) {
-    if (visible && item.gold) ctx.fill(new Path2D(goldPath(goldItemRings(item))), 'evenodd')
-  }
+  for (const path of exclusions) ctx.fill(new Path2D(path), 'evenodd')
   ctx.restore()
   return { source: canvas.toDataURL('image/png'), pixelWidth, pixelHeight }
+}
+
+const inkClipPath = (outline: string, exclusions: string[]) => {
+  const clipper = new ClipperLib.Clipper()
+  clipper.AddPaths(polygonRings(outline), ClipperLib.PolyType.ptSubject, true)
+  // Resolve each cutout's holes first, then subtract their union so overlapping
+  // pad openings do not cancel each other.
+  for (const path of exclusions) {
+    const rings = ClipperLib.Clipper.SimplifyPolygons(polygonRings(path), ClipperLib.PolyFillType.pftEvenOdd)
+    clipper.AddPaths(rings, ClipperLib.PolyType.ptClip, true)
+  }
+  const ink: ClipperLib.Paths = []
+  clipper.Execute(ClipperLib.ClipType.ctDifference, ink, ClipperLib.PolyFillType.pftEvenOdd, ClipperLib.PolyFillType.pftNonZero)
+  const unitsPerSvgUnit = 100_000 * .254
+  return ink.map(ring => `M${ring.map(({ X, Y }) => `${X / unitsPerSvgUnit},${Y / unitsPerSvgUnit}`).join(' L')} Z`).join(' ')
 }
 
 export const makeManufacturingZip = async (project: Composition) => {
@@ -88,6 +100,9 @@ export const makeManufacturingZip = async (project: Composition) => {
   const view = [x, y, w, h].map(v => v / .254).join(' ')
   const twiceCenterX = (2 * x + w) / .254
   for (const [side, name, suffix] of [['front', 'Top', 'FCTS'], ['back', 'Bottom', 'FCBS']] as const) {
+    const gold = artworkRows(project.artwork, side, true).flatMap(({ item, visible }) =>
+      visible && item.gold ? [goldPath(goldItemRings(item))] : [])
+    const exclusions = [project.board.holes, ...(project.board.layers[`${side}-mask`] ?? []), ...gold].filter(path => path.trim())
     const scale = 1200 / 25.4
     const pw = Math.ceil(w * scale), ph = Math.ceil(h * scale)
     if (pw * ph > 256_000_000) throw new Error('This board exceeds the 256 megapixel color export limit at 1200 DPI.')
@@ -100,7 +115,7 @@ export const makeManufacturingZip = async (project: Composition) => {
       const left = Math.floor(column * pw / columns), right = Math.floor((column + 1) * pw / columns)
       const top = Math.floor(row * ph / rows), bottom = Math.floor((row + 1) * ph / rows)
       const region = { x: x + left / pw * w, y: y + top / ph * h, width: (right - left) / pw * w, height: (bottom - top) / ph * h }
-      const { source, pixelWidth, pixelHeight } = await renderInk(project, side, region)
+      const { source, pixelWidth, pixelHeight } = await renderInk(project, side, region, exclusions)
       const [leftX, topY, width, height] = [region.x / .254, region.y / .254, region.width / .254, region.height / .254] as const
       if (side === 'back') {
         // Place rear-view pixels in native coordinates. The enclosing group
@@ -111,9 +126,9 @@ export const makeManufacturingZip = async (project: Composition) => {
         images.push(`<image x="${leftX}" y="${topY}" width="${width}" height="${height}" xlink:href="${source}"/>`)
       }
     }
-    const ink = side === 'back'
-      ? `<g transform="scale(-1 1) translate(${-twiceCenterX} 0)">${images.join('')}</g>`
-      : images.join('')
+    const clip = inkClipPath(project.board.outline, exclusions)
+    const transform = side === 'back' ? ` transform="scale(-1 1) translate(${-twiceCenterX} 0)"` : ''
+    const ink = `<defs><clipPath id="print-area"><path d="${clip}" clip-rule="evenodd"/></clipPath></defs><g clip-path="url(#print-area)"${transform}>${images.join('')}</g>`
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" eda-version="2.4(2026-05-08)" width="${w}mm" height="${h}mm" viewBox="${view}" boardBox="${view}" mark-points="${registration.svgMarks}">${ink}</svg>`
     files[`Fabrication_Colorful${name}Silkscreen.${suffix}`] = await encryptColorSvg(svg)
   }
