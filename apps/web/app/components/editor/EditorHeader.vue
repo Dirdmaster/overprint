@@ -45,7 +45,7 @@ defineEmits<{
         class="header-action"
         @click="$emit('panel')"
       >
-        Create panel
+        {{ $t('panel.create') }}
       </button>
       <OpenBoardButton
         @scan="$emit('scan')"

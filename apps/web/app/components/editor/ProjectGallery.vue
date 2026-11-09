@@ -53,7 +53,7 @@ defineExpose({ show, close })
           :disabled="busy"
           @click="emit('panel')"
         >
-          New panel
+          {{ $t('panel.new') }}
         </button>
         <button
           class="header-action"

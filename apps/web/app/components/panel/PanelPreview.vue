@@ -22,7 +22,7 @@ const transform = computed(() => {
     class="max-h-[65svh] w-full"
     :viewBox="viewBox"
     role="img"
-    :aria-label="`Panel ${side} preview`"
+    :aria-label="side === 'front' ? $t('panel.frontPreview') : $t('panel.backPreview')"
   >
     <path
       :d="`${board.outline} ${board.holes}`"

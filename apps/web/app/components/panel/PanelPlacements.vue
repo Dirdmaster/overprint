@@ -21,24 +21,26 @@ const placementBounds = (placement: PanelPlacement) =>
 
 <template>
   <details class="rounded-md border border-line p-2">
-    <summary class="cursor-pointer text-sm font-medium">Adjust placements</summary>
+    <summary class="cursor-pointer text-sm font-medium">{{ $t('panel.placements') }}</summary>
     <button
       class="header-action mt-2"
       type="button"
       @click="emit('reset')"
     >
-      Auto-layout
+      {{ $t('panel.autoLayout') }}
     </button>
     <div
       v-for="(placement, index) in placements"
       :key="index"
       class="mt-3 grid grid-cols-3 gap-2 border-t border-line pt-2"
     >
-      <p class="col-span-3 text-sm">{{ names[placement.source] }} · Copy {{ index + 1 }}</p>
+      <p class="col-span-3 text-sm">
+        {{ $t('panel.placementLabel', { name: names[placement.source], copy: index + 1 }) }}
+      </p>
       <label class="grid gap-1 text-xs">
-        X (mm)
+        {{ $t('panel.placementX') }}
         <input
-          :aria-label="`Copy ${index + 1} X (mm)`"
+          :aria-label="$t('panel.copyX', { copy: index + 1 })"
           :value="Number(placementBounds(placement).x.toFixed(3))"
           class="min-w-0 rounded-md border border-line p-1.5"
           type="number"
@@ -47,9 +49,9 @@ const placementBounds = (placement: PanelPlacement) =>
         />
       </label>
       <label class="grid gap-1 text-xs">
-        Y (mm)
+        {{ $t('panel.placementY') }}
         <input
-          :aria-label="`Copy ${index + 1} Y (mm)`"
+          :aria-label="$t('panel.copyY', { copy: index + 1 })"
           :value="Number(placementBounds(placement).y.toFixed(3))"
           class="min-w-0 rounded-md border border-line p-1.5"
           type="number"
@@ -58,9 +60,9 @@ const placementBounds = (placement: PanelPlacement) =>
         />
       </label>
       <label class="grid gap-1 text-xs">
-        Rotation
+        {{ $t('panel.placementRotation') }}
         <select
-          :aria-label="`Copy ${index + 1} rotation`"
+          :aria-label="$t('panel.copyRotation', { copy: index + 1 })"
           :value="placement.rotation"
           class="min-w-0 rounded-md border border-line bg-surface p-1.5"
           @change="
