@@ -5,6 +5,7 @@ const { board, openBoard } = useComposition()
 const {
   initialized,
   status,
+  dismissStatus,
   open: openProjectFile,
   download,
   save,
@@ -19,6 +20,11 @@ const {
   recover
 } = useProjectStorage()
 const gallery = useTemplateRef('gallery')
+const createPanel = async (useCurrent = false) => {
+  if (!(await save())) return
+  const project = useCurrent ? active.value?.id : undefined
+  await navigateTo({ path: '/panel', query: { project } })
+}
 const showProjects = async () => {
   await save()
   await refresh()
@@ -82,6 +88,7 @@ const onDrop = (event: DragEvent) => {
     <EditorHeader
       v-if="board"
       @projects="showProjects"
+      @panel="createPanel(true)"
       @import="openImport()"
       @save="download"
       @open-project="openProject"
@@ -147,6 +154,7 @@ const onDrop = (event: DragEvent) => {
       @remove="remove"
       @import="openProject"
       @new="openImport()"
+      @panel="createPanel()"
     >
       <WorkspaceBackup
         :flush="save"
@@ -154,9 +162,7 @@ const onDrop = (event: DragEvent) => {
       />
     </ProjectGallery>
     <div
-      v-if="
-        status && !['All changes saved', 'Project opened', 'Recovery copy saved'].includes(status)
-      "
+      v-if="status?.persistent"
       class="flex flex-wrap justify-center gap-2 p-2"
     >
       <button
@@ -173,8 +179,8 @@ const onDrop = (event: DragEvent) => {
       </button>
     </div>
     <ProjectStatusNotice
-      :message="status"
-      @dismiss="status = ''"
+      :message="status?.message ?? ''"
+      @dismiss="dismissStatus"
     />
     <ProjectFilePicker
       ref="projectPicker"

@@ -8,6 +8,7 @@ const emit = defineEmits<{
   remove: [id: string]
   import: []
   new: []
+  panel: []
 }>()
 const dialog = useTemplateRef('dialog')
 const names = reactive<Record<string, string>>({})
@@ -47,6 +48,13 @@ defineExpose({ show, close })
         Projects
       </h2>
       <div class="flex flex-wrap gap-2">
+        <button
+          class="header-action"
+          :disabled="busy"
+          @click="emit('panel')"
+        >
+          {{ $t('panel.new') }}
+        </button>
         <button
           class="header-action"
           :disabled="busy"
