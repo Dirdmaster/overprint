@@ -1,0 +1,50 @@
+import type { BoardPackage } from '../boardPackage'
+import { makeManufacturingZip, placedPath, prepareFabrication, type InkPlacement } from '../manufacturingZip'
+import type { Composition } from '../project'
+import { buildPanelCam, type PanelRings } from './panelCam'
+import { assertPanelSize, panelBounds, type PanelPlacement } from './panelLayout'
+
+const ringPath = (rings: PanelRings) => rings.map(ring => `M${ring.map(point => point.join(',')).join(' L')} Z`).join(' ')
+
+export const buildPanel = async (name: string, projects: Composition[], placements: PanelPlacement[], gap: number, signal?: AbortSignal) => {
+  assertPanelSize(panelBounds(projects.map(project => ({ bounds: project.board.bounds, quantity: 1 })), placements, gap))
+  const fabrications = projects.map(project => {
+    try { return prepareFabrication(project) } catch (error) {
+      throw new Error(`${project.board.name}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  })
+  const copperLayers = fabrications[0]!.copperLayers
+  if (fabrications.some(fab => fab.copperLayers !== copperLayers)) throw new Error('All designs must have the same number of copper layers.')
+  const cam = await buildPanelCam({
+    copperLayers, gap, placements,
+    sources: projects.map((project, i) => ({
+      name: project.board.name,
+      bounds: project.board.bounds,
+      files: fabrications[i]!.files,
+    })),
+  }, signal)
+  const [x, y, right, bottom] = cam.bounds
+  const biteHoles = ringPath(cam.bites.map(([cx, cy]) => Array.from({ length: 32 }, (_, i) => {
+    const theta = i * 2 * Math.PI / 32
+    return [cx + .25 * Math.cos(theta), cy + .25 * Math.sin(theta)]
+  })))
+  const ink: InkPlacement[] = placements.map((placement, i) => ({
+    ...placement,
+    project: projects[placement.source]!,
+    outline: ringPath(cam.boardOutlines[i]!),
+    localOutline: ringPath(cam.localOutlines[placement.source]!),
+  }))
+  const board: BoardPackage = {
+    name,
+    bounds: { x, y, width: right - x, height: bottom - y },
+    outline: ringPath(cam.outline),
+    holes: [biteHoles, ...ink.map(placement => placedPath(placement.project.board.holes, placement))].join(' '),
+    layers: {},
+    fabrication: { version: 1, originMm: [0, 0], copperLayers, files: cam.files },
+  }
+  const project: Composition = {
+    version: 1, board, artwork: [], mask: '#101820', side: 'front', silk: false, fabrication: true,
+  }
+  const color = { placements: ink, biteHoles }
+  return { board, color, download: () => makeManufacturingZip(project, color) }
+}

@@ -19,6 +19,11 @@ const {
   recover
 } = useProjectStorage()
 const gallery = useTemplateRef('gallery')
+const createPanel = async (useCurrent = false) => {
+  if (!(await save())) return
+  const project = useCurrent ? active.value?.id : undefined
+  await navigateTo({ path: '/panel', query: { project } })
+}
 const showProjects = async () => {
   await save()
   await refresh()
@@ -82,6 +87,7 @@ const onDrop = (event: DragEvent) => {
     <EditorHeader
       v-if="board"
       @projects="showProjects"
+      @panel="createPanel(true)"
       @import="openImport()"
       @save="download"
       @open-project="openProject"
@@ -147,6 +153,7 @@ const onDrop = (event: DragEvent) => {
       @remove="remove"
       @import="openProject"
       @new="openImport()"
+      @panel="createPanel()"
     >
       <WorkspaceBackup
         :flush="save"
