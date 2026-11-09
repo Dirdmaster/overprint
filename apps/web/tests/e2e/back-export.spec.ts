@@ -103,27 +103,36 @@ for (const tiled of [false, true]) for (const silk of [true, false]) test(`downl
     })
     const pixels = sample()
     const imageData = canvas.toDataURL('image/png').split(',')[1]!
-    // Stitch the embedded PNGs using only their declared positions. Their
-    // own pixels must already have the finished orientation, with no SVG flip.
+    // Stitch the raw PNGs in rear-view order, without applying either mirror.
+    // The artwork and exclusions must already face the rear in the PNGs.
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    for (const element of svg.querySelectorAll('image')) {
+    const group = svg.querySelector('g')
+    const groupMatrix = group?.transform.baseVal.consolidate()?.matrix
+    const images = [...svg.querySelectorAll('image')]
+    for (const [index, element] of images.entries()) {
       const tile = new Image()
       tile.src = element.getAttribute('xlink:href')!
       await tile.decode()
-      const mm = (name: string) => Number(element.getAttribute(name)) * .254
-      ctx.drawImage(tile, (mm('x') - 10) * 50, (mm('y') - 20) * 50, mm('width') * 50, mm('height') * 50)
+      const fullPixels = tiled ? 8504 : 1418
+      const left = Math.floor(index * fullPixels / images.length)
+      const right = Math.floor((index + 1) * fullPixels / images.length)
+      ctx.drawImage(tile, left / fullPixels * canvas.width, 0, (right - left) / fullPixels * canvas.width, canvas.height)
     }
     return {
       pixels, embeddedPixels: sample(), seams: seams(),
-      transforms: svg.querySelectorAll('[transform]').length,
-      tileCount: svg.querySelectorAll('image').length,
+      groupScale: groupMatrix?.a,
+      groupCenterMm: (groupMatrix?.e ?? NaN) * .254 / 2,
+      imageScaleSigns: images.map(element => element.parentElement === group ? Math.sign(element.transform.baseVal.consolidate()?.matrix.a ?? NaN) : 0),
+      tileCount: images.length,
       embeddedWidth: embedded.width, embeddedHeight: embedded.height,
       image: imageData,
     }
   }, { rear, tiled })
   expect(result.embeddedPixels).toEqual(result.pixels)
   expect(result.seams).toEqual(tiled ? Array(4).fill(silk ? [255, 255, 255, 255] : [32, 39, 35, 255]) : [])
-  expect(result.transforms).toBe(0)
+  expect(result.groupScale).toBe(-1)
+  expect(result.groupCenterMm).toBeCloseTo(tiled ? 100 : 25)
+  expect(result.imageScaleSigns).toEqual(tiled ? [-1, -1, -1] : [-1])
   expect(result.tileCount).toBe(tiled ? 3 : 1)
   expect(result.embeddedWidth).toBe(tiled ? 2834 : 1418)
   expect(result.embeddedHeight).toBe(945)

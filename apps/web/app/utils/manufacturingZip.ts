@@ -15,7 +15,7 @@ const loadImage = async (source: string) => {
 }
 
 // Rasterize only ink, never the gold/copper preview or fabrication overlay.
-export const renderInk = async (project: Composition, side: string, region = project.board.bounds) => {
+const renderInk = async (project: Composition, side: string, region: typeof project.board.bounds) => {
   const { board } = project
   const { x, y, width, height } = board.bounds
   const scale = 1200 / 25.4
@@ -31,8 +31,7 @@ export const renderInk = async (project: Composition, side: string, region = pro
   const ctx = canvas.getContext('2d')!
   ctx.scale(canvas.width / region.width, canvas.height / region.height)
   ctx.translate(-region.x, -region.y)
-  // Export pixels already facing the selected side, including every tile.
-  // Do not rely on the manufacturer's SVG renderer applying a group mirror.
+  // Keep the embedded pixels readable from the selected side, including each tile.
   if (side === 'back') { ctx.translate(2 * x + width, 0); ctx.scale(-1, 1) }
   ctx.save()
   ctx.clip(new Path2D(board.outline), 'evenodd')
@@ -64,7 +63,7 @@ export const renderInk = async (project: Composition, side: string, region = pro
     if (visible && item.gold) ctx.fill(new Path2D(goldPath(goldItemRings(item))), 'evenodd')
   }
   ctx.restore()
-  return canvas.toDataURL('image/png')
+  return { source: canvas.toDataURL('image/png'), pixelWidth, pixelHeight }
 }
 
 export const makeManufacturingZip = async (project: Composition) => {
@@ -88,6 +87,7 @@ export const makeManufacturingZip = async (project: Composition) => {
   // inset-outline registration. See the authentic export comparison notes.
   const marks = [[x + .0762, -y - h + .0762], [x + .0762, -y - .0762], [x + w - .0762, -y - .0762]]
   const view = [x, y, w, h].map(v => v / .254).join(' ')
+  const twiceCenterX = (2 * x + w) / .254
   for (const [side, name, suffix] of [['front', 'Top', 'FCTS'], ['back', 'Bottom', 'FCBS']] as const) {
     const scale = 1200 / 25.4
     const pw = Math.ceil(w * scale), ph = Math.ceil(h * scale)
@@ -101,10 +101,21 @@ export const makeManufacturingZip = async (project: Composition) => {
       const left = Math.floor(column * pw / columns), right = Math.floor((column + 1) * pw / columns)
       const top = Math.floor(row * ph / rows), bottom = Math.floor((row + 1) * ph / rows)
       const region = { x: x + left / pw * w, y: y + top / ph * h, width: (right - left) / pw * w, height: (bottom - top) / ph * h }
-      const image = await renderInk(project, side, region)
-      images.push(`<image x="${region.x/.254}" y="${region.y/.254}" width="${region.width/.254}" height="${region.height/.254}" xlink:href="${image}"/>`)
+      const { source, pixelWidth, pixelHeight } = await renderInk(project, side, region)
+      const [leftX, topY, width, height] = [region.x / .254, region.y / .254, region.width / .254, region.height / .254] as const
+      if (side === 'back') {
+        // Place rear-view pixels in native coordinates. The enclosing group
+        // then reflects the entire rear layer back into its print orientation.
+        const matrix = [-width / pixelWidth, 0, 0, height / pixelHeight, twiceCenterX - leftX, topY].join(' ')
+        images.push(`<image width="${pixelWidth}" height="${pixelHeight}" preserveAspectRatio="none" xlink:href="${source}" transform="matrix(${matrix})"/>`)
+      } else {
+        images.push(`<image x="${leftX}" y="${topY}" width="${width}" height="${height}" xlink:href="${source}"/>`)
+      }
     }
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" eda-version="2.4(2026-05-08)" width="${w}mm" height="${h}mm" viewBox="${view}" boardBox="${view}" mark-points="${marks.flat().map(v => v / .254).join(' ')}">${images.join('')}</svg>`
+    const ink = side === 'back'
+      ? `<g transform="scale(-1 1) translate(${-twiceCenterX} 0)">${images.join('')}</g>`
+      : images.join('')
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" eda-version="2.4(2026-05-08)" width="${w}mm" height="${h}mm" viewBox="${view}" boardBox="${view}" mark-points="${marks.flat().map(v => v / .254).join(' ')}">${ink}</svg>`
     files[`Fabrication_Colorful${name}Silkscreen.${suffix}`] = await encryptColorSvg(svg)
   }
   files['Fabrication_ColorfulBoardOutlineLayer.FCBO'] = await encryptColorSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" viewBox="${view}"><g transform="scale(${1/.254})"><path d="${project.board.outline}" fill="none" stroke="green" stroke-width="${2*.254}"/></g></svg>`)

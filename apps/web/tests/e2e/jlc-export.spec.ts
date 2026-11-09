@@ -140,7 +140,7 @@ test('downloads current artwork and native fabrication, then sends to a new quot
   expect(geometry.sameBox).toBe(true)
   expect(geometry.outline).toBe(expectedOutline)
   expect(geometry.fill).toBe('none')
-  expect(geometry.rearTransforms).toBe(0)
+  expect(geometry.rearTransforms).toBe(2)
 
   let received = false
   let uploadAttempts = 0
