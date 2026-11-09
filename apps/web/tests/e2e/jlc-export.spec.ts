@@ -104,7 +104,12 @@ test('downloads current artwork and native fabrication, then sends to a new quot
       const text = strFromU8(exported)
       expect(text).toMatch(/^G04 EasyEDA Pro v3\.2\.148, /)
       const native = text.split('G04 Overprint compatibility export from KiCad*\n')[1]!
-      expect(strToU8(native.replace(/^%ADD10C,0\.01\d\d\*%\r\n/m, ''))).toEqual(bytes)
+      if (name.endsWith('_Silkscreen.gbr')) {
+        expect(native).toContain('KiCad silkscreen replaced by Overprint color ink')
+        expect(native).not.toMatch(/D0[13]\*/)
+      } else {
+        expect(strToU8(native.replace(/^%ADD10C,0\.01\d\d\*%\r\n/m, ''))).toEqual(bytes)
+      }
     } else expect(exported).toEqual(bytes)
   }
   for (const name of ['Fabrication_ColorfulTopSilkscreen.FCTS','Fabrication_ColorfulBottomSilkscreen.FCBS','Fabrication_ColorfulBoardOutlineLayer.FCBO']) expect(files[name]!.length).toBeGreaterThan(528)

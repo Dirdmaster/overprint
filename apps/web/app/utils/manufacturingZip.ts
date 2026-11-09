@@ -134,12 +134,15 @@ export const makeManufacturingZip = async (project: Composition) => {
   }
   files['Fabrication_ColorfulBoardOutlineLayer.FCBO'] = await encryptColorSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" viewBox="${view}"><g transform="scale(${1/.254})"><path d="${project.board.outline}" fill="none" stroke="green" stroke-width="${2*.254}"/></g></svg>`)
   files['Fabrication_ColorfulBoardOutlineMark.FCBM'] = strToU8(registration.gerber)
-  // Edited native ink is fully represented in the color file. Keeping its old
-  // conventional silk would also request the original white printing.
+  // The color PNG already contains the visible native ink. Conventional
+  // silkscreen can print over the composition as a separate black layer.
   for (const [side, name] of [['front', 'F_Silkscreen'], ['back', 'B_Silkscreen']]) {
     const gold = artworkRows(project.artwork, side!, true).some(({ item, visible }) => visible && item.gold)
-    if (!project.silk || gold || hasNativeSilkEdits(project.board.layers[`${side}-silkscreen`] ?? [], project.artwork, side!)) {
-      const reason = project.silk ? 'KiCad silkscreen replaced by Overprint color ink and ENIG openings' : 'KiCad silkscreen hidden in Overprint'
+    const nativePaths = project.board.layers[`${side}-silkscreen`] ?? []
+    if (!project.silk || gold || nativePaths.some(path => path.trim()) || hasNativeSilkEdits(nativePaths, project.artwork, side!)) {
+      const reason = project.silk
+        ? `KiCad silkscreen replaced by Overprint color ink${gold ? ' and ENIG openings' : ''}`
+        : 'KiCad silkscreen hidden in Overprint'
       files[`${name}.gbr`] = strToU8(`G04 ${reason}*\n%FSLAX46Y46*%\n%MOMM*%\nM02*\n`)
     }
   }

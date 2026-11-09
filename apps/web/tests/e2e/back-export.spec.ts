@@ -72,8 +72,8 @@ for (const tiled of [false, true]) for (const silk of [true, false]) test(`downl
     if (name.endsWith('.drl')) expect(exported, name).toBe(original)
     else {
       const native = exported.split('G04 Overprint compatibility export from KiCad*\n')[1]!
-      if (!silk && name.endsWith('_Silkscreen.gbr')) {
-        expect(native).toContain('KiCad silkscreen hidden in Overprint')
+      if (name.endsWith('_Silkscreen.gbr')) {
+        expect(native).toContain(silk ? 'KiCad silkscreen replaced by Overprint color ink' : 'KiCad silkscreen hidden in Overprint')
         expect(native).not.toContain('D03*')
       } else expect(native.replace(/^%ADD11C,0\.01\d\d\*%\r\n/m, ''), name).toBe(original)
     }
