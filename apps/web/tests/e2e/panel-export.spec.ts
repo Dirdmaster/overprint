@@ -2,6 +2,9 @@ import { test, expect, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { unzipSync, strFromU8 } from 'fflate'
 
+// Each build starts a fresh CAM worker and loads the local Python runtime.
+const camResultTimeout = 40_000
+
 const importCoupon = async (page: Page, name: string) => {
   const [picker] = await Promise.all([
     page.waitForEvent('filechooser'),
@@ -81,7 +84,7 @@ test('exports a repeated asymmetric panel directly from an Overprint project', a
   await page.getByRole('button', { name: 'Create panel', exact: true }).click()
   await expect(page.getByText('67.50 × 46.00 mm · 2 copies')).toBeVisible()
   await page.getByRole('button', { name: 'Build preview', exact: true }).click()
-  await expect(page.getByRole('img', { name: 'Panel front preview' })).toBeVisible({ timeout: 40_000 })
+  await expect(page.getByRole('img', { name: 'Panel front preview' })).toBeVisible({ timeout: camResultTimeout })
   await page.getByRole('button', { name: /^back$/i }).click()
   await expect(page.getByRole('img', { name: 'Panel back preview' })).toBeVisible()
   const download = page.waitForEvent('download')
@@ -128,12 +131,12 @@ test('exports a mixed panel with one individually rotated saved board', async ({
   await x.fill('30')
   await x.press('Tab')
   await build.click()
-  await expect(page.getByRole('alert')).toContainText('overlap or leave less than')
+  await expect(page.getByRole('alert')).toContainText('overlap or leave less than', { timeout: camResultTimeout })
   await expect(page.getByRole('button', { name: 'Download ZIP' })).toBeDisabled()
   await x.fill('35')
   await x.press('Tab')
   await build.click()
-  await expect(page.getByRole('img', { name: 'Panel front preview' })).toBeVisible({ timeout: 40_000 })
+  await expect(page.getByRole('img', { name: 'Panel front preview' })).toBeVisible({ timeout: camResultTimeout })
   await expect(page.getByText(/72.50 × 46.00 mm.*2 copies.*2 designs/)).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('mixed-front.png'), fullPage: true })
   await page.getByRole('button', { name: /^back$/i }).click()
@@ -189,12 +192,12 @@ test('pins saved revisions across refresh cancellation, source deletion and work
   await expect(page.getByLabel('Copy 2 rotation')).toHaveValue('180')
   await expect(page.getByLabel('Copy 2 X (mm)', { exact: true })).toHaveValue('35')
   await page.getByRole('button', { name: 'Review newer revision' }).click()
-  await expect(page.getByText(/Previewing the newer revision of Changed source B/)).toBeVisible({ timeout: 40_000 })
+  await expect(page.getByText(/Previewing the newer revision of Changed source B/)).toBeVisible({ timeout: camResultTimeout })
   await page.getByRole('button', { name: 'Cancel refresh', exact: true }).click()
   await expect(page.getByRole('list', { name: 'Panel designs' })).toContainText('coupon-b')
   await page.getByRole('button', { name: 'Review newer revision' }).click()
   const apply = page.getByRole('button', { name: 'Apply revision', exact: true })
-  await expect(apply).toBeDisabled()
+  await expect(apply).toBeDisabled({ timeout: camResultTimeout })
   await page.getByRole('checkbox', { name: /updated design still uses/ }).check()
   await apply.click()
   await expect(page.getByRole('list', { name: 'Panel designs' })).toContainText('Changed source B')
@@ -216,7 +219,7 @@ test('pins saved revisions across refresh cancellation, source deletion and work
   await expect(page.getByRole('list', { name: 'Panel designs' })).toContainText('coupon-b')
   await expect(page.getByText(/Source removed. Using pinned revision/)).toBeVisible()
   await page.getByRole('button', { name: 'Build preview', exact: true }).click()
-  await expect(page.getByRole('img', { name: 'Panel front preview' })).toBeVisible({ timeout: 40_000 })
+  await expect(page.getByRole('img', { name: 'Panel front preview' })).toBeVisible({ timeout: camResultTimeout })
   const zipEvent = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
   const zip = unzipSync(readFileSync((await (await zipEvent).path())!))
