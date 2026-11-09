@@ -5,6 +5,7 @@ export type PanelCamJob = {
   sources: { name: string; bounds: BoardPackage['bounds']; files: Record<string, string> }[]
   placements: PanelPlacement[]
   gap: number
+  rail: number
   copperLayers: number
 }
 type Point = [number, number]
@@ -14,6 +15,7 @@ export type PanelCamResult = {
   localOutlines: PanelRings[]
   boardOutlines: PanelRings[]
   bites: Point[]
+  biteDiameter: number
   bounds: [number, number, number, number]
   files: Record<string, string>
 }

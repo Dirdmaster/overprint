@@ -2,7 +2,7 @@ import type { BoardPackage } from '../boardPackage'
 import { makeManufacturingZip, placedPath, prepareFabrication, type InkPlacement } from '../manufacturingZip'
 import type { Composition } from '../project'
 import { buildPanelCam, type PanelRings } from './panelCam'
-import { assertPanelSize, panelBounds, type PanelPlacement } from './panelLayout'
+import { assertPanelSize, panelBounds, PANEL_RAIL, type PanelPlacement } from './panelLayout'
 
 const ringPath = (rings: PanelRings) => rings.map(ring => `M${ring.map(point => point.join(',')).join(' L')} Z`).join(' ')
 
@@ -16,7 +16,7 @@ export const buildPanel = async (name: string, projects: Composition[], placemen
   const copperLayers = fabrications[0]!.copperLayers
   if (fabrications.some(fab => fab.copperLayers !== copperLayers)) throw new Error('All designs must have the same number of copper layers.')
   const cam = await buildPanelCam({
-    copperLayers, gap, placements,
+    copperLayers, gap, placements, rail: PANEL_RAIL,
     sources: projects.map((project, i) => ({
       name: project.board.name,
       bounds: project.board.bounds,
@@ -24,9 +24,10 @@ export const buildPanel = async (name: string, projects: Composition[], placemen
     })),
   }, signal)
   const [x, y, right, bottom] = cam.bounds
+  const biteRadius = cam.biteDiameter / 2
   const biteHoles = ringPath(cam.bites.map(([cx, cy]) => Array.from({ length: 32 }, (_, i) => {
     const theta = i * 2 * Math.PI / 32
-    return [cx + .25 * Math.cos(theta), cy + .25 * Math.sin(theta)]
+    return [cx + biteRadius * Math.cos(theta), cy + biteRadius * Math.sin(theta)]
   })))
   const ink: InkPlacement[] = placements.map((placement, i) => ({
     ...placement,

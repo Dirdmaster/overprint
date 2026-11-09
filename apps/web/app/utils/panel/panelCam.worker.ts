@@ -19,6 +19,6 @@ self.onmessage = async ({ data }: MessageEvent<PanelCamJob>) => {
     send({ result: JSON.parse(result) })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    send({ error: message.match(/ValueError: ([^\r\n]+)/)?.[1] ?? 'The local panel fabrication engine failed to load or read these files.' })
+    send({ error: [...message.matchAll(/^ValueError: ([^\r\n]+)/gm)].at(-1)?.[1] ?? 'The local panel fabrication engine failed to load or read these files.' })
   }
 }

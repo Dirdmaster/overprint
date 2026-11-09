@@ -34,7 +34,11 @@ const captureColorKeys = async (page: Page) => {
 }
 
 type Sample = [number, number, number[]]
-const checkColor = async (page: Page, layer: Uint8Array, index: number, samples: Sample[]) => {
+const checkColor = async (page: Page, files: Record<string, Uint8Array>, index: number, samples: Sample[]) => {
+  const layer = index === 0 ? files['Fabrication_ColorfulTopSilkscreen.FCTS']! : files['Fabrication_ColorfulBottomSilkscreen.FCBS']!
+  const registration = strFromU8(files['Fabrication_ColorfulBoardOutlineMark.FCBM']!)
+  const gerberMarks = [...registration.matchAll(/^X(-?\d+)Y(-?\d+)D03\*$/gm)]
+    .flatMap(mark => [Number(mark[1]), Number(mark[2])].map(value => value / 100_000 / .254))
   const proof = await page.evaluate(async ({ layer, index, samples }) => {
     const { panelColorKeys, panelColorVectors } = window as unknown as {
       panelColorKeys: CryptoKey[]; panelColorVectors: Uint8Array[]
@@ -60,7 +64,8 @@ const checkColor = async (page: Page, layer: Uint8Array, index: number, samples:
       }),
     }
   }, { layer: [...layer], index, samples })
-  expect(proof.marks?.split(' ')).toHaveLength(6)
+  expect(gerberMarks).toHaveLength(6)
+  expect(proof.marks?.split(' ').map(Number)).toEqual(gerberMarks)
   expect(proof.pixels).toEqual(samples.map(sample => sample[2]))
 }
 
@@ -91,15 +96,16 @@ test('exports a repeated asymmetric panel directly from an Overprint project', a
   expect(files['Fabrication_ColorfulTopSilkscreen.FCTS']).toBeDefined()
   expect(files['Fabrication_ColorfulBottomSilkscreen.FCBS']).toBeDefined()
   const transparent = [0, 0, 0, 0], green = [21, 123, 48, 255], red = [168, 50, 50, 255]
-  await checkColor(page, files['Fabrication_ColorfulTopSilkscreen.FCTS']!, 0, [
+  await checkColor(page, files, 0, [
     [1, 1, transparent], [9.5, 11.5, green], [13.5, 14.5, transparent], [17, 14, red],
     [37, 11.5, green], [41, 14.5, transparent],
   ])
-  await checkColor(page, files['Fabrication_ColorfulBottomSilkscreen.FCBS']!, 1, [
+  await checkColor(page, files, 1, [
     [1, 1, transparent], [17.5, 11.5, green], [13.5, 14.5, transparent], [10, 14, red],
     [45, 11.5, green], [41, 14.5, transparent],
   ])
   expect(offOrigin.filter(url => url.includes('.whl') || url.includes('pyodide'))).toEqual([])
+
 })
 
 test('exports a mixed panel with one individually rotated saved board', async ({ page }, testInfo) => {
@@ -129,9 +135,9 @@ test('exports a mixed panel with one individually rotated saved board', async ({
   await build.click()
   await expect(page.getByRole('img', { name: 'Panel front preview' })).toBeVisible({ timeout: 40_000 })
   await expect(page.getByText(/72.50 × 46.00 mm.*2 copies.*2 designs/)).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath('mixed-front.png') })
+  await page.screenshot({ path: testInfo.outputPath('mixed-front.png'), fullPage: true })
   await page.getByRole('button', { name: /^back$/i }).click()
-  await page.screenshot({ path: testInfo.outputPath('mixed-back.png') })
+  await page.screenshot({ path: testInfo.outputPath('mixed-back.png'), fullPage: true })
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
   const zip = await download
@@ -143,10 +149,10 @@ test('exports a mixed panel with one individually rotated saved board', async ({
   expect(strFromU8(files['Gerber_TopSolderMaskLayer.GTS']!)).toContain('G36*')
   expect(strFromU8(files['Drill_PTH_Through.DRL']!)).toContain('X0057.000000Y-016.500000')
   const transparent = [0, 0, 0, 0], green = [21, 123, 48, 255], blue = [32, 76, 187, 255]
-  await checkColor(page, files['Fabrication_ColorfulTopSilkscreen.FCTS']!, 0, [
+  await checkColor(page, files, 0, [
     [1, 1, transparent], [9.5, 11.5, green], [57, 16.5, transparent], [60.5, 19.2, green], [53, 16.5, blue], [53, 14.5, transparent],
   ])
-  await checkColor(page, files['Fabrication_ColorfulBottomSilkscreen.FCBS']!, 1, [
+  await checkColor(page, files, 1, [
     [1, 1, transparent], [17.5, 11.5, green], [57, 16.5, transparent], [53, 19.2, green], [60.5, 16.5, blue], [53, 14.5, blue],
   ])
 })
