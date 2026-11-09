@@ -8,6 +8,16 @@ ENIG Live Paint adds a solder-mask opening for each gold region and clears the c
 
 Rear color PNGs face the back of the board, including pad and hole cutouts. The rear SVG reflects each image into native PCB coordinates and reflects the whole group back into the rear print orientation, following EasyEDA Pro. Inspect both sides in JLCPCB's Gerber Viewer.
 
+## Panels
+
+Choose **New panel** from Projects or **Create panel** in the editor. Select saved Overprint projects that include Gerbers and drills. A single design uses a rows-and-columns grid. Mixed panels let you set each design’s quantity and adjust the position or quarter-turn rotation of each copy.
+
+The builder checks the copper layer count and asks you to confirm the other fabrication settings for mixed designs. It supports two- and four-layer boards, up to 36 copies and ten designs. It adds 5 mm rails and routed gaps from 2 to 5 mm, with at least two breakaway connections per board. Each perforated edge has five 0.5 mm nonplated holes. Clearance checks may reject boards with copper, drilled features, or unsafe tab positions at a routed edge. Color ink stays within the original boards.
+
+Build the preview to check both sides. Save the panel to keep its placement and pinned artwork and fabrication revisions. You can review a newer source revision before applying it. Workspace backups include saved panels and their pinned files.
+
+At JLCPCB, select **Panel by Customer** and **EasyEDA multi-color silkscreen**. Set the number of distinct designs for mixed panels. This workflow exports bare-board fabrication files. [JLCPCB’s full-color settings](https://jlcpcb.com/help/article/how-to-design-multi-color-silkscreen-using-easyeda) · [JLCPCB’s panel capabilities](https://jlcpcb.com/capabilities/Capab)
+
 ## Size limits
 
 | Item | Limit |

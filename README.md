@@ -21,6 +21,7 @@ Your circuit stays in KiCad. Overprint handles the artwork.
 - Preview the board in 2D or with its 3D component models.
 - Sync board changes from KiCad while keeping your artwork.
 - Download a ZIP or send it to JLCPCB from the editor.
+- Build repeated or mixed bare-board panels from saved projects and export one full-color ZIP. [Panel fabrication](docs/export.md#panels)
 
 **Currently in alpha.** Expect rough edges. Physical print results still need validation; check both sides in JLCPCB’s Gerber Viewer before ordering. See [export details and limitations](docs/export.md).
 
