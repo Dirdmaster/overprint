@@ -276,7 +276,7 @@ const {
           class="text-sm text-muted"
           role="status"
         >
-          {{ notice }}
+          {{ notice.message }}
         </p>
       </section>
 

@@ -5,6 +5,7 @@ const { board, openBoard } = useComposition()
 const {
   initialized,
   status,
+  dismissStatus,
   open: openProjectFile,
   download,
   save,
@@ -161,9 +162,7 @@ const onDrop = (event: DragEvent) => {
       />
     </ProjectGallery>
     <div
-      v-if="
-        status && !['All changes saved', 'Project opened', 'Recovery copy saved'].includes(status)
-      "
+      v-if="status?.persistent"
       class="flex flex-wrap justify-center gap-2 p-2"
     >
       <button
@@ -180,8 +179,8 @@ const onDrop = (event: DragEvent) => {
       </button>
     </div>
     <ProjectStatusNotice
-      :message="status"
-      @dismiss="status = ''"
+      :message="status?.message ?? ''"
+      @dismiss="dismissStatus"
     />
     <ProjectFilePicker
       ref="projectPicker"

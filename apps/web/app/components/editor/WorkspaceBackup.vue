@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useWorkspaceNotice } from '~/composables/project/useWorkspaceNotice'
 import {
   exportWorkspaceBackup,
   prepareWorkspaceRestore,
@@ -9,7 +10,7 @@ const props = defineProps<{ flush: () => Promise<boolean> }>()
 const emit = defineEmits<{ restored: [] }>()
 const busy = ref(false)
 const error = ref('')
-const notice = ref('')
+const { notice, show: showNotice, dismiss: dismissNotice } = useWorkspaceNotice()
 const pending = shallowRef<PreparedWorkspaceBackup>()
 const report = (cause: unknown) => {
   error.value =
@@ -21,7 +22,7 @@ const download = async () => {
   if (busy.value) return
   busy.value = true
   error.value = ''
-  notice.value = ''
+  dismissNotice()
   try {
     if (!(await props.flush()))
       throw new Error('Save your recovery copy before exporting the workspace.')
@@ -45,7 +46,7 @@ const choose = async (event: Event) => {
   if (!file || busy.value) return
   busy.value = true
   error.value = ''
-  notice.value = ''
+  dismissNotice()
   pending.value = undefined
   try {
     pending.value = await prepareWorkspaceRestore(file)
@@ -64,7 +65,7 @@ const restore = async () => {
       throw new Error('Save your recovery copy before restoring a backup.')
     await restoreWorkspaceBackup(pending.value)
     pending.value = undefined
-    notice.value = 'Backup imported as copies. Existing work was kept.'
+    showNotice('Backup imported as copies. Existing work was kept.')
     emit('restored')
   } catch (cause) {
     report(cause)
@@ -143,7 +144,7 @@ const restore = async () => {
       role="status"
       class="mt-3 text-sm"
     >
-      {{ notice }}
+      {{ notice.message }}
     </p>
   </section>
 </template>

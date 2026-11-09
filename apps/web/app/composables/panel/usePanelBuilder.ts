@@ -18,6 +18,7 @@ import {
   type PanelSummary
 } from '~/utils/panel/panelStore'
 import { listProjects, loadProject, type WorkspaceProjectRecord } from '~/utils/workspaceStore'
+import { useWorkspaceNotice } from '../project/useWorkspaceNotice'
 
 export const usePanelBuilder = () => {
   const route = useRoute()
@@ -29,7 +30,7 @@ export const usePanelBuilder = () => {
   const savedPanelId = ref('')
   const savedRevision = ref(0)
   const panelName = ref('')
-  const notice = ref('')
+  const { notice, show: showNotice, dismiss: dismissNotice } = useWorkspaceNotice()
   const latestSource = (id: string) => workspace.value.find((record) => record.id === id)
   const sourceChanged = (design: PanelDesign) => {
     const latest = latestSource(design.record.id)
@@ -122,7 +123,7 @@ export const usePanelBuilder = () => {
     [designs, rows, columns, gap, adjusted, stackupConfirmed],
     () => {
       preview.value = undefined
-      notice.value = ''
+      dismissNotice()
       error.value = ''
     },
     { flush: 'sync' }
@@ -269,7 +270,7 @@ export const usePanelBuilder = () => {
       panelName.value = record.name
       savedPanelId.value = record.id
       savedRevision.value = record.revision
-      notice.value = t('panel.reopened')
+      showNotice(t('panel.reopened'))
     } catch (cause) {
       report(cause)
     } finally {
@@ -313,7 +314,7 @@ export const usePanelBuilder = () => {
       savedRevision.value = record.revision
       panelName.value = record.name
       await reloadWorkspace()
-      notice.value = t('panel.saved')
+      showNotice(t('panel.saved'))
     } catch (cause) {
       report(cause)
     } finally {
@@ -365,7 +366,7 @@ export const usePanelBuilder = () => {
     if (mixed.value) stackupConfirmed.value = refreshConfirmed.value
     preview.value = candidate.preview
     pending.value = undefined
-    notice.value = t('panel.revisionApplied')
+    showNotice(t('panel.revisionApplied'))
   }
 
   const download = async () => {
