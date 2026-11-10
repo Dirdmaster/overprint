@@ -53,14 +53,9 @@ jobs:
         if: steps.source.outputs.current == 'true'
         run: bun install --frozen-lockfile
       - name: Prepare versions and changelogs
+        id: prepare
         if: steps.source.outputs.current == 'true'
-        run: |
-          bun run version:packages
-          if git diff --quiet -- apps/web/package.json packages/kicad/package.json; then
-            # Empty notes alone must not create a PR. Present a clean tree to
-            # the PR action so it also closes any obsolete release PR.
-            git restore -- .changeset bun.lock
-          fi
+        run: bash scripts/prepare-release-pr.sh
       - name: Maintain the release PR
         id: release
         if: steps.source.outputs.current == 'true'
@@ -74,17 +69,10 @@ jobs:
             Combines reviewed changesets into package changelogs and independent versions.
 
             Review the changelogs, KiCad metadata, and required CI checks before merging.
-            After merge, a maintainer tags the release as described in docs/release.md.
-            The tag workflow verifies artifacts and creates a draft for publication review.
-            This PR does not publish packages or a GitHub release.
-          add-paths: |
-            .changeset/*.md
-            apps/web/package.json
-            apps/web/CHANGELOG.md
-            packages/kicad/package.json
-            packages/kicad/metadata.json
-            packages/kicad/CHANGELOG.md
-            bun.lock
+            After merge, a maintainer reviews the artifacts and tags each approved release
+            as described in docs/release.md. Web and KiCad tags create verified GitHub
+            drafts. Editor tags publish to npm after the editor checks pass.
+          add-paths: ${{ steps.prepare.outputs.paths }}
       - name: Run required CI on the generated PR
         if: steps.release.outputs.pull-request-number != '' && steps.release.outputs.pull-request-operation != 'closed'
         env:
