@@ -106,7 +106,7 @@ test('exports a repeated asymmetric panel directly from an Overprint project', a
   const files = unzipSync(readFileSync((await zip.path())!))
   expect(strFromU8(files['Gerber_TopLayer.GTL']!)).toContain('X0041000000Y-0014500000D03')
   expect(strFromU8(files['Drill_PTH_Through.DRL']!)).toContain('X0041.000000Y-014.500000')
-  expect(strFromU8(files['Drill_NPTH_Through.DRL']!)).toContain('C0000.500000')
+  expect(strFromU8(files['Drill_NPTH_Through.DRL']!)).toContain('C0000.600000')
   expect(files['Fabrication_ColorfulBoardOutlineMark.FCBM']).toBeDefined()
   expect(files['Fabrication_ColorfulTopSilkscreen.FCTS']).toBeDefined()
   expect(files['Fabrication_ColorfulBottomSilkscreen.FCBS']).toBeDefined()

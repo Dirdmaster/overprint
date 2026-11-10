@@ -22,8 +22,9 @@ RESOLUTION = .000001
 ARC_ERROR = .002
 OUTLINE_JOIN_TOLERANCE = .01
 TAB_WIDTH = 5
-BITE_DIAMETER = .5
-BITE_PITCH = .75
+BITE_DIAMETER = .60
+BITE_PITCH = .95
+BITE_MIN_WEB = .30
 BITE_OFFSET = .28
 BITE_CLEARANCE = .25
 SETTINGS = FileSettings(unit=MM, number_format=(4, 6))
@@ -260,6 +261,9 @@ def validate_tab(first, second, shapes, placements, existing_tabs, start, end, r
             break
         holes.extend(bites)
     else:
+        if any(a.distance(b) < BITE_DIAMETER + BITE_MIN_WEB + RESOLUTION
+               for a, b in combinations(holes, 2)):
+            return None
         return tab, holes
     return None
 

@@ -71,7 +71,7 @@ class PanelCamChecks(unittest.TestCase):
         self.assertEqual(len(bites), 10)
         self.assertTrue(all(substrate.contains(bite) and not placement.shape.covers(bite) for bite in bites))
         for row in (bites[:5], bites[5:]):
-            self.assertTrue(all(abs(a.distance(b) - .75) < .001 for a, b in pairwise(row)))
+            self.assertTrue(all(abs(a.distance(b) - .95) < .001 for a, b in pairwise(row)))
 
     def test_rejects_a_board_isolated_in_the_middle_of_a_panel(self):
         source = ({}, {}, box(0, 0, 20, 20), [])
@@ -89,7 +89,7 @@ class PanelCamChecks(unittest.TestCase):
         self.assertEqual(len(bites), 20)
         self.assertEqual({round(bite.y, 2) for bite in bites}, {-.28, 30.28})
         self.assertEqual({round(bite.x, 2) for bite in bites}, {
-            6.5, 7.25, 8, 8.75, 9.5, 14.5, 15.25, 16, 16.75, 17.5,
+            6.1, 7.05, 8, 8.95, 9.9, 14.1, 15.05, 16, 16.95, 17.9,
         })
 
     def test_controlled_tab_reports_the_copy_and_edge_when_rows_are_unsafe(self):
