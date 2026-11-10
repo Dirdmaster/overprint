@@ -71,6 +71,12 @@ const show = async () => {
   await refresh()
   await thumbnails()
 }
+onMounted(async () => {
+  if (new URLSearchParams(window.location.search).get('library') === '1') {
+    await show()
+    window.history.replaceState(window.history.state, '', window.location.pathname)
+  }
+})
 const saveSelection = async (asset?: LibraryAsset) => {
   await save(asset?.name ?? name.value, captureIds.value, asset)
   await thumbnails()

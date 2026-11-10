@@ -16,12 +16,23 @@ export const useProjectStorage = () => {
   let blocked = false
   let timer: ReturnType<typeof setTimeout> | undefined
   let queue = Promise.resolve(true)
+  let leavingAfterSave = false
   const refresh = async () => { projects.value = (await listProjects()).sort((a, b) => b.updatedAt - a.updatedAt) }
   const snapshot = (): Composition => JSON.parse(JSON.stringify({ version: 1, board: board.value!, artwork: items.value, side: side.value, silk: silk.value, mask: maskColor.value, fabrication: components.value }))
   const apply = (p: Composition) => {
     applying = true
     board.value = p.board; items.value = p.artwork; side.value = p.side; silk.value = p.silk; maskColor.value = p.mask; components.value = p.fabrication
     selection.value = null; past.value = []; future.value = []
+    applying = false
+  }
+  const clearActive = () => {
+    applying = true
+    active.value = undefined
+    board.value = undefined
+    items.value = []
+    selection.value = null
+    past.value = []
+    future.value = []
     applying = false
   }
   const report = (error: unknown) => {
@@ -48,6 +59,11 @@ export const useProjectStorage = () => {
       } catch (error) { blocked = true; report(error); return false }
     })
     return queue
+  }
+  const leaveSaved = async () => {
+    if (!(await save())) return false
+    leavingAfterSave = true
+    return true
   }
   const activate = async (record: WorkspaceProjectRecord) => {
     const value = await parseProject(record.composition)
@@ -100,7 +116,7 @@ export const useProjectStorage = () => {
       if (!record) return
       await deleteProject(id, record.revision)
       if (active.value?.id === id) {
-        active.value = undefined; applying = true; board.value = undefined; items.value = []; selection.value = null; past.value = []; future.value = []; applying = false
+        clearActive()
         await setWorkspaceMeta('activeProjectId', undefined)
       }
       await refresh()
@@ -142,6 +158,7 @@ export const useProjectStorage = () => {
         record = migratedId ? await loadProject(migratedId) : undefined
       }
       if (record) await activate(record)
+      else clearActive()
       await refresh()
     } catch {
       blocked = true
@@ -154,6 +171,6 @@ export const useProjectStorage = () => {
     if (!initialized.value || blocked || applying) return
     clearTimeout(timer); timer = setTimeout(() => void save(), 250)
   }, { deep: true, flush: 'sync' })
-  onBeforeUnmount(() => { void save(); clearTimeout(timer); window.removeEventListener('keydown', keyboard); window.removeEventListener('pagehide', flush) })
-  return { initialized, status, dismissStatus, projects, active, busy, refresh, openSaved, rename, duplicate, remove, recover, open, download, save }
+  onBeforeUnmount(() => { if (!leavingAfterSave) void save(); clearTimeout(timer); window.removeEventListener('keydown', keyboard); window.removeEventListener('pagehide', flush) })
+  return { initialized, status, dismissStatus, projects, active, busy, refresh, openSaved, rename, duplicate, remove, recover, open, download, save, leaveSaved }
 }
