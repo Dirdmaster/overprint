@@ -1,6 +1,6 @@
 {
   "name": "@overprint/editor",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0",
   "type": "module",
   "license": "MIT",
   "description": "Embeddable PCB artwork editor with customizable components for React, Vue, Next.js, Nuxt, and vanilla JavaScript.",
