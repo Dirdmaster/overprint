@@ -590,6 +590,28 @@ def checked_substrate(shapes, tabs):
     return substrate
 
 
+def round_routing_corners(outline, placements, radius):
+    native_cutouts = STRtree([
+        Polygon(ring) for placement in placements for ring in placement.shape.interiors
+    ])
+    openings = []
+    for ring in outline.interiors:
+        opening = Polygon(ring)
+        if len(native_cutouts.query(opening.representative_point(), predicate="within")):
+            openings.append(ring)
+            continue
+        # Sweep a circular cutter over its reachable center path. Keep a small
+        # tolerance so it can travel along a channel exactly one tool wide.
+        center_path = opening.buffer(-radius + min(ARC_ERROR, radius / 2), quad_segs=32)
+        if center_path.is_empty or center_path.geom_type != "Polygon":
+            raise ValueError("The routing radius is too large for a panel channel. Reduce the radius or increase spacing.")
+        swept = set_precision(opening.intersection(center_path.buffer(radius, quad_segs=32)), RESOLUTION)
+        if swept.geom_type != "Polygon" or swept.is_empty or swept.interiors:
+            raise ValueError("The routing radius is too large for a panel channel. Reduce the radius or increase spacing.")
+        openings.append(swept.exterior)
+    return Polygon(outline.exterior, openings)
+
+
 def rings(polygon):
     return [[list(p) for p in ring.coords] for ring in [polygon.exterior, *polygon.interiors]]
 
@@ -609,6 +631,9 @@ def build_panel(job):
         Placement(sources[p["source"]], {**p, "name": f'{job["sources"][p["source"]]["name"]} (copy {i + 1})'})
         for i, p in enumerate(job["placements"])]
     outline, bites = make_profile(placements, job["gap"], job["rail"], job.get("tabs"))
+    routing_radius = job.get("routingRadius", 0)
+    if routing_radius:
+        outline = round_routing_corners(outline, placements, routing_radius)
     layers, drills = {}, {}
     for index, placement in enumerate(placements):
         for name, data in placement.source[0].items():

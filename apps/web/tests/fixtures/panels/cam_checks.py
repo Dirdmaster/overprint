@@ -123,6 +123,29 @@ class PanelCamChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"Stepped board: cannot place right tab 1 safely"):
             make_profile([board], 2.5, 5, {"edges": ["right"], "count": 2})
 
+    def test_rounds_tab_shoulders_without_changing_native_cutouts(self):
+        slot = box(8, 8, 12, 8.8)
+        source = ({}, {}, box(0, 0, 20, 20).difference(slot), [])
+        board = Placement(source, {"name": "Slotted board", "x": 0, "y": 0, "rotation": 0})
+        square, bites = make_profile([board], 2, 5, {"edges": ["left", "right"], "count": 1})
+        rounded = round_routing_corners(square, [board], 1)
+        self.assertTrue(rounded.is_valid)
+        self.assertEqual(rounded.bounds, square.bounds)
+        self.assertEqual(len(rounded.interiors), len(square.interiors))
+        self.assertTrue(any(Polygon(ring).equals(slot) for ring in rounded.interiors))
+        self.assertTrue(rounded.covers(board.shape))
+        self.assertTrue(all(rounded.covers(bite) for bite in bites))
+        shoulder = Point(-.1, 7.45)
+        self.assertFalse(square.covers(shoulder))
+        self.assertTrue(rounded.covers(shoulder))
+        self.assertFalse(rounded.covers(Point(-1, 5)))
+
+    def test_rounding_rejects_a_route_that_would_split_at_a_pinch(self):
+        opening = box(2, 2, 6, 6).union(box(6, 3, 8, 4)).union(box(8, 2, 12, 6))
+        outline = box(0, 0, 14, 8).difference(opening)
+        with self.assertRaisesRegex(ValueError, "routing radius is too large"):
+            round_routing_corners(outline, [], 1)
+
     def test_optimized_tabs_share_one_bridge_and_use_opposing_supports(self):
         source = ({}, {}, box(0, 0, 25, 44), [])
         boards = [Placement(source, {"name": f"Board {i}", "x": x, "y": 0, "rotation": 0})

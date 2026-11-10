@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MAX_PANEL_COPIES, MAX_PANEL_DESIGNS } from '~/utils/panel/panelLayout'
+import { MAX_PANEL_COPIES, MAX_PANEL_DESIGNS, MAX_ROUTING_RADIUS } from '~/utils/panel/panelLayout'
 
 definePageMeta({ layout: false })
 
@@ -20,6 +20,7 @@ const {
   error,
   fabricationError,
   gap,
+  routingRadius,
   layout,
   mixed,
   newPanel,
@@ -201,6 +202,18 @@ const {
               max="5"
               step="0.1"
             />
+          </label>
+          <label class="grid gap-1 text-sm">
+            {{ $t('panel.routingRadius') }}
+            <input
+              v-model.number="routingRadius"
+              class="rounded-md border border-line p-2"
+              type="number"
+              min="0"
+              :max="MAX_ROUTING_RADIUS"
+              step="0.1"
+            />
+            <span class="text-xs text-muted">{{ $t('panel.routingRadiusHint') }}</span>
           </label>
           <label
             v-if="mixed && !fabricationError"

@@ -134,6 +134,7 @@ test('exports a mixed panel with one individually rotated saved board', async ({
   await page.getByLabel('Add saved project').selectOption({ label: 'coupon-a' })
   await page.getByLabel('Add saved project').selectOption({ label: 'coupon-b' })
   await page.getByLabel('coupon-a copies', { exact: true }).fill('1')
+  await page.getByLabel('Routing radius (mm)').fill('1')
   const downloadButton = page.getByRole('button', { name: 'Download ZIP', exact: true })
   await expect(downloadButton).toBeDisabled()
   await page.getByRole('checkbox', { name: /same board material/ }).check()
@@ -149,6 +150,8 @@ test('exports a mixed panel with one individually rotated saved board', async ({
   await expect(downloadButton).toBeEnabled({ timeout: camResultTimeout })
   await expect(page.getByRole('img', { name: 'Panel front preview' }).locator('use')).toHaveCount(2)
   await expect(page.getByText(/72.50 × 46.00 mm.*2 copies.*2 designs/)).toBeVisible()
+  const routedOutline = await page.getByRole('img', { name: 'Panel front preview' })
+    .locator('mask path[fill="white"]').getAttribute('d')
   await page.screenshot({ path: testInfo.outputPath('mixed-front.png'), fullPage: true })
   await page.getByRole('button', { name: /^back$/i }).click()
   await expect(page.getByRole('img', { name: 'Panel back preview' }).locator('use')).toHaveCount(2)
@@ -158,6 +161,12 @@ test('exports a mixed panel with one individually rotated saved board', async ({
   const zip = await download
   await zip.saveAs(testInfo.outputPath('mixed-panel.zip'))
   const files = unzipSync(readFileSync((await zip.path())!))
+  const gerber = strFromU8(files['Gerber_BoardOutlineLayer.GKO']!)
+  const exported = [...gerber.matchAll(/^X(-?\d+)Y(-?\d+)D0[12]\*$/gm)]
+    .map(([, x, y]) => [Number(x), -Number(y) || 0])
+  const preview = [...routedOutline!.matchAll(/[ML](-?[\d.]+),(-?[\d.]+)/g)]
+    .map(([, x, y]) => [Math.round(Number(x) * 1e6), Math.round(Number(y) * 1e6)])
+  expect(exported).toEqual(preview)
   expect(strFromU8(files['Gerber_TopLayer.GTL']!)).toContain('X0057000000Y-0016500000D03')
   expect(strFromU8(files['Gerber_TopSolderMaskLayer.GTS']!)).toContain('X0057000000Y-0016500000D03')
   expect(strFromU8(files['Gerber_TopLayer.GTL']!)).toContain('G36*')
@@ -297,18 +306,20 @@ test('restores panel edge exclusions from a backup and exports the tab rows show
   expect(centersMatch).toBe(true)
 })
 
-test('reopens optimized tabs and exports one shared side bridge', async ({ page }) => {
+test('reopens rounded routing and exports one shared side bridge', async ({ page }) => {
   await page.goto('/')
   await importCoupon(page, 'coupon-a')
   await page.getByRole('button', { name: 'Create panel', exact: true }).click()
   await page.getByRole('checkbox', { name: 'Choose tab edges' }).check()
   await page.getByRole('checkbox', { name: 'Optimize tabs' }).check()
+  await page.getByLabel('Routing radius (mm)').fill('1')
   await page.getByRole('textbox', { name: 'Panel name' }).fill('Optimized sides')
   await page.getByRole('button', { name: 'Save panel', exact: true }).click()
   await expect(page.getByRole('status')).toContainText('Panel saved')
   await page.reload()
   await page.getByRole('combobox', { name: 'Open saved panel' }).selectOption({ label: 'Optimized sides' })
   await expect(page.getByRole('checkbox', { name: 'Optimize tabs' })).toBeChecked()
+  await expect(page.getByLabel('Routing radius (mm)')).toHaveValue('1')
   const download = page.getByRole('button', { name: 'Download ZIP' })
   await expect(download).toBeEnabled({ timeout: camResultTimeout })
   const event = page.waitForEvent('download')

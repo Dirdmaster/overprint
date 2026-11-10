@@ -6,6 +6,7 @@ export type PanelCamJob = {
   placements: PanelPlacement[]
   gap: number
   rail: number
+  routingRadius: number
   copperLayers: number
   tabs?: PanelTabs
 }
