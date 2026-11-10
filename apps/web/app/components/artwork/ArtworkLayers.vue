@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { useLayerDrag } from '../../composables/artwork/useLayerDrag'
 import { useArtwork } from '../../composables/artwork/useArtwork'
+import TextInspector from './TextInspector.vue'
+import DrawingInspector from './DrawingInspector.vue'
 import ArtworkAlignment from './ArtworkAlignment.vue'
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   Eye,
   EyeOff,
+  LockKeyhole,
+  LockKeyholeOpen,
   Trash2,
   ArrowUp,
   ArrowDown,
@@ -16,7 +20,7 @@ import {
   ChevronDown,
   ChevronRight
 } from '@lucide/vue'
-import { artworkRows } from '../../utils/artwork'
+import { artworkRows, readArtwork } from '../../utils/artwork'
 import type { AlignmentBounds } from '../../utils/artworkAlignment'
 const props = defineProps<{ side: string; bounds: AlignmentBounds }>()
 const {
@@ -32,7 +36,8 @@ const {
   undo,
   redo,
   reparent,
-  descendants
+  descendants,
+  protectedSubtree
 } = useArtwork()
 const { dragging, dropTarget, start, over, drop, clear, leave } = useLayerDrag()
 watch(() => props.side, clear)
@@ -48,6 +53,40 @@ const current = computed(() =>
     ? layers.value.find((item) => item.id === selection.value)
     : undefined
 )
+const replaceableGraphic = computed(() => {
+  const item = current.value
+  return item && !item.kind && !item.drawing && !item.library && !item.gold ? item : undefined
+})
+const replacementPicker = ref<HTMLInputElement | null>(null)
+const replacementError = ref('')
+const replaceGraphic = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  const target = replaceableGraphic.value
+  if (!file || !target) return
+  replacementError.value = ''
+  try {
+    const replacement = await readArtwork(file)
+    if (!items.value.includes(target) || selection.value !== target.id)
+      throw new Error('The selected artwork changed. Select it and try again.')
+    const width = Math.min(target.width, target.height * replacement.ratio)
+    const height = width / replacement.ratio
+    edit(target.id, {
+      source: replacement.source,
+      x: target.x + (target.width - width) / 2,
+      y: target.y + (target.height - height) / 2,
+      width,
+      height
+    })
+  } catch (cause) {
+    replacementError.value = cause instanceof Error ? cause.message : 'Unable to replace graphic.'
+  } finally {
+    input.value = ''
+  }
+}
+watch(current, () => {
+  replacementError.value = ''
+})
 const destinations = computed(() =>
   layers.value.filter(
     (item) =>
@@ -81,13 +120,14 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
       No artwork yet
     </p>
     <div
-      v-for="{ item, depth } in rows"
+      v-for="{ item, depth, locked, inheritedLock } in rows"
       :key="item.id"
       :data-layer-row="item.id"
       class="relative flex items-center gap-2 rounded-md p-1"
       :style="{ paddingLeft: `${depth * 12 + 4}px` }"
       :class="[
         selectionIds.includes(item.id) ? 'bg-soft' : '',
+        locked ? 'text-muted' : '',
         dragging === item.id ? 'opacity-40' : '',
         dropTarget?.id === item.id && dropTarget.position === 'inside'
           ? 'bg-soft ring-2 ring-inset ring-accent'
@@ -116,6 +156,23 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
         />
       </button>
       <button
+        class="rounded p-1 text-muted hover:bg-soft disabled:cursor-not-allowed disabled:opacity-60"
+        :aria-label="
+          inheritedLock
+            ? `${item.name} locked by parent`
+            : `${item.locked ? 'Unlock' : 'Lock'} ${item.name}`
+        "
+        :aria-pressed="locked"
+        :title="inheritedLock ? 'Locked by parent' : item.locked ? 'Unlock layer' : 'Lock layer'"
+        :disabled="inheritedLock"
+        @click="edit(item.id, { locked: !item.locked })"
+      >
+        <component
+          :is="locked ? LockKeyhole : LockKeyholeOpen"
+          class="size-4"
+        />
+      </button>
+      <button
         v-if="item.kind"
         class="text-muted"
         :aria-label="`${item.collapsed ? 'Expand' : 'Collapse'} ${item.name}`"
@@ -133,8 +190,13 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
       />
       <button
         class="min-w-0 flex-1 truncate py-2 text-left"
-        draggable="true"
-        title="Drag to reorder or move into a folder"
+        :draggable="!protectedSubtree(item.id)"
+        :title="
+          protectedSubtree(item.id)
+            ? 'Locked artwork cannot move'
+            : 'Drag to reorder or move into a folder'
+        "
+        :disabled="locked"
         :aria-pressed="selectionIds.includes(item.id)"
         @dragstart="start($event, item)"
         @dragend="clear"
@@ -145,6 +207,7 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
       <button
         class="p-1 text-muted"
         :aria-label="`Delete ${item.name}`"
+        :disabled="protectedSubtree(item.id)"
         @click="remove(item.id)"
       >
         <Trash2 class="size-4" />
@@ -218,6 +281,7 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
         Move to
         <select
           aria-label="Move to"
+          :disabled="!!current.library"
           :value="current.parentId ?? ''"
           class="rounded bg-soft p-2 text-ink"
           @change="reparent(current.id, ($event.target as HTMLSelectElement).value || undefined)"
@@ -233,6 +297,51 @@ const numeric = (key: 'x' | 'y' | 'width' | 'height' | 'rotation', event: Event)
         </select>
       </label>
     </div>
+    <div
+      v-if="replaceableGraphic"
+      class="mt-3"
+    >
+      <button
+        class="rounded bg-soft px-3 py-2 text-ink"
+        @click="replacementPicker?.click()"
+      >
+        Replace SVG
+      </button>
+      <input
+        ref="replacementPicker"
+        type="file"
+        accept=".svg,image/svg+xml"
+        aria-label="Choose replacement SVG"
+        class="hidden"
+        @change="replaceGraphic"
+      />
+      <p class="mt-1 text-xs text-muted">
+        Keeps the graphic centered in its current space, with its rotation and layer.
+      </p>
+      <p
+        v-if="replacementError"
+        role="alert"
+        class="mt-2 text-sm text-red-600"
+      >
+        {{ replacementError }}
+      </p>
+    </div>
+    <p
+      v-else-if="current?.library"
+      class="mt-3 text-xs text-muted"
+    >
+      This graphic is linked to a library composition. Update the library or detach this instance
+      before replacing its SVG.
+    </p>
+    <TextInspector
+      v-if="current?.drawing?.type === 'text'"
+      :key="current.id"
+      :item="current"
+    />
+    <DrawingInspector
+      v-if="current?.drawing?.type === 'shape'"
+      :item="current"
+    />
     <ArtworkAlignment
       :bounds="bounds"
       :side="side"

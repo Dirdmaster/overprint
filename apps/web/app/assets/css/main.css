@@ -2,7 +2,6 @@
 
 @theme inline {
   --font-sans: 'Inter', sans-serif;
-  --font-geist: 'Geist', sans-serif;
   --color-weavers: #30382d;
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);

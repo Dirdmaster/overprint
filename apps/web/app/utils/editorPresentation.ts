@@ -1,6 +1,7 @@
+import type { CanvasTool } from './drawing'
 /** Presentation props. Hidden controls do not disable controller actions or shortcuts. */
 export type EditorPresentation = {
-  tools?: ('select' | 'hand' | 'paint')[]
+  tools?: (CanvasTool)[]
   orientation?: 'horizontal' | 'vertical'
   showShortcuts?: boolean
   presets?: { name: string; color: string }[]

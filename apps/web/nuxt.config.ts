@@ -11,16 +11,17 @@ export default defineNuxtConfig({
     defaultLocale: 'en',
     strategy: 'no_prefix',
     detectBrowserLanguage: false,
-    locales: [{ code: 'en', language: 'en', name: 'English', files: ['en/common.json', 'en/editor.json', 'en/kicad.json', 'en/export.json'] }],
+    locales: [{ code: 'en', language: 'en', name: 'English', files: ['en/common.json', 'en/editor.json', 'en/kicad.json', 'en/export.json', 'en/panel.json'] }],
   },
   // Feature folders organize files; existing component names stay unprefixed.
   components: [{ path: '~/components', pathPrefix: false }],
-  css: ['~/assets/css/main.css', '@fontsource/inter/400.css', '@fontsource/inter/500.css', '@fontsource/inter/600.css', '@fontsource/geist/600.css'],
+  css: ['~/assets/css/main.css', '@fontsource/inter/400.css', '@fontsource/inter/500.css', '@fontsource/inter/600.css'],
   vite: {
     plugins: [tailwindcss()],
     // Worker-only dependencies must be ready before the first PCB drop;
     // late discovery otherwise reloads the editor and interrupts extraction.
-    optimizeDeps: { include: ['clipper-lib'] },
+    optimizeDeps: { include: ['clipper-lib', 'fzstd'] },
+    worker: { format: 'es' },
   },
   devtools: { enabled: false },
   nitro: {
@@ -31,6 +32,7 @@ export default defineNuxtConfig({
     } : {}),
   },
   runtimeConfig: {
+    googleFontsApiKey: '',
     public: {
       sourceDownload: existsSync(new URL('./public/downloads/overprint-source.zip', import.meta.url)),
       guideScreenshots: ['settings', 'multicolor', 'open-viewer', 'viewer'].every(name => existsSync(new URL(`./public/guides/jlcpcb/${name}.png`, import.meta.url))),

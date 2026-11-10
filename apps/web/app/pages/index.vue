@@ -2,21 +2,62 @@
 // Own the layout here so editor-only drop events stay with the page's dialogs.
 definePageMeta({ layout: false })
 const { board, openBoard } = useComposition()
-const { status, open: openProjectFile, download } = useProjectStorage()
+const {
+  initialized,
+  status,
+  dismissStatus,
+  open: openProjectFile,
+  download,
+  save,
+  projects,
+  active,
+  busy,
+  refresh,
+  openSaved,
+  rename,
+  duplicate,
+  remove,
+  recover
+} = useProjectStorage()
+const gallery = useTemplateRef('gallery')
+const createPanel = async (useCurrent = false) => {
+  if (!(await save())) return
+  const project = useCurrent ? active.value?.id : undefined
+  await navigateTo({ path: '/panel', query: { project } })
+}
+const showProjects = async () => {
+  await save()
+  await refresh()
+  gallery.value?.show()
+}
+const selectProject = async (id: string) => {
+  if (await openSaved(id)) {
+    syncDialog.value?.disconnect()
+    gallery.value?.close()
+  }
+}
 const importer = useTemplateRef('importer')
 const jlcExport = useTemplateRef('jlcExport')
 const syncDialog = useTemplateRef('syncDialog')
 const projectPicker = useTemplateRef('projectPicker')
 const replacement = useTemplateRef('replacement')
-const confirmReplacement = async () => !board.value || (await replacement.value?.show()) === true
+const confirmReplacement = async () =>
+  (!board.value || (await replacement.value?.show()) === true) && (await save())
+let keepArtwork = false
+const confirmImport = async () => {
+  keepArtwork = false
+  if (!board.value) return true
+  const choice = await replacement.value?.show(true)
+  keepArtwork = choice === 'update'
+  return (choice === true || keepArtwork) && (await save())
+}
 const acceptImport = (imported: Parameters<typeof openBoard>[0]) => {
   syncDialog.value?.disconnect()
-  openBoard(imported)
+  if (keepArtwork) board.value = imported
+  else openBoard(imported)
+  keepArtwork = false
 }
-const ready = ref(false)
-onMounted(() => {
-  ready.value = true
-})
+const ready = computed(() => initialized.value)
 
 const openImport = (setup = false, trigger?: HTMLElement) => {
   importer.value?.show(setup, trigger)
@@ -25,9 +66,14 @@ const openProject = () => {
   projectPicker.value?.show()
 }
 const onDrop = (event: DragEvent) => {
-  if (!event.dataTransfer?.files.length) return
+  const files = event.dataTransfer?.files
+  if (!files?.length) return
+  if (files.length === 1 && /\.overprint$/i.test(files[0]!.name)) {
+    void openProjectFile(files[0]!)
+    return
+  }
   openImport()
-  importer.value?.receiveFiles(event.dataTransfer.files)
+  importer.value?.receiveFiles(files)
 }
 </script>
 
@@ -41,6 +87,8 @@ const onDrop = (event: DragEvent) => {
   >
     <EditorHeader
       v-if="board"
+      @projects="showProjects"
+      @panel="createPanel(true)"
       @import="openImport()"
       @save="download"
       @open-project="openProject"
@@ -64,7 +112,15 @@ const onDrop = (event: DragEvent) => {
         />
         <AlphaBadge />
       </div>
-      <ThemeToggle />
+      <div class="flex items-center gap-2">
+        <button
+          class="header-action"
+          @click="showProjects"
+        >
+          Projects
+        </button>
+        <ThemeToggle />
+      </div>
     </header>
     <main
       class="relative flex min-h-0 flex-1"
@@ -87,9 +143,44 @@ const onDrop = (event: DragEvent) => {
         @open-project="openProject"
       />
     </main>
+    <ProjectGallery
+      ref="gallery"
+      :projects="projects"
+      :active-id="active?.id"
+      :busy="busy"
+      @open="selectProject"
+      @rename="rename"
+      @duplicate="duplicate"
+      @remove="remove"
+      @import="openProject"
+      @new="openImport()"
+      @panel="createPanel()"
+    >
+      <WorkspaceBackup
+        :flush="save"
+        @restored="refresh"
+      />
+    </ProjectGallery>
+    <div
+      v-if="status?.persistent"
+      class="flex flex-wrap justify-center gap-2 p-2"
+    >
+      <button
+        class="header-action"
+        @click="download"
+      >
+        Download recovery project
+      </button>
+      <button
+        class="header-action"
+        @click="recover"
+      >
+        Save recovery copy
+      </button>
+    </div>
     <ProjectStatusNotice
-      :message="status"
-      @dismiss="status = ''"
+      :message="status?.message ?? ''"
+      @dismiss="dismissStatus"
     />
     <ProjectFilePicker
       ref="projectPicker"
@@ -106,8 +197,9 @@ const onDrop = (event: DragEvent) => {
     />
     <ImportBoardDialog
       ref="importer"
-      :confirm-replacement="confirmReplacement"
+      :confirm-replacement="confirmImport"
       @imported="acceptImport"
+      @project-selected="openProjectFile"
     />
   </NuxtLayout>
 </template>

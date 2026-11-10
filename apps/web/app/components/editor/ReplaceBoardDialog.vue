@@ -2,9 +2,10 @@
 import { Download } from '@lucide/vue'
 defineEmits<{ save: [] }>()
 const dialog = useTemplateRef('dialog')
-let resolve: ((accepted: boolean) => void) | undefined
+const allowUpdate = ref(false)
+let resolve: ((accepted: boolean | 'update') => void) | undefined
 let returnFocus: HTMLElement | undefined
-const finish = (accepted = false) => {
+const finish = (accepted: boolean | 'update' = false) => {
   const pending = resolve
   if (!pending) return
   resolve = undefined
@@ -12,10 +13,11 @@ const finish = (accepted = false) => {
   returnFocus?.focus()
   pending(accepted)
 }
-const show = () => {
+const show = (update = false) => {
   if (resolve) return Promise.resolve(false)
+  allowUpdate.value = update
   returnFocus = document.activeElement as HTMLElement
-  return new Promise<boolean>((done) => {
+  return new Promise<boolean | 'update'>((done) => {
     resolve = done
     dialog.value?.showModal()
   })
@@ -43,7 +45,11 @@ defineExpose({ show })
       id="replace-board-description"
       class="mt-4 text-sm leading-relaxed text-muted"
     >
-      {{ $t('editor.replaceBoard.description') }}
+      {{
+        $t(
+          allowUpdate ? 'editor.replaceBoard.updateDescription' : 'editor.replaceBoard.description'
+        )
+      }}
     </p>
     <div class="mt-6 flex flex-wrap justify-end gap-2">
       <button
@@ -59,6 +65,13 @@ defineExpose({ show })
         @click="finish()"
       >
         {{ $t('editor.replaceBoard.cancel') }}
+      </button>
+      <button
+        v-if="allowUpdate"
+        class="header-action"
+        @click="finish('update')"
+      >
+        {{ $t('editor.replaceBoard.update') }}
       </button>
       <button
         class="primary-button"

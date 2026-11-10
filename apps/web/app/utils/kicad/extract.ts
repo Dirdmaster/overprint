@@ -14,3 +14,20 @@ export const extractKicadBoard = (text: string, filename: string): BoardPackage 
   collectBoardItems(board, geometry)
   return geometry.finish(filename)
 }
+
+/** Model conversion is optional: publish geometry first so its timeout can fall back safely. */
+export const extractKicadBoardWithModels = async (text: string, filename: string, onGeometry: (board: BoardPackage) => void, reader?: import('./stepModels.ts').StepReader): Promise<BoardPackage> => {
+  const result = extractKicadBoard(text, filename)
+  onGeometry(result)
+  const { importEmbeddedModels } = await import('./embeddedModels.ts')
+  try {
+    result.models = await importEmbeddedModels(parseSExpr(text), reader)
+  } catch (error) {
+    result.browserImport!.warnings.push(error instanceof Error ? error.message : 'Unable to read embedded models.')
+  }
+  if (new TextEncoder().encode(JSON.stringify(result)).length > 15_000_000) {
+    delete result.models
+    result.browserImport!.warnings.push('Component models were omitted because the imported project exceeds the 15 MB limit.')
+  }
+  return result
+}

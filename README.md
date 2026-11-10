@@ -13,11 +13,15 @@ Your circuit stays in KiCad. Overprint handles the artwork.
 ## What you can do
 
 - Place SVG artwork on either side of your board.
+- Draw editable shapes and outlined text with a searchable Google Fonts catalogue.
+- Organize named local projects in a gallery and back up projects and libraries together.
 - Paint silkscreen regions and artwork with Live Paint.
 - Arrange designs with layers, folders and alignment tools.
+- Save reusable front/back compositions as linked instances or editable copies. See [artwork libraries](docs/artwork-libraries.md).
 - Preview the board in 2D or with its 3D component models.
 - Sync board changes from KiCad while keeping your artwork.
 - Download a ZIP or send it to JLCPCB from the editor.
+- Build repeated or mixed bare-board panels from saved projects and export one full-color ZIP. [Panel fabrication](docs/export.md#panels)
 
 **Currently in alpha.** Expect rough edges. Physical print results still need validation; check both sides in JLCPCB’s Gerber Viewer before ordering. See [export details and limitations](docs/export.md).
 
@@ -44,7 +48,7 @@ Open **http://127.0.0.1:4317**.
 
 The [setup guide](https://overprint.ink/setup) includes a screenshot and a manual ZIP fallback.
 
-You can also **drop a `.kicad_pcb` file into Overprint** or select it through **Import PCB**. It is processed entirely in your browser, without a plugin or upload. See [browser import support and limits](docs/browser-pcb-import.md). Native manufacturing files and assembled 3D models still require the plugin.
+You can also **drop a `.kicad_pcb` file into Overprint** or select it through **Import PCB**. It is processed entirely in your browser, without a plugin or upload. See [browser import support and limits](docs/browser-pcb-import.md). For assembled previews, use **Tools → Collect and Embed 3D Models** in KiCad 10, save the PCB, then import it. Embedded STEP/STP and static WRL models are processed locally. Native manufacturing files still require the plugin.
 
 You can also export a file with **Tools → External Plugins → Export to Overprint** and import it manually.
 
@@ -52,7 +56,7 @@ The [KiCad plugin guide](packages/kicad/README.md) covers live sync and 3D model
 
 ## Your files stay yours
 
-Projects autosave in your browser. Download a `.overprint` project to keep a backup or move it to another browser.
+Named projects autosave in your browser. Download a `.overprint` project, or use **Projects → Export everything** to back up projects and libraries together. See the [local workspace guide](docs/local-workspace.md) for drawing tools, restore behavior and storage limits.
 
 There’s no account or cloud project storage. **Download ZIP** stays local. **Send ZIP** sends your manufacturing files to JLCPCB through a relay; in standalone mode, that relay runs on your own machine. [More about privacy](docs/privacy.md).
 
