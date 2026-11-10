@@ -1,6 +1,6 @@
 import { parseProject, type Composition } from '../project'
 import { openWorkspaceDatabase, type WorkspaceProjectRecord } from '../workspaceStore'
-import { layoutPanel, MAX_PANEL_COPIES, MAX_PANEL_DESIGNS, ROTATIONS, validPanelTabs, validRoutingRadius, validTabEdges, type PanelPlacement, type PanelTabs } from './panelLayout'
+import { FIDUCIAL_SIDES, layoutPanel, MAX_PANEL_COPIES, MAX_PANEL_DESIGNS, ROTATIONS, validPanelTabs, validRoutingRadius, validTabEdges, type FiducialSide, type PanelPlacement, type PanelTabs } from './panelLayout'
 
 export const MAX_SAVED_PANELS = 100
 const MAX_PANEL_BYTES = 80_000_000
@@ -17,6 +17,7 @@ export type PanelRecord = {
   columns: number
   gap: number
   routingRadius?: number
+  fiducialSide?: FiducialSide
   tabs?: PanelTabs
   stackupConfirmed: boolean
   designs: PinnedDesign[]
@@ -38,6 +39,7 @@ export const readPanel = async (value: unknown): Promise<{ record: PanelRecord; 
       !positiveInteger(panel.revision) || !Number.isSafeInteger(panel.updatedAt) || panel.updatedAt < 0 ||
       !positiveInteger(panel.rows) || panel.rows > MAX_PANEL_COPIES || typeof panel.stackupConfirmed !== 'boolean' ||
       (panel.routingRadius !== undefined && !validRoutingRadius(panel.routingRadius)) ||
+      (panel.fiducialSide !== undefined && !FIDUCIAL_SIDES.includes(panel.fiducialSide)) ||
       (panel.tabs !== undefined && !validPanelTabs(panel.tabs)) ||
       !Array.isArray(panel.designs) || !panel.designs.length || panel.designs.length > MAX_PANEL_DESIGNS ||
       !Array.isArray(panel.placements) || !panel.placements.length || panel.placements.length > MAX_PANEL_COPIES) {
@@ -76,6 +78,7 @@ export const readPanel = async (value: unknown): Promise<{ record: PanelRecord; 
   return { designs, record: {
     version: 1, id, name, revision, updatedAt, rows, columns, gap, stackupConfirmed,
     ...(panel.routingRadius ? { routingRadius: panel.routingRadius } : {}),
+    ...(panel.fiducialSide && panel.fiducialSide !== 'none' ? { fiducialSide: panel.fiducialSide } : {}),
     ...(tabSettings ? { tabs: tabSettings } : {}),
     designs: designs.map(design => design.record),
     placements: panel.placements.map(({ source, x, y, rotation, tabEdges }) => ({

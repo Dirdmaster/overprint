@@ -4,6 +4,8 @@ export const PANEL_RAIL = 5
 export const MAX_ROUTING_RADIUS = 1
 export const validRoutingRadius = (radius: number) =>
   Number.isFinite(radius) && radius >= 0 && radius <= MAX_ROUTING_RADIUS
+export const FIDUCIAL_SIDES = ['none', 'front', 'back', 'both'] as const
+export type FiducialSide = (typeof FIDUCIAL_SIDES)[number]
 export const MAX_PANEL_DESIGNS = 10
 export const MAX_PANEL_COPIES = 36
 export const MAX_PANEL_PIXELS = 256_000_000

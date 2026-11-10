@@ -7,6 +7,7 @@ import {
   validPanelTabs,
   validRoutingRadius,
   type TabEdge,
+  type FiducialSide,
   type PanelTabs,
   type Rotation,
   type PanelPlacement
@@ -60,6 +61,7 @@ export const usePanelBuilder = () => {
   const columns = ref(2)
   const gap = ref(2.5)
   const routingRadius = ref(0)
+  const fiducialSide = ref<FiducialSide>('none')
   const controlledTabs = ref(false)
   const optimizeTabs = ref(false)
   const tabEdges = ref<TabEdge[]>(['left', 'right'])
@@ -157,7 +159,7 @@ export const usePanelBuilder = () => {
     { flush: 'sync' }
   )
   watch(
-    [designs, rows, columns, gap, routingRadius, adjusted, tabs, tabOverrides],
+    [designs, rows, columns, gap, routingRadius, fiducialSide, adjusted, tabs, tabOverrides],
     () => {
       preview.value = undefined
       previewError.value = ''
@@ -167,7 +169,7 @@ export const usePanelBuilder = () => {
     { flush: 'sync' }
   )
 
-  watch([ready, layout, fabricationError, tabs], ([loaded, current, problem, settings], _, onCleanup) => {
+  watch([ready, layout, fabricationError, tabs, fiducialSide], ([loaded, current, problem, settings, markers], _, onCleanup) => {
     if (!loaded || !current?.placements || problem || preview.value) {
       checking.value = false
       return
@@ -178,7 +180,7 @@ export const usePanelBuilder = () => {
       try {
         const panel = await buildPanel(
           title.value, designs.value.map(design => design.project), current.placements,
-          { gap: gap.value, routingRadius: routingRadius.value, signal: controller.signal, tabs: settings }
+          { gap: gap.value, routingRadius: routingRadius.value, signal: controller.signal, tabs: settings, fiducialSide: markers }
         )
         if (!controller.signal.aborted) preview.value = panel
       } catch (cause) {
@@ -300,7 +302,7 @@ export const usePanelBuilder = () => {
         title.value,
         current.map((design) => design.project),
         placements,
-        { gap: gap.value, routingRadius: routingRadius.value, signal: controller.signal, tabs: tabs.value }
+        { gap: gap.value, routingRadius: routingRadius.value, signal: controller.signal, tabs: tabs.value, fiducialSide: fiducialSide.value }
       )
     } finally {
       activeBuild = undefined
@@ -319,6 +321,7 @@ export const usePanelBuilder = () => {
       columns.value = record.columns
       gap.value = record.gap
       routingRadius.value = record.routingRadius ?? 0
+      fiducialSide.value = record.fiducialSide ?? 'none'
       controlledTabs.value = !!record.tabs
       tabEdges.value = record.tabs?.edges ?? ['left', 'right']
       optimizeTabs.value = record.tabs?.mode === 'optimized'
@@ -345,6 +348,7 @@ export const usePanelBuilder = () => {
     columns.value = 2
     gap.value = 2.5
     routingRadius.value = 0
+    fiducialSide.value = 'none'
     controlledTabs.value = false
     optimizeTabs.value = false
     tabEdges.value = ['left', 'right']
@@ -371,6 +375,7 @@ export const usePanelBuilder = () => {
         columns: columns.value,
         gap: gap.value,
         routingRadius: routingRadius.value,
+        fiducialSide: fiducialSide.value,
         tabs: tabs.value,
         stackupConfirmed: stackupConfirmed.value,
         designs: designs.value.map((design, i) => ({
@@ -459,7 +464,7 @@ export const usePanelBuilder = () => {
   }
   return {
     adjusted, addProject, available, bounds, busy, canDownload, checking, columns, designs, displayed, download, error,
-    fabricationError, gap, routingRadius, layout, mixed, newPanel, notice, openPanel, panelName, pending, previewError, previewProjects,
+    fabricationError, gap, routingRadius, fiducialSide, layout, mixed, newPanel, notice, openPanel, panelName, pending, previewError, previewProjects,
     quantity, ready, refreshConfirmed, removeProject, reviewRefresh, rows, save, savedPanelId,
     savedPanels, selected, setPlacement, setQuantity, side, sources, stackupConfirmed, title, workspace,
     controlledTabs, optimizeTabs, tabEdges, tabCount, setTabOverride,

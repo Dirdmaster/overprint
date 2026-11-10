@@ -313,6 +313,7 @@ test('reopens rounded routing and exports one shared side bridge', async ({ page
   await page.getByRole('checkbox', { name: 'Choose tab edges' }).check()
   await page.getByRole('checkbox', { name: 'Optimize tabs' }).check()
   await page.getByLabel('Routing radius (mm)').fill('1')
+  await page.getByLabel('Rail fiducials').selectOption('both')
   await page.getByRole('textbox', { name: 'Panel name' }).fill('Optimized sides')
   await page.getByRole('button', { name: 'Save panel', exact: true }).click()
   await expect(page.getByRole('status')).toContainText('Panel saved')
@@ -320,11 +321,27 @@ test('reopens rounded routing and exports one shared side bridge', async ({ page
   await page.getByRole('combobox', { name: 'Open saved panel' }).selectOption({ label: 'Optimized sides' })
   await expect(page.getByRole('checkbox', { name: 'Optimize tabs' })).toBeChecked()
   await expect(page.getByLabel('Routing radius (mm)')).toHaveValue('1')
+  await expect(page.getByLabel('Rail fiducials')).toHaveValue('both')
   const download = page.getByRole('button', { name: 'Download ZIP' })
   await expect(download).toBeEnabled({ timeout: camResultTimeout })
+  await expect(page.getByRole('img', { name: 'Panel front preview' }).locator('circle[r="0.5"]')).toHaveCount(3)
+  await page.getByRole('button', { name: /^back$/i }).click()
+  await expect(page.getByRole('img', { name: 'Panel back preview' }).locator('circle[r="0.5"]')).toHaveCount(3)
   const event = page.waitForEvent('download')
   await download.click()
   const files = unzipSync(readFileSync((await (await event).path())!))
+  for (const [layer, diameter] of [
+    ['Gerber_TopLayer.GTL', 1], ['Gerber_BottomLayer.GBL', 1],
+    ['Gerber_TopSolderMaskLayer.GTS', 2], ['Gerber_BottomSolderMaskLayer.GBS', 2],
+  ] as const) {
+    const gerber = strFromU8(files[layer]!)
+    const aperture = new RegExp(`^%ADD(\\d+)C,${diameter}(?:\\.0+)?\\*%$`, 'm').exec(gerber)?.[1]
+    expect(aperture).toBeTruthy()
+    const flashes = gerber.slice(gerber.lastIndexOf(`D${aperture}*\n`))
+    for (const point of ['X0003850000Y-0003850000', 'X0063650000Y-0003850000', 'X0003850000Y-0042150000']) {
+      expect(flashes).toContain(`${point}D03*`)
+    }
+  }
   const drill = strFromU8(files['Drill_NPTH_Through.DRL']!)
   expect(drill).toContain('C0000.600000')
   const rows = Map.groupBy([...drill.matchAll(/^X([\d.]+)Y(-?[\d.]+)$/gm)], ([, x]) => Number(x))

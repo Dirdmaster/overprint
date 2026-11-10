@@ -28,6 +28,9 @@ BITE_PITCH = .95
 BITE_MIN_WEB = .30
 BITE_OFFSET = .28
 BITE_CLEARANCE = .25
+FIDUCIAL_INSET = 3.85
+FIDUCIAL_COPPER_DIAMETER = 1.0
+FIDUCIAL_MASK_DIAMETER = 2.0
 SETTINGS = FileSettings(unit=MM, number_format=(4, 6))
 PROFILE = "fabrication/Edge_Cuts.gbr"
 DRILL_ROLE = re.compile(r"TF\.FileFunction,(NonPlated|Plated),(\d+),(\d+),([A-Za-z]+)")
@@ -620,6 +623,32 @@ def write_gerber(layer):
     return layer.write_to_bytes(SETTINGS).decode().replace("\nG75\n", "\nG75*\n", 1) + "\n"
 
 
+def add_fiducials(layers, outline, bites, side):
+    if side == "none":
+        return []
+    left, top, right, bottom = outline.bounds
+    inset = FIDUCIAL_INSET
+    points = [(left + inset, top + inset), (right - inset, top + inset), (left + inset, bottom - inset)]
+    opening_radius = FIDUCIAL_MASK_DIAMETER / 2
+    keepout = opening_radius + BITE_CLEARANCE + ARC_ERROR
+    for x, y in points:
+        point = Point(x, y)
+        if (not outline.covers(point) or outline.boundary.distance(point) < keepout or
+                any(point.distance(bite) < keepout + BITE_DIAMETER / 2 for bite in bites)):
+            raise ValueError("A rail fiducial is too close to routing or a mouse bite.")
+    prefixes = {"front": ("F",), "back": ("B",), "both": ("F", "B")}[side]
+    for prefix in prefixes:
+        mask = layers[f"fabrication/{prefix}_Mask.gbr"]
+        mask_openings = ClearanceLayer(mask.objects)
+        if any(mask_openings.hits(Point(x, -y).buffer(keepout)) for x, y in points):
+            raise ValueError("A rail fiducial is too close to an existing solder mask opening.")
+        for layer, diameter in ((layers[f"fabrication/{prefix}_Cu.gbr"], FIDUCIAL_COPPER_DIAMETER),
+                                (mask, FIDUCIAL_MASK_DIAMETER)):
+            aperture = CircleAperture(diameter, unit=MM)
+            layer.objects.extend(Flash(x, -y, aperture, unit=MM) for x, y in points)
+    return points
+
+
 def build_panel(job):
     sources = []
     for data in job["sources"]:
@@ -651,6 +680,8 @@ def build_panel(job):
         for role, drill in placement.source[1].items():
             drills.setdefault(role, ExcellonFile()).merge(placement.transform_cam(drill))
 
+    fiducial_side = job.get("fiducialSide", "none")
+    fiducials = add_fiducials(layers, outline, bites, fiducial_side)
     outline_rings = rings(outline)
     aperture = CircleAperture(.05, unit=MM)
     layers[PROFILE] = GerberFile(
@@ -669,6 +700,8 @@ def build_panel(job):
     return {
         "outline": outline_rings,
         "biteDiameter": BITE_DIAMETER,
+        "fiducials": {"points": fiducials, "side": fiducial_side,
+                      "copperDiameter": FIDUCIAL_COPPER_DIAMETER, "maskDiameter": FIDUCIAL_MASK_DIAMETER},
         "bites": [list(p.coords[0]) for p in bites],
         "localOutlines": [rings(source[2]) for source in sources],
         "boardOutlines": [rings(p.shape) for p in placements],

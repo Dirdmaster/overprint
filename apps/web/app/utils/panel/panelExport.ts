@@ -2,12 +2,12 @@ import type { BoardPackage } from '../boardPackage'
 import { makeManufacturingZip, placedPath, prepareFabrication, type InkPlacement } from '../manufacturingZip'
 import type { Composition } from '../project'
 import { buildPanelCam, type PanelRings } from './panelCam'
-import { assertPanelSize, panelBounds, PANEL_RAIL, validPanelTabs, validRoutingRadius, type PanelPlacement, type PanelTabs } from './panelLayout'
+import { assertPanelSize, panelBounds, PANEL_RAIL, validPanelTabs, validRoutingRadius, type FiducialSide, type PanelPlacement, type PanelTabs } from './panelLayout'
 
 const ringPath = (rings: PanelRings) => rings.map(ring => `M${ring.map(point => point.join(',')).join(' L')} Z`).join(' ')
 
-export const buildPanel = async (name: string, projects: Composition[], placements: PanelPlacement[], options: { gap: number; routingRadius?: number; signal?: AbortSignal; tabs?: PanelTabs }) => {
-  const { gap, routingRadius = 0, signal, tabs } = options
+export const buildPanel = async (name: string, projects: Composition[], placements: PanelPlacement[], options: { gap: number; routingRadius?: number; fiducialSide?: FiducialSide; signal?: AbortSignal; tabs?: PanelTabs }) => {
+  const { gap, routingRadius = 0, fiducialSide = 'none', signal, tabs } = options
   if (!validRoutingRadius(routingRadius)) throw new Error('Choose a routing radius between 0 and 1 mm.')
   if (tabs && !validPanelTabs(tabs)) throw new Error('Choose between one and four tabs per selected edge.')
   assertPanelSize(panelBounds(projects.map(project => ({ bounds: project.board.bounds, quantity: 1 })), placements, gap))
@@ -19,7 +19,7 @@ export const buildPanel = async (name: string, projects: Composition[], placemen
   const copperLayers = fabrications[0]!.copperLayers
   if (fabrications.some(fab => fab.copperLayers !== copperLayers)) throw new Error('All designs must have the same number of copper layers.')
   const cam = await buildPanelCam({
-    copperLayers, gap, placements, rail: PANEL_RAIL, routingRadius, tabs,
+    copperLayers, gap, placements, rail: PANEL_RAIL, routingRadius, fiducialSide, tabs,
     sources: projects.map((project, i) => ({
       name: project.board.name,
       bounds: project.board.bounds,
@@ -50,5 +50,5 @@ export const buildPanel = async (name: string, projects: Composition[], placemen
     version: 1, board, artwork: [], mask: '#101820', side: 'front', silk: false, fabrication: true,
   }
   const color = { placements: ink, biteHoles }
-  return { board, biteHoles, download: () => makeManufacturingZip(project, color) }
+  return { board, biteHoles, fiducials: cam.fiducials, download: () => makeManufacturingZip(project, color) }
 }

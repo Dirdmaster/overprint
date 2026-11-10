@@ -1,5 +1,5 @@
 import type { BoardPackage } from '../boardPackage'
-import type { PanelPlacement, PanelTabs } from './panelLayout'
+import type { FiducialSide, PanelPlacement, PanelTabs } from './panelLayout'
 
 export type PanelCamJob = {
   sources: { name: string; bounds: BoardPackage['bounds']; files: Record<string, string> }[]
@@ -7,17 +7,25 @@ export type PanelCamJob = {
   gap: number
   rail: number
   routingRadius: number
+  fiducialSide: FiducialSide
   copperLayers: number
   tabs?: PanelTabs
 }
 type Point = [number, number]
 export type PanelRings = Point[][]
+export type PanelFiducials = {
+  points: Point[]
+  side: FiducialSide
+  copperDiameter: number
+  maskDiameter: number
+}
 export type PanelCamResult = {
   outline: PanelRings
   localOutlines: PanelRings[]
   boardOutlines: PanelRings[]
   bites: Point[]
   biteDiameter: number
+  fiducials: PanelFiducials
   bounds: [number, number, number, number]
   files: Record<string, string>
 }

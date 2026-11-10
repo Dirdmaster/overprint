@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { MAX_PANEL_COPIES, MAX_PANEL_DESIGNS, MAX_ROUTING_RADIUS } from '~/utils/panel/panelLayout'
+import {
+  FIDUCIAL_SIDES,
+  MAX_PANEL_COPIES,
+  MAX_PANEL_DESIGNS,
+  MAX_ROUTING_RADIUS
+} from '~/utils/panel/panelLayout'
 
 definePageMeta({ layout: false })
 
@@ -21,6 +26,7 @@ const {
   fabricationError,
   gap,
   routingRadius,
+  fiducialSide,
   layout,
   mixed,
   newPanel,
@@ -215,6 +221,21 @@ const {
             />
             <span class="text-xs text-muted">{{ $t('panel.routingRadiusHint') }}</span>
           </label>
+          <label class="grid gap-1 text-sm">
+            {{ $t('panel.fiducials') }}
+            <select
+              v-model="fiducialSide"
+              class="rounded-md border border-line bg-surface p-2"
+            >
+              <option
+                v-for="face in FIDUCIAL_SIDES"
+                :key="face"
+                :value="face"
+              >
+                {{ $t(`panel.fiducialSide.${face}`) }}
+              </option>
+            </select>
+          </label>
           <label
             v-if="mixed && !fabricationError"
             class="flex items-start gap-2 text-sm"
@@ -379,6 +400,7 @@ const {
             :bounds="bounds"
             :board="displayed?.board"
             :bite-holes="displayed?.biteHoles"
+            :fiducials="displayed?.fiducials"
             :projects="previewProjects"
             :placements="pending?.placements ?? layout.placements"
             :side="side"

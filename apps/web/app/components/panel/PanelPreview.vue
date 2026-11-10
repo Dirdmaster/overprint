@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { BoardPackage } from '~/utils/boardPackage'
 import { boardSurface } from '~/utils/boardSurface'
+import type { PanelFiducials } from '~/utils/panel/panelCam'
 import type { Composition } from '~/utils/project'
 import { PANEL_RAIL, type PanelPlacement } from '~/utils/panel/panelLayout'
 
@@ -8,10 +9,15 @@ const props = defineProps<{
   bounds: BoardPackage['bounds']
   board?: BoardPackage
   biteHoles?: string
+  fiducials?: PanelFiducials
   projects: Composition[]
   placements: PanelPlacement[]
   side: 'front' | 'back'
 }>()
+const visibleFiducials = computed(() => {
+  const marks = props.fiducials
+  return marks && (marks.side === 'both' || marks.side === props.side) ? marks : undefined
+})
 const materialMask = useId()
 const surfaceId = (source: number) => `${materialMask}-board-${source}`
 const viewBox = computed(() => {
@@ -136,6 +142,26 @@ watch(
           <use
             v-if="surfaces.get(copy.project)"
             :href="`#${surfaceId(copy.source)}`"
+          />
+        </g>
+      </g>
+      <g v-if="visibleFiducials">
+        <g
+          v-for="([x, y], index) in visibleFiducials.points"
+          :key="index"
+        >
+          <circle
+            :cx="x"
+            :cy="y"
+            :r="visibleFiducials.maskDiameter / 2"
+            class="fill-soft stroke-muted"
+            stroke-width=".08"
+          />
+          <circle
+            :cx="x"
+            :cy="y"
+            :r="visibleFiducials.copperDiameter / 2"
+            fill="#c9a661"
           />
         </g>
       </g>

@@ -19,6 +19,8 @@
     "routingRadius": "Routing radius (mm)",
     "routingRadiusHint": "Rounds inside corners at the tabs and rails. Use 0 for square corners.",
     "invalidRoutingRadius": "Choose a routing radius between 0 and 1 mm.",
+    "fiducials": "Rail fiducials",
+    "fiducialSide": { "none": "None", "front": "Front", "back": "Back", "both": "Both sides" },
     "sameStack": "The designs use the same board material, thickness, copper weights, stackup and finish.",
     "startHint": "Save a project in Overprint to start a panel.",
     "maxDesigns": "This panel has the maximum of ten designs.",

@@ -16,6 +16,8 @@ The builder checks the copper layer count and asks you to confirm the other fabr
 
 Set **Routing radius** to round inside corners in the routed profile. A 1 mm radius models a 2 mm cutter. Saved panels without a radius use square corners, and enclosed PCB cutouts retain their original shape.
 
+Use **Rail fiducials** to add three 1 mm copper dots with 2 mm solder-mask openings on the front, back, or both sides. The marks sit on the frame.
+
 The preview updates as you edit and shows the routed outline and breakaway holes once the fabrication check passes. Save the panel to keep its placement and pinned artwork and fabrication revisions. You can review a newer source revision before applying it. Workspace backups include saved panels and their pinned files.
 
 Use **Choose tab edges** to place evenly spaced rows on selected sides. The sides refer to each PCB before rotation. Use **Adjust placements** to override the allowed edges for individual copies. Tabs between two copies need allowed facing edges and aligned rows. Turn on **Optimize tabs** to let Overprint search for fewer bridges while keeping every board connected and requiring at least two bridges to the frame. It limits unsupported spans along the board’s bounding axes, samples clear positions on allowed edges, and favors balanced support. For unusual outlines or sensitive connector areas, use per-copy edge restrictions or set the count yourself. If a row cannot fit safely, change the edges, count, or spacing before downloading.
