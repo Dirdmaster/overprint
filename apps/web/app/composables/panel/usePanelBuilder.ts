@@ -445,15 +445,25 @@ export const usePanelBuilder = () => {
     showNotice(t('panel.revisionApplied'))
   }
 
-  const download = async () => {
+  const exportSource = computed(() => {
     if (!canDownload.value || !preview.value) return
+    return {
+      filename: `${title.value.replace(/[^a-z0-9_-]+/gi, '-')}-panel.zip`,
+      prepareZip: preview.value.download,
+      panelDesignCount: designs.value.length,
+    }
+  })
+
+  const download = async () => {
+    const source = exportSource.value
+    if (!source) return
     busy.value = true
     error.value = ''
     try {
-      const url = URL.createObjectURL(await preview.value.download())
+      const url = URL.createObjectURL(await source.prepareZip())
       const link = document.createElement('a')
       link.href = url
-      link.download = `${title.value.replace(/[^a-z0-9_-]+/gi, '-')}-panel.zip`
+      link.download = source.filename
       link.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (cause) {
@@ -463,7 +473,7 @@ export const usePanelBuilder = () => {
     }
   }
   return {
-    adjusted, addProject, available, bounds, busy, canDownload, checking, columns, designs, displayed, download, error,
+    adjusted, addProject, available, bounds, busy, canDownload, checking, columns, designs, displayed, download, exportSource, error,
     fabricationError, gap, routingRadius, fiducialSide, layout, mixed, newPanel, notice, openPanel, panelName, pending, previewError, previewProjects,
     quantity, ready, refreshConfirmed, removeProject, reviewRefresh, rows, save, savedPanelId,
     savedPanels, selected, setPlacement, setQuantity, side, sources, stackupConfirmed, title, workspace,

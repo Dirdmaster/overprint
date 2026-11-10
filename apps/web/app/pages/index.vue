@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { makeManufacturingZip } from '~/utils/manufacturingZip'
+import type { Composition } from '~/utils/project'
+
 // Own the layout here so editor-only drop events stay with the page's dialogs.
 definePageMeta({ layout: false })
-const { board, openBoard } = useComposition()
+const { board, openBoard, side, silk, maskColor, components } = useComposition()
+const { items } = useArtwork()
 const {
   initialized,
   status,
@@ -24,6 +28,32 @@ const showProjects = async () => {
 }
 const importer = useTemplateRef('importer')
 const jlcExport = useTemplateRef('jlcExport')
+const showJlcExport = () => {
+  const currentBoard = board.value
+  if (!currentBoard) return
+  jlcExport.value?.show({
+    filename: `${currentBoard.name}-jlcpcb.zip`,
+    prepareZip: async () => {
+      if (!currentBoard.fabrication) {
+        throw new Error(
+          'This board has no native Gerbers or drill files. Export it with the current KiCad plugin before manufacturing.'
+        )
+      }
+      const snapshot = JSON.parse(
+        JSON.stringify({
+          version: 1,
+          board: currentBoard,
+          artwork: items.value,
+          side: side.value,
+          silk: silk.value,
+          mask: maskColor.value,
+          fabrication: components.value
+        })
+      ) as Composition
+      return makeManufacturingZip(snapshot)
+    }
+  })
+}
 const syncDialog = useTemplateRef('syncDialog')
 const projectPicker = useTemplateRef('projectPicker')
 const replacement = useTemplateRef('replacement')
@@ -84,7 +114,7 @@ onMounted(() => {
       @import="openImport()"
       @save="download"
       @open-project="openProject"
-      @send="jlcExport?.show()"
+      @send="showJlcExport"
       :syncing="syncDialog?.syncBusy"
       :sync-succeeded="syncDialog?.syncSucceeded"
       :sync-error="syncDialog?.syncError"

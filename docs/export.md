@@ -22,7 +22,7 @@ The preview updates as you edit and shows the routed outline and breakaway holes
 
 Use **Choose tab edges** to place evenly spaced rows on selected sides. The sides refer to each PCB before rotation. Use **Adjust placements** to override the allowed edges for individual copies. Tabs between two copies need allowed facing edges and aligned rows. Turn on **Optimize tabs** to let Overprint search for fewer bridges while keeping every board connected and requiring at least two bridges to the frame. It limits unsupported spans along the board’s bounding axes, samples clear positions on allowed edges, and favors balanced support. For unusual outlines or sensitive connector areas, use per-copy edge restrictions or set the count yourself. If a row cannot fit safely, change the edges, count, or spacing before downloading.
 
-At JLCPCB, select **Panel by Customer** and **EasyEDA multi-color silkscreen**. Set the number of distinct designs for mixed panels. This workflow exports bare-board fabrication files. [JLCPCB’s full-color settings](https://jlcpcb.com/help/article/how-to-design-multi-color-silkscreen-using-easyeda) · [JLCPCB’s panel capabilities](https://jlcpcb.com/capabilities/Capab)
+Choose **Send to JLCPCB**, then **Send ZIP** to upload the panel and open its quote. At JLCPCB, select **Panel by Customer** and **EasyEDA multi-color silkscreen**. Set the number of distinct designs for mixed panels. This workflow exports bare-board fabrication files. [JLCPCB’s full-color settings](https://jlcpcb.com/help/article/how-to-design-multi-color-silkscreen-using-easyeda) · [JLCPCB’s panel capabilities](https://jlcpcb.com/capabilities/Capab)
 
 ## Size limits
 

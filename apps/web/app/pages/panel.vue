@@ -22,6 +22,7 @@ const {
   designs,
   displayed,
   download,
+  exportSource,
   error,
   fabricationError,
   gap,
@@ -60,6 +61,11 @@ const {
   sourceChanged,
   latestSource
 } = usePanelBuilder()
+
+const jlcExport = useTemplateRef('jlcExport')
+const showJlcExport = () => {
+  if (exportSource.value) jlcExport.value?.show(exportSource.value)
+}
 </script>
 
 <template>
@@ -426,15 +432,25 @@ const {
               {{ $t('panel.mixedQuoteHint', { count: designs.length }) }}
             </span>
           </p>
-          <button
-            class="header-action header-action-primary"
-            :disabled="!canDownload"
-            @click="download"
-          >
-            {{ $t('panel.downloadZip') }}
-          </button>
+          <div class="flex flex-wrap gap-2">
+            <button
+              class="header-action"
+              :disabled="!canDownload"
+              @click="download"
+            >
+              {{ $t('panel.downloadZip') }}
+            </button>
+            <button
+              class="header-action header-action-primary"
+              :disabled="!canDownload"
+              @click="showJlcExport"
+            >
+              {{ $t('export.sendToJlcpcb') }}
+            </button>
+          </div>
         </div>
       </section>
     </div>
+    <JlcExportDialog ref="jlcExport" />
   </main>
 </template>

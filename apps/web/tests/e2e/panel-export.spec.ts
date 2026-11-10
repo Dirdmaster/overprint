@@ -123,7 +123,7 @@ test('exports a repeated asymmetric panel directly from an Overprint project', a
 
 })
 
-test('exports a mixed panel with one individually rotated saved board', async ({ page }, testInfo) => {
+test('exports a mixed panel with one individually rotated saved board', async ({ page, context }, testInfo) => {
   test.setTimeout(90_000)
   await captureColorKeys(page)
   await page.goto('/')
@@ -136,7 +136,9 @@ test('exports a mixed panel with one individually rotated saved board', async ({
   await page.getByLabel('coupon-a copies', { exact: true }).fill('1')
   await page.getByLabel('Routing radius (mm)').fill('1')
   const downloadButton = page.getByRole('button', { name: 'Download ZIP', exact: true })
+  const sendButton = page.getByRole('button', { name: 'Send to JLCPCB', exact: true })
   await expect(downloadButton).toBeDisabled()
+  await expect(sendButton).toBeDisabled()
   await page.getByRole('checkbox', { name: /same board material/ }).check()
   await page.getByText('Adjust placements', { exact: true }).click()
   await page.getByLabel('Copy 2 rotation').selectOption('180')
@@ -179,6 +181,25 @@ test('exports a mixed panel with one individually rotated saved board', async ({
   await checkColor(page, files, 1, [
     [1, 1, transparent], [17.5, 11.5, green], [57, 16.5, transparent], [53, 19.2, green], [60.5, 16.5, blue], [53, 14.5, blue],
   ])
+
+  const quoteUrl = 'https://cart.jlcpcb.com/quote/?homeUploadNum=panel-fixture'
+  let uploaded: ReturnType<typeof unzipSync> | undefined
+  await page.route('**/api/jlcpcb/upload', async route => {
+    expect(route.request().headers()['content-type']).toBe('application/zip')
+    uploaded = unzipSync(route.request().postDataBuffer()!)
+    await route.fulfill({ json: { quoteUrl } })
+  })
+  await context.route('https://cart.jlcpcb.com/**', route => route.fulfill({ body: 'Panel quote' }))
+  await sendButton.click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toContainText('Panel by Customer')
+  await expect(dialog).toContainText('Enter 2 designs')
+  expect(uploaded).toBeUndefined()
+  const quote = page.waitForEvent('popup')
+  await dialog.getByRole('button', { name: 'Send ZIP', exact: true }).click()
+  await expect(await quote).toHaveURL(quoteUrl)
+  expect(uploaded?.['Drill_NPTH_Through.DRL']).toEqual(files['Drill_NPTH_Through.DRL'])
+  expect(uploaded?.['Fabrication_ColorfulBottomSilkscreen.FCBS']).toBeDefined()
 })
 
 test('pins saved revisions across refresh cancellation, source deletion and workspace restore', async ({ page }) => {

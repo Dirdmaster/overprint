@@ -2,10 +2,12 @@
 import { ArrowUpRight, Download, LoaderCircle, Pause, Play, TriangleAlert, X } from '@lucide/vue'
 import { useExportGuidePlayback } from '~/composables/export/useExportGuidePlayback'
 import { uploadJlcZip } from '~/utils/jlcUpload'
-import { makeManufacturingZip } from '~/utils/manufacturingZip'
-import type { Composition } from '~/utils/project'
-const { board, side, silk, maskColor, components } = useComposition()
-const { items } = useArtwork()
+type ExportSource = {
+  filename: string
+  prepareZip: () => Promise<Blob>
+  panelDesignCount?: number
+}
+const source = shallowRef<ExportSource>()
 const { theme } = useTheme()
 const dialog = useTemplateRef('dialog')
 const busy = ref(false)
@@ -55,12 +57,12 @@ const {
 } = useExportGuidePlayback(guideStep, guide.length)
 const feedback = ref('')
 let controller: AbortController | undefined
-const show = () => {
-  if (!busy.value) {
-    feedback.value = ''
-    quoteUrl.value = ''
-    failed.value = false
-  }
+const show = (next: ExportSource) => {
+  if (busy.value) return
+  source.value = next
+  feedback.value = ''
+  quoteUrl.value = ''
+  failed.value = false
   dialog.value?.showModal()
   startGuide()
 }
@@ -70,12 +72,8 @@ const close = () => {
   dialog.value?.close()
 }
 const exportZip = async (send: boolean) => {
-  if (busy.value || !board.value) return
-  if (!board.value.fabrication) {
-    feedback.value =
-      'This board has no native Gerbers or drill files. Export it with the current KiCad plugin before manufacturing.'
-    return
-  }
+  const current = source.value
+  if (busy.value || !current) return
   quoteUrl.value = ''
   failed.value = false
   progress.value = 'Preparing ZIP…'
@@ -84,18 +82,7 @@ const exportZip = async (send: boolean) => {
   const signal = controller.signal
   feedback.value = ''
   try {
-    const snapshot = JSON.parse(
-      JSON.stringify({
-        version: 1,
-        board: board.value,
-        artwork: items.value,
-        side: side.value,
-        silk: silk.value,
-        mask: maskColor.value,
-        fabrication: components.value
-      })
-    ) as Composition
-    const zip = await makeManufacturingZip(snapshot)
+    const zip = await current.prepareZip()
     signal.throwIfAborted()
     if (send) {
       progress.value = 'Uploading…'
@@ -131,7 +118,7 @@ const exportZip = async (send: boolean) => {
       const url = URL.createObjectURL(zip)
       const link = document.createElement('a')
       link.href = url
-      link.download = `${snapshot.board.name}-jlcpcb.zip`
+      link.download = current.filename
       link.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
       feedback.value = 'ZIP downloaded.'
@@ -279,6 +266,15 @@ defineExpose({ show })
     >
       JLCPCB guide ↗
     </a>
+    <p
+      v-if="source?.panelDesignCount"
+      class="mt-3 rounded-lg bg-soft p-3 text-sm"
+    >
+      {{ $t('panel.quoteHint') }}
+      <span v-if="source.panelDesignCount > 1">
+        {{ $t('panel.mixedQuoteHint', { count: source.panelDesignCount }) }}
+      </span>
+    </p>
     <p
       v-if="feedback"
       role="status"
