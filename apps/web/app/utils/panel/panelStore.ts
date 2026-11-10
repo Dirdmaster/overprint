@@ -1,6 +1,6 @@
 import { parseProject, type Composition } from '../project'
 import { openWorkspaceDatabase, type WorkspaceProjectRecord } from '../workspaceStore'
-import { layoutPanel, MAX_PANEL_COPIES, MAX_PANEL_DESIGNS, ROTATIONS, type PanelPlacement } from './panelLayout'
+import { layoutPanel, MAX_PANEL_COPIES, MAX_PANEL_DESIGNS, ROTATIONS, validPanelTabs, validTabEdges, type PanelPlacement, type PanelTabs } from './panelLayout'
 
 export const MAX_SAVED_PANELS = 100
 const MAX_PANEL_BYTES = 80_000_000
@@ -16,6 +16,7 @@ export type PanelRecord = {
   rows: number
   columns: number
   gap: number
+  tabs?: PanelTabs
   stackupConfirmed: boolean
   designs: PinnedDesign[]
   placements: PanelPlacement[]
@@ -35,6 +36,7 @@ export const readPanel = async (value: unknown): Promise<{ record: PanelRecord; 
   if (!panel || panel.version !== 1 || !identifier(panel.id) || !identifier(panel.name) ||
       !positiveInteger(panel.revision) || !Number.isSafeInteger(panel.updatedAt) || panel.updatedAt < 0 ||
       !positiveInteger(panel.rows) || panel.rows > MAX_PANEL_COPIES || typeof panel.stackupConfirmed !== 'boolean' ||
+      (panel.tabs !== undefined && !validPanelTabs(panel.tabs)) ||
       !Array.isArray(panel.designs) || !panel.designs.length || panel.designs.length > MAX_PANEL_DESIGNS ||
       !Array.isArray(panel.placements) || !panel.placements.length || panel.placements.length > MAX_PANEL_COPIES) {
     throw new Error('Invalid saved panel.')
@@ -61,14 +63,18 @@ export const readPanel = async (value: unknown): Promise<{ record: PanelRecord; 
   }
   if (expected.length !== panel.placements.length || panel.placements.some((placement, i) =>
     !placement || placement.source !== expected[i]!.source || !ROTATIONS.includes(placement.rotation) ||
+    (placement.tabEdges !== undefined && !validTabEdges(placement.tabEdges)) ||
     ![placement.x, placement.y].every(n => Number.isFinite(n) && Math.abs(n) < 200_000))) {
     throw new Error('Invalid placement in saved panel.')
   }
   const { id, name, revision, updatedAt, rows, columns, gap, stackupConfirmed } = panel
   return { designs, record: {
     version: 1, id, name, revision, updatedAt, rows, columns, gap, stackupConfirmed,
+    ...(panel.tabs ? { tabs: { count: panel.tabs.count, edges: [...panel.tabs.edges] } } : {}),
     designs: designs.map(design => design.record),
-    placements: panel.placements.map(({ source, x, y, rotation }) => ({ source, x, y, rotation })),
+    placements: panel.placements.map(({ source, x, y, rotation, tabEdges }) => ({
+      source, x, y, rotation, ...(tabEdges ? { tabEdges: [...tabEdges] } : {}),
+    })),
   } }
 }
 

@@ -2,11 +2,13 @@ import type { BoardPackage } from '../boardPackage'
 import { makeManufacturingZip, placedPath, prepareFabrication, type InkPlacement } from '../manufacturingZip'
 import type { Composition } from '../project'
 import { buildPanelCam, type PanelRings } from './panelCam'
-import { assertPanelSize, panelBounds, PANEL_RAIL, type PanelPlacement } from './panelLayout'
+import { assertPanelSize, panelBounds, PANEL_RAIL, validPanelTabs, type PanelPlacement, type PanelTabs } from './panelLayout'
 
 const ringPath = (rings: PanelRings) => rings.map(ring => `M${ring.map(point => point.join(',')).join(' L')} Z`).join(' ')
 
-export const buildPanel = async (name: string, projects: Composition[], placements: PanelPlacement[], gap: number, signal?: AbortSignal) => {
+export const buildPanel = async (name: string, projects: Composition[], placements: PanelPlacement[], options: { gap: number; signal?: AbortSignal; tabs?: PanelTabs }) => {
+  const { gap, signal, tabs } = options
+  if (tabs && !validPanelTabs(tabs)) throw new Error('Choose between one and four tabs per selected edge.')
   assertPanelSize(panelBounds(projects.map(project => ({ bounds: project.board.bounds, quantity: 1 })), placements, gap))
   const fabrications = projects.map(project => {
     try { return prepareFabrication(project) } catch (error) {
@@ -16,7 +18,7 @@ export const buildPanel = async (name: string, projects: Composition[], placemen
   const copperLayers = fabrications[0]!.copperLayers
   if (fabrications.some(fab => fab.copperLayers !== copperLayers)) throw new Error('All designs must have the same number of copper layers.')
   const cam = await buildPanelCam({
-    copperLayers, gap, placements, rail: PANEL_RAIL,
+    copperLayers, gap, placements, rail: PANEL_RAIL, tabs,
     sources: projects.map((project, i) => ({
       name: project.board.name,
       bounds: project.board.bounds,

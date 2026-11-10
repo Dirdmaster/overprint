@@ -81,6 +81,67 @@ class PanelCamChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"Coupon 5 cannot reach the frame"):
             make_profile(placements, 2.5, 5)
 
+    def test_controlled_edges_and_exclusions_follow_rotation(self):
+        source = ({}, {}, box(0, 0, 30, 24), [])
+        board = Placement(source, {"name": "Connector board", "x": 24, "y": 0, "rotation": 90,
+                                   "tabEdges": ["left", "right"]})
+        _, bites = make_profile([board], 2.5, 5, {"edges": ["top", "bottom"], "count": 2})
+        self.assertEqual(len(bites), 20)
+        self.assertEqual({round(bite.y, 2) for bite in bites}, {-.28, 30.28})
+        self.assertEqual({round(bite.x, 2) for bite in bites}, {
+            6.5, 7.25, 8, 8.75, 9.5, 14.5, 15.25, 16, 16.75, 17.5,
+        })
+
+    def test_controlled_tab_reports_the_copy_and_edge_when_rows_are_unsafe(self):
+        source = ({}, {}, box(0, 0, 8, 8), [])
+        board = Placement(source, {"name": "Small board", "x": 0, "y": 0, "rotation": 0})
+        with self.assertRaisesRegex(ValueError, r"Small board: cannot place right tab 1 safely"):
+            make_profile([board], 2.5, 5, {"edges": ["right"], "count": 4})
+
+    def test_controlled_tab_caps_do_not_extend_past_the_opposite_edge(self):
+        source = ({}, {}, box(0, 0, 2, 30), [])
+        board = Placement(source, {"name": "Narrow board", "x": 0, "y": 0, "rotation": 0})
+        outline, bites = make_profile([board], 2.5, 5, {"edges": ["right"], "count": 2})
+        self.assertEqual(len(bites), 10)
+        self.assertFalse(outline.covers(Point(-.25, 10)))
+
+    def test_controlled_tabs_preserve_routing_clearance_to_a_neighbor(self):
+        profiles = [
+            box(0, 0, 15, 30), box(23, 0, 38, 30),
+            box(0, -20, 38, -2).union(box(17, -3, 21, 7.4)),
+        ]
+        boards = [Placement(({}, {}, shape, []), {
+            "name": f"Board {i + 1}", "x": 0, "y": 0, "rotation": 0,
+            "tabEdges": ["top"] if i == 2 else ["left", "right"],
+        }) for i, shape in enumerate(profiles)]
+        with self.assertRaisesRegex(ValueError, r"Board 1: cannot place right tab 1 safely"):
+            make_profile(boards, 2, 5, {"edges": [], "count": 2})
+
+    def test_controlled_tabs_preserve_routing_clearance_to_their_own_board(self):
+        profile = box(0, 0, 20, 30).union(box(19, 12.6, 23, 17.4))
+        board = Placement(({}, {}, profile, []), {"name": "Stepped board", "x": 0, "y": 0, "rotation": 0})
+        with self.assertRaisesRegex(ValueError, r"Stepped board: cannot place right tab 1 safely"):
+            make_profile([board], 2.5, 5, {"edges": ["right"], "count": 2})
+
+    def test_excluding_the_connector_edge_keeps_its_drill_clear_of_mouse_bites(self):
+        board = json.loads(fixture_data)["board"]
+        files = board["fabrication"]["files"]
+        files["fabrication/drill-0.drl"] = (
+            "M48\n; #@! TF.FileFunction,NonPlated,1,2,NPTH\n"
+            "METRIC\nT1C0.6\n%\nT1\nX18.333333Y-50.690000\nM30\n"
+        )
+        job = {
+            "sources": [{"name": "Connector board", "files": files, "bounds": board["bounds"]}],
+            "placements": [{"source": 0, "x": 0, "y": 0, "rotation": 0}],
+            "gap": 2.5, "rail": 5, "copperLayers": 2, "tabs": {"edges": ["left", "right"], "count": 2},
+        }
+        result = build_panel(job)
+        self.assertEqual(len(result["bites"]), 20)
+        self.assertTrue(all(y < 50 for _, y in result["bites"]))
+        job["tabs"]["edges"] = ["top", "bottom"]
+        with self.assertRaisesRegex(ValueError, r"Connector board .* cannot place bottom tab 1 safely"):
+            build_panel(job)
+
 
 suite = unittest.defaultTestLoader.loadTestsFromTestCase(PanelCamChecks)
 unittest.TextTestRunner().run(suite).wasSuccessful()

@@ -13,7 +13,7 @@ from gerbonara.cam import FileSettings
 from gerbonara.graphic_objects import Arc, Flash, Line
 from gerbonara import graphic_primitives as primitives
 from gerbonara.utils import UnknownStatementWarning, approximate_arc
-from shapely import affinity, build_area, make_valid, set_precision
+from shapely import affinity, build_area, get_coordinates, make_valid, set_precision
 from shapely.geometry import GeometryCollection, LineString, MultiLineString, Point, Polygon, box
 from shapely.ops import nearest_points, polygonize_full, unary_union
 from shapely.strtree import STRtree
@@ -186,6 +186,7 @@ class Placement:
         self.x, self.y, self.angle = placement["x"], placement["y"], placement["rotation"]
         self.source = source
         self.name = placement["name"]
+        self.tab_edges = placement.get("tabEdges")
         self.shape = affinity.translate(affinity.rotate(source[2], self.angle, origin=(0, 0)), self.x, self.y)
 
     def transform_cam(self, original):
@@ -210,56 +211,143 @@ class Placement:
         return not any(layer.hits(window) for layer in self.source[3])
 
 
-def tab_candidate(first, second, shapes, placements, clearance, existing_tabs):
+def validate_tab(first, second, shapes, placements, existing_tabs, start, end, routing_gap=None):
     a, b = shapes[first], shapes[second]
-    edge = a.exterior
-    start = nearest_points(edge, b)[0]
-    origin = edge.project(start)
+    length = start.distance(end)
+    if not length:
+        return None
+    centerline = LineString([start, end])
+    tab = centerline.buffer(TAB_WIDTH / 2, cap_style="square")
+    minimum_gap = 2 if routing_gap is None else routing_gap - 2 * ARC_ERROR
+    if routing_gap is not None:
+        bridge = centerline.buffer(TAB_WIDTH / 2, cap_style="flat")
+        endpoints = a.union(b)
+        # Flat ends leave the intended connections alone while checking the
+        # router channel beside both exposed sides of the tab.
+        flanks = centerline.buffer(TAB_WIDTH / 2 + minimum_gap, cap_style="flat").difference(bridge)
+        if flanks.intersection(endpoints).area > ARC_ERROR * length:
+            return None
+        tab = bridge.union(tab.intersection(endpoints))
+    if any(tab.distance(existing) < minimum_gap for existing in existing_tabs):
+        return None
+    for i, shape in enumerate(shapes):
+        if i not in (first, second) and (tab.intersects(shape) or
+                (routing_gap is not None and tab.distance(shape) < minimum_gap)):
+            return None
+    if min(tab.intersection(a).area, tab.intersection(b).area) < 2:
+        return None
+    holes = []
+    dx, dy = (end.x - start.x) / length, (end.y - start.y) / length
+    for i, point, direction in [(first, start, 1), (second, end, -1)]:
+        if i == len(placements):  # The rail side is solid.
+            continue
+        outline = shapes[i].exterior
+        center = outline.project(point)
+        shoulders = [outline.interpolate((center + offset) % outline.length)
+                     for offset in (-TAB_WIDTH / 2, TAB_WIDTH / 2)]
+        if shoulders[0].distance(shoulders[1]) < TAB_WIDTH - .05:
+            break  # The full tab must meet one edge without wrapping around a corner.
+        edge_points = [outline.interpolate((center + offset * BITE_PITCH) % outline.length)
+                       for offset in range(-2, 3)]
+        # Put the row just into the sacrificial tab to retain clearance
+        # from copper near the finished PCB edge.
+        bites = [affinity.translate(edge_point, direction * dx * BITE_OFFSET, direction * dy * BITE_OFFSET)
+                 for edge_point in edge_points]
+        safe_tab = tab.buffer(-.35)
+        if any(shapes[i].covers(bite) or not safe_tab.covers(bite) for bite in bites):
+            break
+        if not all(placement.clear(bite) for bite in bites for placement in placements):
+            break
+        holes.extend(bites)
+    else:
+        return tab, holes
+    return None
+
+
+def tab_candidate(first, second, shapes, placements, clearance, existing_tabs):
+    edge = shapes[first].exterior
+    origin = edge.project(nearest_points(edge, shapes[second])[0])
     positions = [origin]
     for distance in range(2, int(edge.length / 2) + 1, 2):
         positions.extend([(origin - distance) % edge.length, (origin + distance) % edge.length])
     for distance in positions:
         start = edge.interpolate(distance)
-        end = nearest_points(start, b)[1]
-        length = start.distance(end)
-        if length > clearance or not length:
-            continue
-        tab = LineString([start, end]).buffer(TAB_WIDTH / 2, cap_style="square")
-        if any(tab.distance(existing) < 2 for existing in existing_tabs):
-            continue
-        if any(tab.intersects(shape) for i, shape in enumerate(shapes) if i not in (first, second)):
-            continue
-        if min(tab.intersection(a).area, tab.intersection(b).area) < 2:
-            continue
-        holes = []
-        dx, dy = (end.x - start.x) / length, (end.y - start.y) / length
-        for i, point, direction in [(first, start, 1), (second, end, -1)]:
-            if i == len(placements):  # The rail side is solid.
-                continue
-            outline = shapes[i].exterior
-            center = outline.project(point)
-            shoulders = [outline.interpolate((center + offset) % outline.length)
-                         for offset in (-TAB_WIDTH / 2, TAB_WIDTH / 2)]
-            if shoulders[0].distance(shoulders[1]) < TAB_WIDTH - .05:
-                break  # The full tab must meet one edge without wrapping around a corner.
-            edge_points = [outline.interpolate((center + offset * BITE_PITCH) % outline.length)
-                           for offset in range(-2, 3)]
-            # Put the row just into the sacrificial tab to retain clearance
-            # from copper near the finished PCB edge.
-            bites = [affinity.translate(edge_point, direction * dx * BITE_OFFSET, direction * dy * BITE_OFFSET)
-                     for edge_point in edge_points]
-            safe_tab = tab.buffer(-.35)
-            if any(shapes[i].covers(bite) or not safe_tab.covers(bite) for bite in bites):
-                break
-            if not all(placement.clear(bite) for bite in bites for placement in placements):
-                break
-            holes.extend(bites)
-        else:
-            return tab, holes
+        end = nearest_points(start, shapes[second])[1]
+        if start.distance(end) <= clearance:
+            candidate = validate_tab(first, second, shapes, placements, existing_tabs, start, end)
+            if candidate:
+                return candidate
     return None
 
 
-def make_profile(placements, gap, rail):
+TAB_EDGES = ("top", "right", "bottom", "left")
+
+
+def tab_lanes(shape, edge, count):
+    x0, y0, x1, y1 = shape.bounds
+    lo, hi = (x0, x1) if edge % 2 == 0 else (y0, y1)
+    return [lo + (hi - lo) * i / (count + 1) for i in range(1, count + 1)]
+
+
+def controlled_tabs(placements, shapes, gap, settings):
+    count = settings["count"]
+    selected = []
+    for placement in placements:
+        edges = placement.tab_edges if placement.tab_edges is not None else settings["edges"]
+        selected.append({(TAB_EDGES.index(edge) + placement.angle // 90) % 4: edge for edge in edges})
+    x0, y0, x1, y1 = shapes[-1].bounds
+    tabs, bites, connections = [], [], []
+    for i, placement in enumerate(placements):
+        for edge, local_edge in sorted(selected[i].items()):
+            vertical = edge % 2 == 0
+            axis = 1 if vertical else 0
+            sign = 1 if edge in (1, 2) else -1
+            for row, lane in enumerate(tab_lanes(shapes[i], edge, count), 1):
+                ray = LineString([(lane, y0), (lane, y1)] if vertical else [(x0, lane), (x1, lane)])
+                points = get_coordinates(shapes[i].exterior.intersection(ray))
+                error = f"{placement.name}: cannot place {local_edge} tab {row} safely. Change the tab edges, count, or spacing."
+                if not len(points):
+                    raise ValueError(error)
+                start = Point(max(points, key=lambda xy: sign * xy[axis]))
+                destination = Point((lane, y1 if sign > 0 else y0) if vertical
+                                    else (x1 if sign > 0 else x0, lane))
+                outward = LineString([start, destination])
+                targets = []
+                for j, shape in enumerate(shapes):
+                    if j == i:
+                        continue
+                    hit = outward.intersection(shape.boundary)
+                    if not hit.is_empty:
+                        end = nearest_points(start, hit)[1]
+                        targets.append((start.distance(end), j, end))
+                if not targets:
+                    raise ValueError(error)
+                distance, j, end = min(targets, key=lambda target: (target[0], target[1]))
+                if distance > gap * 2 + 4:
+                    raise ValueError(error)
+                opposite = (edge + 2) % 4
+                if j < len(placements) and (
+                    opposite not in selected[j] or
+                    not any(abs(other - lane) <= ARC_ERROR for other in tab_lanes(shapes[j], opposite, count))
+                ):
+                    raise ValueError(error)
+                pair = frozenset((i, j))
+                if any(pair == previous and tab.covers(start) for previous, tab in zip(connections, tabs)):
+                    continue
+                candidate = validate_tab(i, j, shapes, placements, tabs, start, end, routing_gap=gap)
+                if not candidate:
+                    raise ValueError(error)
+                tab, holes = candidate
+                tabs.append(tab)
+                bites.extend(holes)
+                connections.append(pair)
+    for i, placement in enumerate(placements):
+        if sum(i in pair for pair in connections) < 2:
+            raise ValueError(f"{placement.name} needs at least two safe breakaway tabs.")
+    return tabs, bites
+
+
+def make_profile(placements, gap, rail, settings=None):
     boards = [p.shape for p in placements]
     pairs = [(a.distance(b), i, j) for (i, a), (j, b) in combinations(enumerate(boards), 2)]
     for distance, i, j in pairs:
@@ -270,6 +358,9 @@ def make_profile(placements, gap, rail):
     frame = inner.buffer(rail, join_style="mitre").difference(inner)
     frame_id = len(boards)
     shapes = [*boards, frame]
+    if settings is not None:
+        tabs, holes = controlled_tabs(placements, shapes, gap, settings)
+        return checked_substrate(shapes, tabs), holes
     pairs.extend((board.distance(frame), i, frame_id) for i, board in enumerate(boards))
     groups = list(range(len(shapes)))
     tabs, holes = [], []
@@ -300,10 +391,14 @@ def make_profile(placements, gap, rail):
     detached = [p.name for i, p in enumerate(placements) if groups[i] != groups[frame_id] or connections[i] < 2]
     if detached:
         raise ValueError(f'{", ".join(detached)} cannot reach the frame with two safe breakaway tabs. Adjust spacing or placement.')
+    return checked_substrate(shapes, tabs), holes
+
+
+def checked_substrate(shapes, tabs):
     substrate = set_precision(unary_union([*shapes, *tabs]), RESOLUTION)
     if substrate.geom_type != "Polygon" or not substrate.is_valid :
         raise ValueError("A PCB copy cannot reach the frame with safe breakaway tabs. Adjust spacing or placement.")
-    return substrate, holes
+    return substrate
 
 
 def rings(polygon):
@@ -324,7 +419,7 @@ def build_panel(job):
     placements = [
         Placement(sources[p["source"]], {**p, "name": f'{job["sources"][p["source"]]["name"]} (copy {i + 1})'})
         for i, p in enumerate(job["placements"])]
-    outline, bites = make_profile(placements, job["gap"], job["rail"])
+    outline, bites = make_profile(placements, job["gap"], job["rail"], job.get("tabs"))
     layers, drills = {}, {}
     for index, placement in enumerate(placements):
         for name, data in placement.source[0].items():

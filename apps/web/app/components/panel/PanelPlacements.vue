@@ -3,17 +3,20 @@ import {
   placedBounds,
   ROTATIONS,
   type PanelPlacement,
-  type PanelSourceLayout
+  type PanelSourceLayout,
+  type TabEdge
 } from '~/utils/panel/panelLayout'
 
 const props = defineProps<{
   placements: PanelPlacement[]
   sources: PanelSourceLayout[]
   names: string[]
+  tabEdges?: TabEdge[]
 }>()
 const emit = defineEmits<{
   reset: []
   edit: [index: number, field: 'x' | 'y' | 'rotation', value: number]
+  overrideTabs: [index: number, edges: TabEdge[] | undefined]
 }>()
 const placementBounds = (placement: PanelPlacement) =>
   placedBounds(props.sources[placement.source]!.bounds, placement)
@@ -78,6 +81,31 @@ const placementBounds = (placement: PanelPlacement) =>
           </option>
         </select>
       </label>
+      <div
+        v-if="tabEdges"
+        class="col-span-3 space-y-2"
+      >
+        <label class="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            :checked="!!placement.tabEdges"
+            @change="
+              emit(
+                'overrideTabs',
+                index,
+                ($event.target as HTMLInputElement).checked ? [...tabEdges] : undefined
+              )
+            "
+          />
+          {{ $t('panel.overrideTabEdges', { copy: index + 1 }) }}
+        </label>
+        <PanelTabEdges
+          v-if="placement.tabEdges"
+          :label="$t('panel.copyTabEdges', { copy: index + 1 })"
+          :model-value="placement.tabEdges"
+          @update:model-value="emit('overrideTabs', index, $event)"
+        />
+      </div>
     </div>
   </details>
 </template>

@@ -16,6 +16,8 @@ The builder checks the copper layer count and asks you to confirm the other fabr
 
 The preview updates as you edit and shows the routed outline and breakaway holes once the fabrication check passes. Save the panel to keep its placement and pinned artwork and fabrication revisions. You can review a newer source revision before applying it. Workspace backups include saved panels and their pinned files.
 
+Use **Choose tab edges** to place evenly spaced rows on selected sides. The sides refer to each PCB before rotation. Use **Adjust placements** to override the allowed edges for individual copies. Tabs between two copies need allowed facing edges and aligned rows. If a row cannot fit safely, change the edges, count, or spacing before downloading.
+
 At JLCPCB, select **Panel by Customer** and **EasyEDA multi-color silkscreen**. Set the number of distinct designs for mixed panels. This workflow exports bare-board fabrication files. [JLCPCB’s full-color settings](https://jlcpcb.com/help/article/how-to-design-multi-color-silkscreen-using-easyeda) · [JLCPCB’s panel capabilities](https://jlcpcb.com/capabilities/Capab)
 
 ## Size limits

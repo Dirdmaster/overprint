@@ -12,6 +12,7 @@ const {
   canDownload,
   checking,
   columns,
+  controlledTabs,
   designs,
   displayed,
   download,
@@ -39,9 +40,12 @@ const {
   selected,
   setPlacement,
   setQuantity,
+  setTabOverride,
   side,
   sources,
   stackupConfirmed,
+  tabCount,
+  tabEdges,
   title,
   workspace,
   applyRefresh,
@@ -208,12 +212,40 @@ const {
             />
             {{ $t('panel.sameStack') }}
           </label>
+          <div class="space-y-3 border-t border-line pt-3">
+            <label class="flex items-center gap-2 text-sm font-medium">
+              <input
+                v-model="controlledTabs"
+                type="checkbox"
+              />
+              {{ $t('panel.controlledTabs') }}
+            </label>
+            <template v-if="controlledTabs">
+              <PanelTabEdges
+                v-model="tabEdges"
+                :label="$t('panel.allowedTabEdges')"
+              />
+              <label class="grid gap-1 text-sm">
+                {{ $t('panel.tabsPerEdge') }}
+                <input
+                  v-model.number="tabCount"
+                  class="rounded-md border border-line p-2"
+                  type="number"
+                  min="1"
+                  max="4"
+                />
+              </label>
+              <p class="text-xs text-muted">{{ $t('panel.tabEdgeHint') }}</p>
+            </template>
+          </div>
           <PanelPlacements
-            v-if="mixed && layout?.placements"
+            v-if="(mixed || controlledTabs) && layout?.placements"
             :placements="layout.placements"
             :sources="sources"
             :names="designs.map((design) => design.record.name)"
+            :tab-edges="controlledTabs ? tabEdges : undefined"
             @edit="setPlacement"
+            @override-tabs="setTabOverride"
             @reset="adjusted = undefined"
           />
         </fieldset>
@@ -270,7 +302,7 @@ const {
       </section>
 
       <section
-        class="flex min-h-96 flex-col gap-4 rounded-xl border border-line bg-surface p-4"
+        class="flex min-h-96 flex-col gap-4 rounded-xl border border-line bg-surface p-4 lg:sticky lg:top-4 lg:self-start"
         :aria-label="$t('panel.preview')"
       >
         <div class="flex flex-wrap items-center justify-between gap-3">

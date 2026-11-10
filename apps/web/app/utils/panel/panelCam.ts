@@ -1,5 +1,5 @@
 import type { BoardPackage } from '../boardPackage'
-import type { PanelPlacement } from './panelLayout'
+import type { PanelPlacement, PanelTabs } from './panelLayout'
 
 export type PanelCamJob = {
   sources: { name: string; bounds: BoardPackage['bounds']; files: Record<string, string> }[]
@@ -7,6 +7,7 @@ export type PanelCamJob = {
   gap: number
   rail: number
   copperLayers: number
+  tabs?: PanelTabs
 }
 type Point = [number, number]
 export type PanelRings = Point[][]

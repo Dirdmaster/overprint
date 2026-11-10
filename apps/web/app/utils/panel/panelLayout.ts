@@ -6,7 +6,14 @@ export const MAX_PANEL_COPIES = 36
 export const MAX_PANEL_PIXELS = 256_000_000
 export const ROTATIONS = [0, 90, 180, 270] as const
 export type Rotation = (typeof ROTATIONS)[number]
-export type PanelPlacement = { source: number; x: number; y: number; rotation: Rotation }
+export const TAB_EDGES = ['top', 'right', 'bottom', 'left'] as const
+export type TabEdge = (typeof TAB_EDGES)[number]
+export type PanelTabs = { edges: TabEdge[]; count: number }
+export type PanelPlacement = { source: number; x: number; y: number; rotation: Rotation; tabEdges?: TabEdge[] }
+export const validTabEdges = (edges: unknown): edges is TabEdge[] =>
+  Array.isArray(edges) && new Set(edges).size === edges.length && edges.every(edge => TAB_EDGES.includes(edge))
+export const validPanelTabs = (tabs: PanelTabs) =>
+  validTabEdges(tabs?.edges) && Number.isInteger(tabs.count) && tabs.count >= 1 && tabs.count <= 4
 export type PanelSourceLayout = { bounds: BoardPackage['bounds']; quantity: number }
 export type PanelSettings = { columns: number; gap: number }
 

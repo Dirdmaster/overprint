@@ -4,6 +4,8 @@ import {
   panelBounds,
   MAX_PANEL_DESIGNS,
   placedBounds,
+  validPanelTabs,
+  type TabEdge,
   type Rotation,
   type PanelPlacement
 } from '~/utils/panel/panelLayout'
@@ -55,6 +57,16 @@ export const usePanelBuilder = () => {
   const rows = ref(1)
   const columns = ref(2)
   const gap = ref(2.5)
+  const controlledTabs = ref(false)
+  const tabEdges = ref<TabEdge[]>(['left', 'right'])
+  const tabCount = ref(2)
+  const tabOverrides = shallowRef<Record<string, TabEdge[]>>({})
+  const tabs = computed(() => controlledTabs.value ? { edges: [...tabEdges.value], count: tabCount.value } : undefined)
+  const copyKey = (placements: PanelPlacement[], index: number) => {
+    const source = placements[index]!.source
+    const ordinal = placements.slice(0, index).filter(copy => copy.source === source).length
+    return `${designs.value[source]!.record.id}/${ordinal}`
+  }
   const side = ref<'front' | 'back'>('front')
   const busy = ref(false)
   const ready = ref(false)
@@ -99,10 +111,14 @@ export const usePanelBuilder = () => {
   const layout = computed(() => {
     if (!designs.value.length) return
     try {
+      if (tabs.value && !validPanelTabs(tabs.value)) throw new Error(t('panel.invalidTabCount'))
       if (!mixed.value && (!Number.isInteger(rows.value) || rows.value < 1))
         throw new Error(t('panel.invalidRows'))
       const startingLayout = layoutPanel(sources.value, { columns: columns.value, gap: gap.value })
-      const placements = adjusted.value ?? startingLayout
+      const positioned = adjusted.value ?? startingLayout
+      const placements = positioned.map((placement, index) => ({
+        ...placement, tabEdges: tabOverrides.value[copyKey(positioned, index)]
+      }))
       return { placements, bounds: panelBounds(sources.value, placements, gap.value) }
     } catch (cause) {
       return { error: cause instanceof Error ? cause.message : String(cause) }
@@ -116,6 +132,14 @@ export const usePanelBuilder = () => {
     error.value = cause instanceof Error ? cause.message : String(cause)
   }
 
+  watch(() => layout.value?.placements, (placements) => {
+    if (!placements) return
+    const activeKeys = new Set(placements.map((_, index) => copyKey(placements, index)))
+    const entries = Object.entries(tabOverrides.value)
+    const remaining = entries.filter(([key]) => activeKeys.has(key))
+    if (remaining.length !== entries.length) tabOverrides.value = Object.fromEntries(remaining)
+  })
+
   watch(
     [designs, rows, columns, gap],
     () => {
@@ -124,7 +148,7 @@ export const usePanelBuilder = () => {
     { flush: 'sync' }
   )
   watch(
-    [designs, rows, columns, gap, adjusted],
+    [designs, rows, columns, gap, adjusted, tabs, tabOverrides],
     () => {
       preview.value = undefined
       previewError.value = ''
@@ -134,7 +158,7 @@ export const usePanelBuilder = () => {
     { flush: 'sync' }
   )
 
-  watch([ready, layout, fabricationError], ([loaded, current, problem], _, onCleanup) => {
+  watch([ready, layout, fabricationError, tabs], ([loaded, current, problem, settings], _, onCleanup) => {
     if (!loaded || !current?.placements || problem || preview.value) {
       checking.value = false
       return
@@ -144,8 +168,8 @@ export const usePanelBuilder = () => {
     const timer = setTimeout(async () => {
       try {
         const panel = await buildPanel(
-          title.value, designs.value.map(design => design.project), current.placements, gap.value,
-          controller.signal
+          title.value, designs.value.map(design => design.project), current.placements,
+          { gap: gap.value, signal: controller.signal, tabs: settings }
         )
         if (!controller.signal.aborted) preview.value = panel
       } catch (cause) {
@@ -182,6 +206,10 @@ export const usePanelBuilder = () => {
   }
 
   const removeProject = (index: number) => {
+    const prefix = `${designs.value[index]!.record.id}/`
+    tabOverrides.value = Object.fromEntries(
+      Object.entries(tabOverrides.value).filter(([key]) => !key.startsWith(prefix))
+    )
     const remaining = designs.value.filter((_, i) => i !== index)
     if (designs.value.length > 1 && remaining.length === 1) {
       columns.value = Math.max(1, remaining[0]!.record.quantity || 1)
@@ -199,6 +227,15 @@ export const usePanelBuilder = () => {
 
   const placementBounds = (placement: PanelPlacement) =>
     placedBounds(sources.value[placement.source]!.bounds, placement)
+
+  const setTabOverride = (index: number, edges: TabEdge[] | undefined) => {
+    if (!layout.value?.placements?.[index]) return
+    const key = copyKey(layout.value.placements, index)
+    const next = { ...tabOverrides.value }
+    if (edges) next[key] = [...edges]
+    else delete next[key]
+    tabOverrides.value = next
+  }
 
   const setPlacement = (index: number, field: 'x' | 'y' | 'rotation', value: number) => {
     if (!Number.isFinite(value) || Math.abs(value) > 1000 || !layout.value?.placements) return
@@ -254,8 +291,7 @@ export const usePanelBuilder = () => {
         title.value,
         current.map((design) => design.project),
         placements,
-        gap.value,
-        controller.signal
+        { gap: gap.value, signal: controller.signal, tabs: tabs.value }
       )
     } finally {
       activeBuild = undefined
@@ -273,6 +309,12 @@ export const usePanelBuilder = () => {
       rows.value = record.rows
       columns.value = record.columns
       gap.value = record.gap
+      controlledTabs.value = !!record.tabs
+      tabEdges.value = record.tabs?.edges ?? ['left', 'right']
+      tabCount.value = record.tabs?.count ?? 2
+      tabOverrides.value = Object.fromEntries(record.placements.flatMap((placement, index) =>
+        placement.tabEdges ? [[copyKey(record.placements, index), placement.tabEdges]] : []
+      ))
       stackupConfirmed.value = record.stackupConfirmed
       adjusted.value = record.placements
       panelName.value = record.name
@@ -291,6 +333,10 @@ export const usePanelBuilder = () => {
     rows.value = 1
     columns.value = 2
     gap.value = 2.5
+    controlledTabs.value = false
+    tabEdges.value = ['left', 'right']
+    tabCount.value = 2
+    tabOverrides.value = {}
     stackupConfirmed.value = false
     panelName.value = ''
     savedPanelId.value = ''
@@ -311,12 +357,15 @@ export const usePanelBuilder = () => {
         rows: rows.value,
         columns: columns.value,
         gap: gap.value,
+        tabs: tabs.value,
         stackupConfirmed: stackupConfirmed.value,
         designs: designs.value.map((design, i) => ({
           ...design.record,
           quantity: sources.value[i]!.quantity
         })),
-        placements: layout.value.placements
+        placements: layout.value.placements.map(({ tabEdges: override, ...placement }) =>
+          controlledTabs.value && override ? { ...placement, tabEdges: override } : placement
+        )
       })
       savedPanelId.value = record.id
       savedRevision.value = record.revision
@@ -399,6 +448,7 @@ export const usePanelBuilder = () => {
     fabricationError, gap, layout, mixed, newPanel, notice, openPanel, panelName, pending, previewError, previewProjects,
     quantity, ready, refreshConfirmed, removeProject, reviewRefresh, rows, save, savedPanelId,
     savedPanels, selected, setPlacement, setQuantity, side, sources, stackupConfirmed, title, workspace,
+    controlledTabs, tabEdges, tabCount, setTabOverride,
     applyRefresh, sourceChanged, latestSource
   }
 }
