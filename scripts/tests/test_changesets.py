@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -21,7 +22,8 @@ class ChangesetsTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.write_json('package.json', {
             'name': 'release-fixture', 'private': True,
-            'packageManager': 'bun@1.3.14', 'workspaces': ['apps/*', 'packages/*']})
+            'packageManager': 'bun@1.3.14', 'workspaces': ['apps/*', 'packages/*'],
+            'scripts': {'version:packages': 'node ' + shlex.quote(str(ROOT / 'scripts/version-packages.mjs'))}})
         self.write_json('apps/web/package.json', {
             'name': '@overprint/web', 'private': True, 'version': '0.1.0-alpha.1',
             'devDependencies': {'@overprint/kicad': 'workspace:*'}})
@@ -29,7 +31,10 @@ class ChangesetsTests(unittest.TestCase):
             'name': '@overprint/kicad', 'private': True, 'version': '0.1.12'})
         self.write_json('packages/kicad/metadata.json', {
             'name': 'Overprint', 'versions': [{'version': '0.1.12', 'status': 'development'}]})
+        self.write_json('packages/editor/package.json', {
+            'name': '@overprint/editor', 'version': '0.2.0'})
         self.write_json('.changeset/config.json', json.loads((ROOT / '.changeset/config.json').read_text()))
+        (self.root / '.changeset/README.md').write_text('Changeset notes\n')
         (self.root / 'node_modules').symlink_to(ROOT / 'node_modules', target_is_directory=True)
         self.run_command('bun', 'install', '--lockfile-only', '--ignore-scripts')
         self.run_command('git', 'init', '-b', 'main')
@@ -51,15 +56,47 @@ class ChangesetsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return result.stdout
 
-    def changeset(self, packages):
+    def changeset(self, packages, filename='fix-import.md'):
         declarations = '\n'.join(f'"{name}": {bump}' for name, bump in packages.items())
-        (self.root / '.changeset/fix-import.md').write_text(
+        (self.root / '.changeset' / filename).write_text(
             f'---\n{declarations}\n---\n\nPreserve artwork when syncing a PCB.\n')
         self.run_command('git', 'add', '.changeset')
         self.run_command('git', 'commit', '-m', 'Add release note (#42)')
 
     def version(self):
         return self.run_command('node', str(ROOT / 'scripts/version-packages.mjs'))
+
+    def release_pr_files(self):
+        output = self.root / '.git' / 'workflow-output'
+        self.env['GITHUB_OUTPUT'] = str(output)
+        self.run_command('bash', str(ROOT / 'scripts/prepare-release-pr.sh'))
+        start, *paths, end = output.read_text().splitlines()
+        self.assertEqual(start, f'paths<<{end}')
+        # create-pull-request accepts both line breaks and commas as separators.
+        self.run_command('git', 'add', '--', *[part for path in paths for part in path.split(',')])
+        return self.run_command('git', 'diff', '--cached', '--name-only').splitlines()
+
+    def test_release_pr_stages_a_web_only_release_without_a_kicad_changelog(self):
+        self.changeset({'@overprint/web': 'patch'}, 'fix,import.md')
+        (self.root / 'apps/web/draft.txt').write_text('Unrelated file')
+        self.assertCountEqual(self.release_pr_files(), [
+            '.changeset/fix,import.md', 'apps/web/CHANGELOG.md', 'apps/web/package.json'])
+
+    def test_release_pr_stages_a_kicad_only_release_without_a_web_changelog(self):
+        self.changeset({'@overprint/kicad': 'patch'})
+        self.assertCountEqual(self.release_pr_files(), [
+            '.changeset/fix-import.md', 'packages/kicad/CHANGELOG.md',
+            'packages/kicad/metadata.json', 'packages/kicad/package.json'])
+
+    def test_release_pr_stages_editor_only_versions_and_notes(self):
+        self.changeset({'@overprint/editor': 'patch'})
+        self.assertCountEqual(self.release_pr_files(), [
+            '.changeset/fix-import.md', 'packages/editor/CHANGELOG.md', 'packages/editor/package.json'])
+
+    def test_empty_changeset_keeps_the_release_pr_worktree_clean(self):
+        self.changeset({})
+        self.assertEqual(self.release_pr_files(), [])
+        self.assertEqual(self.run_command('git', 'status', '--short'), '')
 
     def test_web_change_keeps_alpha_and_does_not_bump_plugin(self):
         self.changeset({'@overprint/web': 'patch'})
