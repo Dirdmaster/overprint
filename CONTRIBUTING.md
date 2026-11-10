@@ -31,6 +31,11 @@ and `fix/no-issue` are rejected. Rename a branch with
 `git branch -m fix/42-description`. `main` and `chore/release-versions` are the
 only exceptions; tags and branch deletions remain allowed.
 
+CI also accepts `dependabot/github_actions/` branches for same-repository pull
+requests authored by `dependabot[bot]`. This exception covers the configured
+GitHub Actions updates only; contributor branches and local pushes still follow
+the issue-linked naming policy. All remaining checks still run.
+
 Required CI checks the PR branch name with the same validator, including when
 local hooks were skipped. Check a name manually with
 `python3 scripts/check_branch.py --branch fix/42-description`.
