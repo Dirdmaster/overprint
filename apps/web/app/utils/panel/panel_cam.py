@@ -1,9 +1,10 @@
 """Build panel fabrication from the Gerbers and drills in saved projects."""
 from collections import defaultdict
 from copy import deepcopy
-from dataclasses import replace
+from dataclasses import dataclass, replace
+from functools import lru_cache
 from itertools import combinations, pairwise
-from math import radians
+from math import ceil, hypot, radians
 import re
 import warnings
 
@@ -189,6 +190,7 @@ class Placement:
         self.name = placement["name"]
         self.tab_edges = placement.get("tabEdges")
         self.shape = affinity.translate(affinity.rotate(source[2], self.angle, origin=(0, 0)), self.x, self.y)
+        self.bounds = self.shape.bounds
 
     def transform_cam(self, original):
         cam = deepcopy(original)
@@ -205,10 +207,14 @@ class Placement:
         cam.offset(self.x, -self.y, unit=MM)
         return cam
 
-    def clear(self, point):
+    def clear(self, point, extra=0):
+        radius = BITE_DIAMETER / 2 + BITE_CLEARANCE + extra + 2 * ARC_ERROR
+        x0, y0, x1, y1 = self.bounds
+        # The source validation already confines copper and drills to the board.
+        if max(x0 - point.x, point.x - x1, y0 - point.y, point.y - y1) > radius:
+            return True
         local = affinity.rotate(affinity.translate(point, -self.x, -self.y), -self.angle, origin=(0, 0))
-        # Use the circumscribed clearance to cover the chord approximation error.
-        window = Point(local.x, -local.y).buffer(BITE_DIAMETER / 2 + BITE_CLEARANCE + 2 * ARC_ERROR, quad_segs=24)
+        window = Point(local.x, -local.y).buffer(radius, quad_segs=24)
         return not any(layer.hits(window) for layer in self.source[3])
 
 
@@ -293,42 +299,56 @@ def tab_lanes(shape, edge, count):
     return [lo + (hi - lo) * i / (count + 1) for i in range(1, count + 1)]
 
 
-def controlled_tabs(placements, shapes, gap, settings):
-    count = settings["count"]
+def facing_edges(placements, settings):
     selected = []
     for placement in placements:
         edges = placement.tab_edges if placement.tab_edges is not None else settings["edges"]
         selected.append({(TAB_EDGES.index(edge) + placement.angle // 90) % 4: edge for edge in edges})
-    x0, y0, x1, y1 = shapes[-1].bounds
+    return selected
+
+
+def facing_connection(i, edge, lane, shapes, reach):
+    x0, y0, x1, y1 = shapes[i].bounds
+    vertical = edge % 2 == 0
+    axis = 1 if vertical else 0
+    sign = 1 if edge in (1, 2) else -1
+    ray = LineString([(lane, y0), (lane, y1)] if vertical else [(x0, lane), (x1, lane)])
+    points = get_coordinates(shapes[i].exterior.intersection(ray))
+    if not len(points):
+        return None
+    start = Point(max(points, key=lambda xy: sign * xy[axis]))
+    destination = Point(start.x, start.y + sign * reach) if vertical else Point(start.x + sign * reach, start.y)
+    outward = LineString([start, destination])
+    targets = []
+    ray_left, ray_top, ray_right, ray_bottom = outward.bounds
+    for j, shape in enumerate(shapes):
+        if j == i:
+            continue
+        left, top, right, bottom = shape.bounds
+        if ray_left > right or ray_right < left or ray_top > bottom or ray_bottom < top:
+            continue
+        hit = outward.intersection(shape.boundary)
+        if not hit.is_empty:
+            end = nearest_points(start, hit)[1]
+            targets.append((start.distance(end), j, end))
+    if targets:
+        _, j, end = min(targets, key=lambda target: (target[0], target[1]))
+        return j, start, end
+    return None
+
+
+def controlled_tabs(placements, shapes, gap, settings):
+    count = settings["count"]
+    selected = facing_edges(placements, settings)
     tabs, bites, connections = [], [], []
     for i, placement in enumerate(placements):
         for edge, local_edge in sorted(selected[i].items()):
-            vertical = edge % 2 == 0
-            axis = 1 if vertical else 0
-            sign = 1 if edge in (1, 2) else -1
             for row, lane in enumerate(tab_lanes(shapes[i], edge, count), 1):
-                ray = LineString([(lane, y0), (lane, y1)] if vertical else [(x0, lane), (x1, lane)])
-                points = get_coordinates(shapes[i].exterior.intersection(ray))
                 error = f"{placement.name}: cannot place {local_edge} tab {row} safely. Change the tab edges, count, or spacing."
-                if not len(points):
+                connection = facing_connection(i, edge, lane, shapes, gap * 2 + 4)
+                if not connection:
                     raise ValueError(error)
-                start = Point(max(points, key=lambda xy: sign * xy[axis]))
-                destination = Point((lane, y1 if sign > 0 else y0) if vertical
-                                    else (x1 if sign > 0 else x0, lane))
-                outward = LineString([start, destination])
-                targets = []
-                for j, shape in enumerate(shapes):
-                    if j == i:
-                        continue
-                    hit = outward.intersection(shape.boundary)
-                    if not hit.is_empty:
-                        end = nearest_points(start, hit)[1]
-                        targets.append((start.distance(end), j, end))
-                if not targets:
-                    raise ValueError(error)
-                distance, j, end = min(targets, key=lambda target: (target[0], target[1]))
-                if distance > gap * 2 + 4:
-                    raise ValueError(error)
+                j, start, end = connection
                 opposite = (edge + 2) % 4
                 if j < len(placements) and (
                     opposite not in selected[j] or
@@ -351,6 +371,170 @@ def controlled_tabs(placements, shapes, gap, settings):
     return tabs, bites
 
 
+MAX_SUPPORT_SPAN = 55
+TAB_SEARCH_WIDTH = 16
+
+
+@dataclass(frozen=True)
+class TabOption:
+    boards: tuple[int, int]
+    points: tuple[Point, Point]
+    tab: Polygon
+    exposed: Polygon
+    holes: list[Point]
+    length: float
+    extra_clearance: bool
+
+
+def tab_options(placements, shapes, gap, settings):
+    selected = facing_edges(placements, settings)
+    reach = gap * 2 + 4
+    options = []
+    seen = set()
+    for i, edges in enumerate(selected):
+        x0, y0, x1, y1 = shapes[i].bounds
+        for edge in sorted(edges):
+            span = x1 - x0 if edge % 2 == 0 else y1 - y0
+            # Include the midpoint and sample either side on the actual profile.
+            count = min(127, 2 * ceil(span / 4) + 1)
+            for lane in tab_lanes(shapes[i], edge, count):
+                connection = facing_connection(i, edge, lane, shapes, reach)
+                if not connection:
+                    continue
+                j, start, end = connection
+                if j < len(placements):
+                    opposite = (edge + 2) % 4
+                    if opposite not in selected[j]:
+                        continue
+                    reverse = facing_connection(j, opposite, lane, shapes, reach)
+                    if not reverse or reverse[0] != i or reverse[1].distance(end) > ARC_ERROR:
+                        continue
+                canonical_edge = edge if i < j else (edge + 2) % 4
+                key = (min(i, j), max(i, j), canonical_edge, round(lane, 6))
+                if key in seen:
+                    continue
+                seen.add(key)
+                candidate = validate_tab(i, j, shapes, placements, [], start, end, routing_gap=gap)
+                if candidate:
+                    tab, holes = candidate
+                    extra_clearance = all(
+                        placement.clear(hole, extra=.25) for hole in holes for placement in placements
+                    )
+                    exposed = tab.difference(shapes[i]).difference(shapes[j])
+                    options.append(TabOption((i, j), (start, end), tab, exposed, holes,
+                                             start.distance(end), extra_clearance))
+    return options
+
+
+def support_quality(bounds, points):
+    x0, y0, x1, y1 = bounds
+    gaps = []
+    for low, high, coords in ((x0, x1, [p.x for p in points]), (y0, y1, [p.y for p in points])):
+        gaps.extend(b - a for a, b in pairwise([low, *sorted(coords), high]))
+    excess = sum(max(0, gap - MAX_SUPPORT_SPAN) for gap in gaps)
+    vectors = []
+    off_center = 0
+    for p in points:
+        x = (2 * p.x - x0 - x1) / (x1 - x0)
+        y = (2 * p.y - y0 - y1) / (y1 - y0)
+        off_center += min(abs(x), abs(y))
+        length = hypot(x, y)
+        if length:
+            vectors.append((x / length, y / length))
+    # Opposing contacts balance around the board center. The largest projected
+    # span is a tie-breaker and also bounds unsupported runs on larger boards.
+    balance = hypot(sum(x for x, _ in vectors), sum(y for _, y in vectors)) / max(1, len(vectors))
+    return max(0, 2 - len(points)), excess, balance, max(gaps), off_center
+
+
+@dataclass(frozen=True)
+class TabLayout:
+    indices: tuple[int, ...]
+    rank: tuple
+    deficits: list[int]
+    disconnected: list[int]
+    groups: list[int]
+    frame_deficit: int
+
+
+def evaluate_tabs(indices, options, bounds):
+    frame = len(bounds)
+    points = [[] for _ in bounds]
+    groups = list(range(frame + 1))
+    for index in indices:
+        option = options[index]
+        i, j = option.boards
+        points[i].append(option.points[0])
+        if j != frame:
+            points[j].append(option.points[1])
+        source, destination = groups[i], groups[j]
+        groups = [source if group == destination else group for group in groups]
+    support = [support_quality(box_bounds, contacts) for box_bounds, contacts in zip(bounds, points)]
+    deficits = [i for i, (count, excess, _, _, _) in enumerate(support) if count or excess > ARC_ERROR]
+    disconnected = [i for i in range(frame) if groups[i] != groups[frame]]
+    frame_deficit = max(0, 2 - sum(frame in options[i].boards for i in indices))
+    rank = (
+        len(set(groups)),
+        sum(item[0] for item in support),
+        round(sum(item[1] for item in support), 6),
+        frame_deficit,
+        round(sum(item[2] for item in support), 6),
+        sum(not options[i].extra_clearance for i in indices),
+        round(sum(item[3] for item in support), 6),
+        round(sum(item[4] for item in support), 6),
+        round(sum(options[i].length for i in indices), 6),
+        indices,
+    )
+    return TabLayout(indices, rank, deficits, disconnected, groups, frame_deficit)
+
+
+def optimized_tabs(placements, shapes, gap, settings):
+    options = tab_options(placements, shapes, gap, settings)
+    bounds = [placement.bounds for placement in placements]
+    by_board = [[] for _ in shapes]
+    for index, option in enumerate(options):
+        for board in option.boards:
+            by_board[board].append(index)
+    # Explore by total bridge count. Keep a bounded set of the best partial
+    # layouts so the search remains practical on the browser fabrication worker.
+    frontier = [evaluate_tabs((), options, bounds)]
+    extra_support = sum(ceil(max(x1 - x0, y1 - y0) / MAX_SUPPORT_SPAN) for x0, y0, x1, y1 in bounds)
+    minimum_gap = gap - 2 * ARC_ERROR
+
+    @lru_cache(maxsize=32_768)
+    def conflicts(first, second):
+        return options[first].exposed.distance(options[second].exposed) < minimum_gap
+
+    for _ in range(2 * len(placements) + extra_support):
+        next_layouts = {}
+        for layout in frontier:
+            if layout.deficits:
+                candidates = by_board[min(layout.deficits, key=lambda board: len(by_board[board]))]
+            elif layout.disconnected:
+                candidates = {
+                    i for board in layout.disconnected for i in by_board[board]
+                    if layout.groups[options[i].boards[0]] != layout.groups[options[i].boards[1]]
+                }
+            else:
+                candidates = by_board[-1]
+            for index in candidates:
+                selection = tuple(sorted((*layout.indices, index)))
+                if selection in next_layouts or any(
+                    conflicts(min(index, other), max(index, other)) for other in layout.indices
+                ):
+                    continue
+                next_layouts[selection] = evaluate_tabs(selection, options, bounds)
+        if not next_layouts:
+            break
+        frontier = sorted(next_layouts.values(), key=lambda entry: entry.rank)[:TAB_SEARCH_WIDTH]
+        complete = [entry for entry in next_layouts.values()
+                    if not (entry.deficits or entry.disconnected or entry.frame_deficit)]
+        if complete:
+            indices = min(complete, key=lambda entry: entry.rank).indices
+            return [options[i].tab for i in indices], [hole for i in indices for hole in options[i].holes]
+    raise ValueError("Could not find a supported tab layout. Allow more edges, change the spacing, or place tabs by count.")
+
+
 def make_profile(placements, gap, rail, settings=None):
     boards = [p.shape for p in placements]
     pairs = [(a.distance(b), i, j) for (i, a), (j, b) in combinations(enumerate(boards), 2)]
@@ -363,7 +547,8 @@ def make_profile(placements, gap, rail, settings=None):
     frame_id = len(boards)
     shapes = [*boards, frame]
     if settings is not None:
-        tabs, holes = controlled_tabs(placements, shapes, gap, settings)
+        place_tabs = optimized_tabs if settings.get("mode") == "optimized" else controlled_tabs
+        tabs, holes = place_tabs(placements, shapes, gap, settings)
         return checked_substrate(shapes, tabs), holes
     pairs.extend((board.distance(frame), i, frame_id) for i, board in enumerate(boards))
     groups = list(range(len(shapes)))

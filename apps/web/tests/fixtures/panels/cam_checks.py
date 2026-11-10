@@ -123,6 +123,35 @@ class PanelCamChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"Stepped board: cannot place right tab 1 safely"):
             make_profile([board], 2.5, 5, {"edges": ["right"], "count": 2})
 
+    def test_optimized_tabs_share_one_bridge_and_use_opposing_supports(self):
+        source = ({}, {}, box(0, 0, 25, 44), [])
+        boards = [Placement(source, {"name": f"Board {i}", "x": x, "y": 0, "rotation": 0})
+                  for i, x in enumerate((0, 27.5))]
+        outline, bites = make_profile(boards, 2.5, 5, {"mode": "optimized", "edges": ["left", "right"]})
+        self.assertEqual(len(bites), 20)
+        self.assertEqual({round(bite.x, 2) for bite in bites}, {-.28, 25.28, 27.22, 52.78})
+        self.assertEqual({round(bite.y, 2) for bite in bites}, {20.1, 21.05, 22, 22.95, 23.9})
+        self.assertEqual(len(outline.interiors), 2)
+
+    def test_optimized_tabs_check_routing_between_exposed_bridges(self):
+        source = ({}, {}, box(0, 0, 9, 9), [])
+        board = Placement(source, {"name": "Small board", "x": 0, "y": 0, "rotation": 0})
+        _, bites = make_profile([board], 2.5, 5, {"mode": "optimized", "edges": ["top", "left"]})
+        self.assertEqual(sum(bite.x < 0 for bite in bites), 5)
+        self.assertEqual(sum(bite.y < 0 for bite in bites), 5)
+
+    def test_optimized_tabs_move_when_a_drill_blocks_the_midpoint(self):
+        drill = ExcellonTool(.6, plated=False, unit=MM)
+        keepout = ClearanceLayer([Flash(.31, -15.5, drill, unit=MM)])
+        source = ({}, {}, box(0, 0, 25, 31), [keepout])
+        board = Placement(source, {"name": "Board", "x": 0, "y": 0, "rotation": 0})
+        _, bites = make_profile([board], 2.5, 5, {"mode": "optimized", "edges": ["left", "right"]})
+        left = [bite for bite in bites if bite.x < 0]
+        self.assertEqual(len(bites), 10)
+        self.assertEqual(len(left), 5)
+        self.assertTrue(all(bite.distance(Point(.31, 15.5)) >= .85 for bite in left))
+        self.assertNotAlmostEqual(sum(bite.y for bite in left) / 5, 15.5)
+
     def test_excluding_the_connector_edge_keeps_its_drill_clear_of_mouse_bites(self):
         board = json.loads(fixture_data)["board"]
         files = board["fabrication"]["files"]

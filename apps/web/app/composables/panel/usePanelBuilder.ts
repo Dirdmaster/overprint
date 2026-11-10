@@ -6,6 +6,7 @@ import {
   placedBounds,
   validPanelTabs,
   type TabEdge,
+  type PanelTabs,
   type Rotation,
   type PanelPlacement
 } from '~/utils/panel/panelLayout'
@@ -58,10 +59,15 @@ export const usePanelBuilder = () => {
   const columns = ref(2)
   const gap = ref(2.5)
   const controlledTabs = ref(false)
+  const optimizeTabs = ref(false)
   const tabEdges = ref<TabEdge[]>(['left', 'right'])
   const tabCount = ref(2)
   const tabOverrides = shallowRef<Record<string, TabEdge[]>>({})
-  const tabs = computed(() => controlledTabs.value ? { edges: [...tabEdges.value], count: tabCount.value } : undefined)
+  const tabs = computed<PanelTabs | undefined>(() => {
+    if (!controlledTabs.value) return
+    const edges = [...tabEdges.value]
+    return optimizeTabs.value ? { mode: 'optimized', edges } : { edges, count: tabCount.value }
+  })
   const copyKey = (placements: PanelPlacement[], index: number) => {
     const source = placements[index]!.source
     const ordinal = placements.slice(0, index).filter(copy => copy.source === source).length
@@ -311,7 +317,8 @@ export const usePanelBuilder = () => {
       gap.value = record.gap
       controlledTabs.value = !!record.tabs
       tabEdges.value = record.tabs?.edges ?? ['left', 'right']
-      tabCount.value = record.tabs?.count ?? 2
+      optimizeTabs.value = record.tabs?.mode === 'optimized'
+      tabCount.value = record.tabs?.mode === 'optimized' ? 2 : (record.tabs?.count ?? 2)
       tabOverrides.value = Object.fromEntries(record.placements.flatMap((placement, index) =>
         placement.tabEdges ? [[copyKey(record.placements, index), placement.tabEdges]] : []
       ))
@@ -334,6 +341,7 @@ export const usePanelBuilder = () => {
     columns.value = 2
     gap.value = 2.5
     controlledTabs.value = false
+    optimizeTabs.value = false
     tabEdges.value = ['left', 'right']
     tabCount.value = 2
     tabOverrides.value = {}
@@ -448,7 +456,7 @@ export const usePanelBuilder = () => {
     fabricationError, gap, layout, mixed, newPanel, notice, openPanel, panelName, pending, previewError, previewProjects,
     quantity, ready, refreshConfirmed, removeProject, reviewRefresh, rows, save, savedPanelId,
     savedPanels, selected, setPlacement, setQuantity, side, sources, stackupConfirmed, title, workspace,
-    controlledTabs, tabEdges, tabCount, setTabOverride,
+    controlledTabs, optimizeTabs, tabEdges, tabCount, setTabOverride,
     applyRefresh, sourceChanged, latestSource
   }
 }

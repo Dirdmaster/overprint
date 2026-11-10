@@ -67,10 +67,13 @@ export const readPanel = async (value: unknown): Promise<{ record: PanelRecord; 
     ![placement.x, placement.y].every(n => Number.isFinite(n) && Math.abs(n) < 200_000))) {
     throw new Error('Invalid placement in saved panel.')
   }
-  const { id, name, revision, updatedAt, rows, columns, gap, stackupConfirmed } = panel
+  const { id, name, revision, updatedAt, rows, columns, gap, stackupConfirmed, tabs } = panel
+  const tabSettings: PanelTabs | undefined = tabs && (tabs.mode === 'optimized'
+    ? { mode: 'optimized', edges: [...tabs.edges] }
+    : { count: tabs.count, edges: [...tabs.edges] })
   return { designs, record: {
     version: 1, id, name, revision, updatedAt, rows, columns, gap, stackupConfirmed,
-    ...(panel.tabs ? { tabs: { count: panel.tabs.count, edges: [...panel.tabs.edges] } } : {}),
+    ...(tabSettings ? { tabs: tabSettings } : {}),
     designs: designs.map(design => design.record),
     placements: panel.placements.map(({ source, x, y, rotation, tabEdges }) => ({
       source, x, y, rotation, ...(tabEdges ? { tabEdges: [...tabEdges] } : {}),

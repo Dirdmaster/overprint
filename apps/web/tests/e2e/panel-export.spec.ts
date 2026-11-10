@@ -296,3 +296,33 @@ test('restores panel edge exclusions from a backup and exports the tab rows show
   }, { holes, points })
   expect(centersMatch).toBe(true)
 })
+
+test('reopens optimized tabs and exports one shared side bridge', async ({ page }) => {
+  await page.goto('/')
+  await importCoupon(page, 'coupon-a')
+  await page.getByRole('button', { name: 'Create panel', exact: true }).click()
+  await page.getByRole('checkbox', { name: 'Choose tab edges' }).check()
+  await page.getByRole('checkbox', { name: 'Optimize tabs' }).check()
+  await page.getByRole('textbox', { name: 'Panel name' }).fill('Optimized sides')
+  await page.getByRole('button', { name: 'Save panel', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('Panel saved')
+  await page.reload()
+  await page.getByRole('combobox', { name: 'Open saved panel' }).selectOption({ label: 'Optimized sides' })
+  await expect(page.getByRole('checkbox', { name: 'Optimize tabs' })).toBeChecked()
+  const download = page.getByRole('button', { name: 'Download ZIP' })
+  await expect(download).toBeEnabled({ timeout: camResultTimeout })
+  const event = page.waitForEvent('download')
+  await download.click()
+  const files = unzipSync(readFileSync((await (await event).path())!))
+  const drill = strFromU8(files['Drill_NPTH_Through.DRL']!)
+  expect(drill).toContain('C0000.600000')
+  const rows = Map.groupBy([...drill.matchAll(/^X([\d.]+)Y(-?[\d.]+)$/gm)], ([, x]) => Number(x))
+  expect([...rows.keys()].sort((a, b) => a - b)).toEqual([7.22, 32.78, 34.72, 60.28])
+  for (const row of rows.values()) {
+    const y = row.map(([, , value]) => -Number(value)).sort((a, b) => a - b)
+    expect(y).toHaveLength(5)
+    for (let index = 1; index < y.length; index++) {
+      expect(y[index]! - y[index - 1]!).toBeCloseTo(0.95, 5)
+    }
+  }
+})

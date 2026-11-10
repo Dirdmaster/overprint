@@ -42,6 +42,8 @@
     "reviewRevision": "Review newer revision",
     "placements": "Adjust placements",
     "controlledTabs": "Choose tab edges",
+    "optimizeTabs": "Optimize tabs",
+    "optimizeTabsHint": "Find a small set of well-spaced tabs on the allowed edges.",
     "allowedTabEdges": "Allowed tab edges",
     "tabsPerEdge": "Tabs per selected edge",
     "invalidTabCount": "Choose between one and four tabs per selected edge.",

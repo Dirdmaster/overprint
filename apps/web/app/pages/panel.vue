@@ -13,6 +13,7 @@ const {
   checking,
   columns,
   controlledTabs,
+  optimizeTabs,
   designs,
   displayed,
   download,
@@ -225,7 +226,23 @@ const {
                 v-model="tabEdges"
                 :label="$t('panel.allowedTabEdges')"
               />
-              <label class="grid gap-1 text-sm">
+              <label class="flex items-center gap-2 text-sm">
+                <input
+                  v-model="optimizeTabs"
+                  type="checkbox"
+                />
+                {{ $t('panel.optimizeTabs') }}
+              </label>
+              <p
+                v-if="optimizeTabs"
+                class="text-xs text-muted"
+              >
+                {{ $t('panel.optimizeTabsHint') }}
+              </p>
+              <label
+                v-else
+                class="grid gap-1 text-sm"
+              >
                 {{ $t('panel.tabsPerEdge') }}
                 <input
                   v-model.number="tabCount"
