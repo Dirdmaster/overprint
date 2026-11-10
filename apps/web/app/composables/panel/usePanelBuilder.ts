@@ -7,7 +7,6 @@ import {
   type Rotation,
   type PanelPlacement
 } from '~/utils/panel/panelLayout'
-import { panelInkPreview } from '~/utils/manufacturingZip'
 import {
   listPanels,
   loadPanel,
@@ -60,8 +59,10 @@ export const usePanelBuilder = () => {
   const busy = ref(false)
   const ready = ref(false)
   const error = ref('')
-  type BuiltPreview = { panel: Awaited<ReturnType<typeof buildPanel>>; front: string; back: string }
+  type BuiltPreview = Awaited<ReturnType<typeof buildPanel>>
   const preview = shallowRef<BuiltPreview>()
+  const checking = ref(false)
+  const previewError = ref('')
   const pending = shallowRef<{
     designName: string
     designs: PanelDesign[]
@@ -70,7 +71,7 @@ export const usePanelBuilder = () => {
   }>()
   const refreshConfirmed = ref(false)
   const displayed = computed(() => pending.value?.preview ?? preview.value)
-  const built = computed(() => displayed.value?.panel)
+  const previewProjects = computed(() => (pending.value?.designs ?? designs.value).map(design => design.project))
   const title = computed(
     () =>
       panelName.value.trim() ||
@@ -107,7 +108,10 @@ export const usePanelBuilder = () => {
       return { error: cause instanceof Error ? cause.message : String(cause) }
     }
   })
-  const bounds = computed(() => built.value?.board.bounds ?? layout.value?.bounds)
+  const bounds = computed(() => displayed.value?.board.bounds ?? layout.value?.bounds)
+  const canDownload = computed(() =>
+    !!preview.value && !busy.value && !pending.value && (!mixed.value || stackupConfirmed.value)
+  )
   const report = (cause: unknown) => {
     error.value = cause instanceof Error ? cause.message : String(cause)
   }
@@ -120,14 +124,41 @@ export const usePanelBuilder = () => {
     { flush: 'sync' }
   )
   watch(
-    [designs, rows, columns, gap, adjusted, stackupConfirmed],
+    [designs, rows, columns, gap, adjusted],
     () => {
       preview.value = undefined
+      previewError.value = ''
       dismissNotice()
       error.value = ''
     },
     { flush: 'sync' }
   )
+
+  watch([ready, layout, fabricationError], ([loaded, current, problem], _, onCleanup) => {
+    if (!loaded || !current?.placements || problem || preview.value) {
+      checking.value = false
+      return
+    }
+    const controller = new AbortController()
+    checking.value = true
+    const timer = setTimeout(async () => {
+      try {
+        const panel = await buildPanel(
+          title.value, designs.value.map(design => design.project), current.placements, gap.value,
+          controller.signal
+        )
+        if (!controller.signal.aborted) preview.value = panel
+      } catch (cause) {
+        if (!controller.signal.aborted) previewError.value = cause instanceof Error ? cause.message : String(cause)
+      } finally {
+        if (!controller.signal.aborted) checking.value = false
+      }
+    }, 400)
+    onCleanup(() => {
+      clearTimeout(timer)
+      controller.abort()
+    })
+  })
 
   const addProject = async () => {
     if (!selected.value || busy.value || designs.value.length >= MAX_PANEL_DESIGNS) return
@@ -219,38 +250,15 @@ export const usePanelBuilder = () => {
     const controller = new AbortController()
     activeBuild = controller
     try {
-      const panel = await buildPanel(
+      return await buildPanel(
         title.value,
         current.map((design) => design.project),
         placements,
         gap.value,
         controller.signal
       )
-      const front = await panelInkPreview(panel.board, panel.color, 'front')
-      const back = await panelInkPreview(panel.board, panel.color, 'back')
-      if (controller.signal.aborted) throw new DOMException('Panel build cancelled.', 'AbortError')
-      return { panel, front, back }
     } finally {
       activeBuild = undefined
-    }
-  }
-
-  const runBuild = async () => {
-    if (
-      !layout.value?.placements ||
-      busy.value ||
-      fabricationError.value ||
-      (mixed.value && !stackupConfirmed.value)
-    )
-      return
-    error.value = ''
-    busy.value = true
-    try {
-      preview.value = await buildPreview(designs.value, layout.value.placements)
-    } catch (cause) {
-      if (!(cause instanceof DOMException && cause.name === 'AbortError')) report(cause)
-    } finally {
-      busy.value = false
     }
   }
 
@@ -370,11 +378,11 @@ export const usePanelBuilder = () => {
   }
 
   const download = async () => {
-    if (!preview.value || busy.value || pending.value) return
+    if (!canDownload.value || !preview.value) return
     busy.value = true
     error.value = ''
     try {
-      const url = URL.createObjectURL(await preview.value.panel.download())
+      const url = URL.createObjectURL(await preview.value.download())
       const link = document.createElement('a')
       link.href = url
       link.download = `${title.value.replace(/[^a-z0-9_-]+/gi, '-')}-panel.zip`
@@ -387,9 +395,9 @@ export const usePanelBuilder = () => {
     }
   }
   return {
-    adjusted, addProject, available, bounds, busy, columns, designs, displayed, download, error,
-    fabricationError, gap, layout, mixed, newPanel, notice, openPanel, panelName, pending, preview,
-    quantity, ready, refreshConfirmed, removeProject, reviewRefresh, rows, runBuild, save, savedPanelId,
+    adjusted, addProject, available, bounds, busy, canDownload, checking, columns, designs, displayed, download, error,
+    fabricationError, gap, layout, mixed, newPanel, notice, openPanel, panelName, pending, previewError, previewProjects,
+    quantity, ready, refreshConfirmed, removeProject, reviewRefresh, rows, save, savedPanelId,
     savedPanels, selected, setPlacement, setQuantity, side, sources, stackupConfirmed, title, workspace,
     applyRefresh, sourceChanged, latestSource
   }

@@ -9,6 +9,8 @@ const {
   available,
   bounds,
   busy,
+  canDownload,
+  checking,
   columns,
   designs,
   displayed,
@@ -23,14 +25,14 @@ const {
   openPanel,
   panelName,
   pending,
-  preview,
+  previewError,
+  previewProjects,
   quantity,
   ready,
   refreshConfirmed,
   removeProject,
   reviewRefresh,
   rows,
-  runBuild,
   save,
   savedPanelId,
   savedPanels,
@@ -235,26 +237,13 @@ const {
           {{ $t('panel.maxDesigns') }}
         </p>
         <p
-          v-if="error || layout?.error"
+          v-if="error || layout?.error || previewError"
           class="text-sm"
           role="alert"
         >
-          {{ error || layout?.error }}
+          {{ error || layout?.error || previewError }}
         </p>
         <div class="flex flex-wrap gap-2">
-          <button
-            class="header-action header-action-primary"
-            :disabled="
-              busy ||
-              !!pending ||
-              !!fabricationError ||
-              !layout?.placements ||
-              (mixed && !stackupConfirmed)
-            "
-            @click="runBuild"
-          >
-            {{ $t('panel.build') }}
-          </button>
           <button
             class="header-action"
             :disabled="busy || !!pending || !layout?.placements"
@@ -322,20 +311,29 @@ const {
           @apply="applyRefresh"
           @cancel="pending = undefined"
         />
-        <div class="flex flex-1 items-center justify-center rounded-lg bg-black/10 p-5">
+        <div class="flex flex-1 items-center justify-center rounded-lg bg-canvas p-4 sm:p-6">
           <PanelPreview
-            v-if="displayed"
-            :board="displayed.panel.board"
-            :image="displayed[side]"
+            v-if="bounds && layout?.placements"
+            :bounds="bounds"
+            :board="displayed?.board"
+            :projects="previewProjects"
+            :placements="pending?.placements ?? layout.placements"
             :side="side"
           />
           <p
             v-else
             class="text-sm text-muted"
           >
-            {{ busy ? $t('panel.building') : $t('panel.previewHint') }}
+            {{ $t('panel.previewHint') }}
           </p>
         </div>
+        <p
+          v-if="checking && !pending"
+          class="text-sm text-muted"
+          aria-live="polite"
+        >
+          {{ $t('panel.checkingLayout') }}
+        </p>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <p class="text-sm text-muted">
             {{ $t('panel.quoteHint') }}
@@ -344,8 +342,8 @@ const {
             </span>
           </p>
           <button
-            class="header-action"
-            :disabled="busy || !!pending || !preview"
+            class="header-action header-action-primary"
+            :disabled="!canDownload"
             @click="download"
           >
             {{ $t('panel.downloadZip') }}

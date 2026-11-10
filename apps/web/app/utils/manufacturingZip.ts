@@ -127,11 +127,6 @@ export const placedPath = (path: string, { x, y, rotation }: Pick<InkPlacement, 
 
 type PanelInk = { placements: InkPlacement[]; biteHoles: string }
 
-export const panelInkPreview = async (board: BoardPackage, { placements, biteHoles }: PanelInk, side: string) => {
-  const dpi = Math.min(1200, 25.4 * 1200 / Math.max(board.bounds.width, board.bounds.height))
-  return (await renderInk(board, placements, side, board.bounds, dpi, biteHoles)).source
-}
-
 export const makeManufacturingZip = async (project: Composition, panelInk?: PanelInk) => {
   const fabrication = panelInk ? validateFabrication(project.board.fabrication) : prepareFabrication(project)
   const files: Record<string, Uint8Array> = Object.fromEntries(Object.entries(fabrication.files).map(([name, text]) => [name.slice(12), strToU8(text)]))
