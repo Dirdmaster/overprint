@@ -50,5 +50,5 @@ export const buildPanel = async (name: string, projects: Composition[], placemen
     version: 1, board, artwork: [], mask: '#101820', side: 'front', silk: false, fabrication: true,
   }
   const color = { placements: ink, biteHoles }
-  return { board, download: () => makeManufacturingZip(project, color) }
+  return { board, biteHoles, download: () => makeManufacturingZip(project, color) }
 }

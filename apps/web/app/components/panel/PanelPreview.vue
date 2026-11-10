@@ -7,6 +7,7 @@ import { PANEL_RAIL, type PanelPlacement } from '~/utils/panel/panelLayout'
 const props = defineProps<{
   bounds: BoardPackage['bounds']
   board?: BoardPackage
+  biteHoles?: string
   projects: Composition[]
   placements: PanelPlacement[]
   side: 'front' | 'back'
@@ -138,6 +139,12 @@ watch(
           />
         </g>
       </g>
+      <path
+        v-if="biteHoles"
+        :d="biteHoles"
+        class="pointer-events-none fill-canvas stroke-ink/65"
+        stroke-width=".1"
+      />
       <path
         v-if="board"
         :d="board.outline"

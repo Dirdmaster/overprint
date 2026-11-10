@@ -378,6 +378,7 @@ const {
             v-if="bounds && layout?.placements"
             :bounds="bounds"
             :board="displayed?.board"
+            :bite-holes="displayed?.biteHoles"
             :projects="previewProjects"
             :placements="pending?.placements ?? layout.placements"
             :side="side"
