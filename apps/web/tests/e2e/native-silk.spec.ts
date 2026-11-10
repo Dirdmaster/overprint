@@ -130,7 +130,7 @@ test('painting white explicitly replaces the preview ink without a new graphic',
   await expect(page.locator('[data-artwork-layer] image')).toHaveCount(0)
 })
 
-test('exports replaced ink below artwork and omits only the edited conventional silk side', async ({ page }) => {
+test('exports native ink below artwork without a second conventional silk pass', async ({ page }) => {
   await page.addInitScript(() => {
     const encrypt = crypto.subtle.encrypt.bind(crypto.subtle)
     Object.assign(window, { capturedInk: [] })
@@ -142,14 +142,19 @@ test('exports replaced ink below artwork and omits only the edited conventional 
   await open(page)
   await page.keyboard.press('k'); await paint(page)
   const saved = await save(page)
+  saved.board.fabrication.files['fabrication/B_Silkscreen.gbr'] =
+    'G04 Original rear ink*\n%FSLAX46Y46*%\n%MOMM*%\n%ADD10R,6X6*%\nD10*\nX5000000Y-5000000D03*\nM02*\n'
   await load(page, { ...saved, artwork: [...saved.artwork, { id: 'top', name: 'Top graphic', side: 'front', visible: true, x: 4, y: 4, width: 2, height: 2, rotation: 0, source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><rect width="2" height="2" fill="#e63136"/></svg>' }] })
   await page.getByRole('button', { name: 'Send to JLCPCB', exact: true }).click()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
   const files = unzipSync(readFileSync((await (await download).path())!))
-  expect(strFromU8(files['F_Silkscreen.gbr']!)).not.toContain('original F_Silkscreen')
-  expect(strFromU8(files['B_Silkscreen.gbr']!)).toContain('original B_Silkscreen')
-  expect(strFromU8(files['F_Cu.gbr']!)).toContain('original F_Cu')
+  for (const name of ['Gerber_TopSilkscreenLayer.GTO', 'Gerber_BottomSilkscreenLayer.GBO']) {
+    const gerber = strFromU8(files[name]!)
+    expect(gerber).toContain('KiCad silkscreen replaced by Overprint color ink')
+    expect(gerber).not.toContain('D03*')
+  }
+  expect(strFromU8(files['Gerber_TopLayer.GTL']!)).toContain('original F_Cu')
   expect(strFromU8(files['drill.drl']!)).toBe(board.fabrication.files['fabrication/drill.drl'])
   const pixels = await page.evaluate(async () => {
     const svg = new DOMParser().parseFromString((window as any).capturedInk[0], 'image/svg+xml')

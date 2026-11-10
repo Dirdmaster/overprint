@@ -8,20 +8,27 @@ const nativeFiles = Object.fromEntries([
   ...['F_Cu', 'B_Cu', 'In1_Cu', 'In2_Cu', 'F_Mask', 'B_Mask', 'F_Silkscreen', 'B_Silkscreen', 'Edge_Cuts'].map((name, index) => [
     `fabrication/${name}.gbr`, `G04 Native ${name}*\r\n%FSLAX46Y46*%\r\n%MOMM*%\r\n%ADD10C,0.500000*%\r\nD10*\r\nX${12000000 + index * 1000000}Y-23000000D03*\r\nM02*\r\n`,
   ]),
-  ['fabrication/drill-plated.drl', 'M48\r\nMETRIC,TZ\r\nT1C0.600\r\n%\r\nT1\r\nX12.0Y-35.0\r\nM30\r\n'],
-  ['fabrication/drill-nonplated.drl', 'M48\nMETRIC,TZ\nT1C1.500\n%\nT1\nX27.0Y-21.0\nM30\n'],
+  ['fabrication/drill-plated.drl', 'M48\r\n; #@! TF.FileFunction,Plated,1,4,PTH\r\nMETRIC,TZ\r\nT1C0.600\r\n%\r\nT1\r\nX12.0Y-35.0\r\nM30\r\n'],
+  ['fabrication/drill-nonplated.drl', 'M48\n; #@! TF.FileFunction,NonPlated,1,4,NPTH\nMETRIC,TZ\nT1C1.500\n%\nT1\nX27.0Y-21.0\nM30\n'],
 ])
+const zipNames = [
+  'Gerber_TopLayer.GTL', 'Gerber_BottomLayer.GBL', 'Gerber_InnerLayer1.G1', 'Gerber_InnerLayer2.G2',
+  'Gerber_TopSolderMaskLayer.GTS', 'Gerber_BottomSolderMaskLayer.GBS',
+  'Gerber_TopSilkscreenLayer.GTO', 'Gerber_BottomSilkscreenLayer.GBO', 'Gerber_BoardOutlineLayer.GKO',
+  'Drill_PTH_Through.DRL', 'Drill_NPTH_Through.DRL',
+]
 const rectangle = (x: number, y: number, w: number, h: number) => `M${x},${y} L${x + w},${y} L${x + w},${y + h} L${x},${y + h} Z`
+const outline = (right: number) => `M10,20 L${right},20 L${right},40 L14,40 L14,37 L10,37 Z M23,24 L23,26 L25,26 L25,24 Z`
 const project = (silk: boolean) => ({
   version: 1, side: 'back', silk, mask: '#202723', fabrication: false,
   board: {
     name: 'Asymmetric rear export', bounds: { x: 10, y: 20, width: 30, height: 20 },
-    outline: 'M10,20 L40,20 L40,40 L14,40 L14,37 L10,37 Z',
+    outline: outline(40),
     holes: rectangle(11, 34, 2, 2),
     layers: {
       'back-silkscreen': [rectangle(35, 22, 2, 2), rectangle(15, 25, 8, 8)],
       'front-silkscreen': [rectangle(25, 22, 2, 2)],
-      'back-mask': [rectangle(31, 27, 2, 2)],
+      'back-mask': [rectangle(31, 27, 2, 2), rectangle(32, 27, 2, 2)],
       'front-mask': [rectangle(31, 31, 2, 2)],
     },
     fabrication: { version: 1, copperLayers: 4, originMm: [0, 0], files: nativeFiles },
@@ -33,7 +40,7 @@ const project = (silk: boolean) => ({
   }],
 })
 
-for (const silk of [true, false]) test(`downloaded rear artwork has correct orientation and exclusions with native silk ${silk ? 'visible' : 'hidden'}`, async ({ page }, testInfo) => {
+for (const tiled of [false, true]) for (const silk of [true, false]) test(`downloaded ${tiled ? 'tiled ' : ''}rear artwork has correct orientation and exclusions with native silk ${silk ? 'visible' : 'hidden'}`, async ({ page }, testInfo) => {
   // Substitute only the recipient public key. Inspect the actual downloaded
   // encrypted archive with our private key, without capturing exporter internals.
   const keys = generateKeyPairSync('rsa', { modulusLength: 2048 })
@@ -45,24 +52,30 @@ for (const silk of [true, false]) test(`downloaded rear artwork has correct orie
       return importKey(format as 'spki', keyData, algorithm, extractable, usages)
     }) as typeof crypto.subtle.importKey
   }, publicKey)
+  const composition = project(silk)
+  if (tiled) {
+    composition.board.bounds.width = 180
+    composition.board.outline = outline(190)
+    composition.board.layers['back-silkscreen'].push(rectangle(68, 21, 4, 2), rectangle(128, 21, 4, 2))
+  }
   await page.goto('/')
   await page.getByRole('button', { name: 'Open project', exact: true }).click()
-  await page.getByLabel('Choose project file').setInputFiles({ name: 'asymmetric.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project(silk))) })
+  await page.getByLabel('Choose project file').setInputFiles({ name: 'asymmetric.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(composition)) })
   await expect(page.getByRole('img', { name: 'Asymmetric rear export back board preview' })).toBeVisible()
   await page.getByRole('button', { name: 'Send to JLCPCB', exact: true }).click()
   const downloadEvent = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
   const archive = unzipSync(readFileSync((await (await downloadEvent).path())!))
 
-  for (const [name, original] of Object.entries(nativeFiles)) {
-    const exported = strFromU8(archive[name.slice(12)]!)
+  for (const [index, [name, original]] of Object.entries(nativeFiles).entries()) {
+    const exported = strFromU8(archive[zipNames[index]!]!)
     if (name.endsWith('.drl')) expect(exported, name).toBe(original)
     else {
       const native = exported.split('G04 Overprint compatibility export from KiCad*\n')[1]!
-      if (!silk && name.endsWith('_Silkscreen.gbr')) {
-        expect(native).toContain('KiCad silkscreen hidden in Overprint')
+      if (name.endsWith('_Silkscreen.gbr')) {
+        expect(native).toContain(silk ? 'KiCad silkscreen replaced by Overprint color ink' : 'KiCad silkscreen hidden in Overprint')
         expect(native).not.toContain('D03*')
-      } else expect(native, name).toBe(original)
+      } else expect(native.replace(/^%ADD11C,0\.01\d\d\*%\r\n/m, ''), name).toBe(original)
     }
   }
   const decryptSvg = (name: string) => {
@@ -73,7 +86,15 @@ for (const silk of [true, false]) test(`downloaded rear artwork has correct orie
     return Buffer.concat([decipher.update(bytes.subarray(512, -16)), decipher.final()]).toString()
   }
   const rear = decryptSvg('Fabrication_ColorfulBottomSilkscreen.FCBS')
-  const result = await page.evaluate(async ({ rear }) => {
+  const front = decryptSvg('Fabrication_ColorfulTopSilkscreen.FCTS')
+  const registration = strFromU8(archive['Fabrication_ColorfulBoardOutlineMark.FCBM']!)
+  expect(registration).toMatch(/%ADD\d+C,0\.508\*%/)
+  expect(registration).toContain('X1400000Y-3700000D01*')
+  expect(registration).toContain('X2300000Y-2400000D02*')
+  const flashes = [...registration.matchAll(/X(-?\d+)Y(-?\d+)D03\*/g)]
+    .map(([, x, y]) => [Number(x) / 100_000, Number(y) / 100_000])
+  expect(flashes).toHaveLength(3)
+  const result = await page.evaluate(async ({ rear, front, tiled, flashes, outline }) => {
     const svg = new DOMParser().parseFromString(rear, 'image/svg+xml')
     const embedded = new Image()
     embedded.src = svg.querySelector('image')!.getAttribute('xlink:href')!
@@ -82,24 +103,80 @@ for (const silk of [true, false]) test(`downloaded rear artwork has correct orie
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(rear)}`
     await image.decode()
     const canvas = document.createElement('canvas')
-    canvas.width = 1500; canvas.height = 1000
+    canvas.width = (tiled ? 180 : 30) * 50; canvas.height = 1000
     const ctx = canvas.getContext('2d')!
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
     // Coordinates below are millimetres in the finished rear view, not native
     // top-view coordinates. Literal expected points were worked out separately.
-    const at = (x: number, y: number) => [...ctx.getImageData((x - 10) * 50, (y - 20) * 50, 1, 1).data]
-    return {
-      pixels: {
-        red: at(29, 32), blue: at(33, 26),
-        rearSilk: at(14, 23), frontSilkLocation: at(24, 23),
-        rearMask: at(18, 28), frontMaskLocation: at(18, 32),
-        hole: at(38, 35), notch: at(38, 39), solidCorner: at(12, 39),
-      },
-      embeddedWidth: embedded.width, embeddedHeight: embedded.height,
-      image: canvas.toDataURL('image/png').split(',')[1]!,
+    const at = (x: number, y: number) => [...ctx.getImageData((x + (tiled ? 150 : 0) - 10) * 50, (y - 20) * 50, 1, 1).data]
+    const seams = () => tiled ? [69.9, 70.1, 129.9, 130.1].map(x => at(x - 150, 22)) : []
+    const sample = () => ({
+      red: at(29, 32), blue: at(33, 26),
+      rearSilk: at(14, 23), frontSilkLocation: at(24, 23),
+      rearMask: at(17.5, 28), frontMaskLocation: at(18, 32),
+      hole: at(38, 35), notch: at(38, 39), solidCorner: at(12, 39),
+    })
+    const pixels = sample()
+    const imageData = canvas.toDataURL('image/png').split(',')[1]!
+    // Stitch the raw PNGs in rear-view order, without applying either mirror.
+    // The artwork and exclusions must already face the rear in the PNGs.
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const group = svg.querySelector('g')
+    const groupMatrix = group?.transform.baseVal.consolidate()?.matrix
+    const images = [...svg.querySelectorAll('image')]
+    for (const [index, element] of images.entries()) {
+      const tile = new Image()
+      tile.src = element.getAttribute('xlink:href')!
+      await tile.decode()
+      const fullPixels = tiled ? 8504 : 1418
+      const left = Math.floor(index * fullPixels / images.length)
+      const right = Math.floor((index + 1) * fullPixels / images.length)
+      ctx.drawImage(tile, left / fullPixels * canvas.width, 0, (right - left) / fullPixels * canvas.width, canvas.height)
     }
-  }, { rear })
-  expect(result.embeddedWidth).toBe(1418)
+    const embeddedPixels = sample()
+    const embeddedSeams = seams()
+
+    // Replace the PNGs with opaque pixels to verify the SVG's own exclusions.
+    const swatch = document.createElement('canvas')
+    swatch.width = swatch.height = 1
+    swatch.getContext('2d')!.fillRect(0, 0, 1, 1)
+    for (const element of images) element.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', swatch.toDataURL())
+    const clipped = new Image()
+    clipped.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(svg))}`
+    await clipped.decode()
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(clipped, 0, 0, canvas.width, canvas.height)
+
+    const profile = new Path2D(outline)
+    ctx.lineWidth = .508
+    return {
+      pixels, embeddedPixels, seams: embeddedSeams,
+      clipAlpha: [at(17.5, 28), at(38, 35), at(38, 39), at(26, 25), at(12, 39)].map(pixel => pixel[3]),
+      marks: [svg, new DOMParser().parseFromString(front, 'image/svg+xml')].map(doc =>
+        doc.documentElement.getAttribute('mark-points')!.split(' ').map(value => Number(value) * .254)),
+      marksOnBoard: flashes.map(([x, y]) =>
+        ctx.isPointInPath(profile, x!, -y!, 'evenodd') && !ctx.isPointInStroke(profile, x!, -y!)),
+      groupScale: groupMatrix?.a,
+      groupCenterMm: (groupMatrix?.e ?? NaN) * .254 / 2,
+      imageScaleSigns: images.map(element => element.parentElement === group ? Math.sign(element.transform.baseVal.consolidate()?.matrix.a ?? NaN) : 0),
+      tileCount: images.length,
+      embeddedWidth: embedded.width, embeddedHeight: embedded.height,
+      image: imageData,
+    }
+  }, { rear, front, tiled, flashes, outline: composition.board.outline })
+  expect(result.marksOnBoard).toEqual([true, true, true])
+  for (const points of result.marks) {
+    expect(points).toHaveLength(6)
+    for (const [i, coordinate] of flashes.flat().entries()) expect(points[i]).toBeCloseTo(coordinate, 8)
+  }
+  expect(result.embeddedPixels).toEqual(result.pixels)
+  expect(result.clipAlpha).toEqual([0, 0, 0, 0, 255])
+  expect(result.seams).toEqual(tiled ? Array(4).fill(silk ? [255, 255, 255, 255] : [32, 39, 35, 255]) : [])
+  expect(result.groupScale).toBe(-1)
+  expect(result.groupCenterMm).toBeCloseTo(tiled ? 100 : 25)
+  expect(result.imageScaleSigns).toEqual(tiled ? [-1, -1, -1] : [-1])
+  expect(result.tileCount).toBe(tiled ? 3 : 1)
+  expect(result.embeddedWidth).toBe(tiled ? 2834 : 1418)
   expect(result.embeddedHeight).toBe(945)
   expect(result.pixels).toEqual({
     red: [255, 0, 0, 255], blue: [0, 0, 255, 255],

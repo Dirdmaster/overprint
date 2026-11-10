@@ -7,9 +7,10 @@ export const paintPresets = [
 
 export const useLivePaint = () => {
   const color = useEditorRef('live-paint-color', () => '#ffd426')
+  const material = useEditorRef<'ink' | 'enig'>('live-paint-material', () => 'ink')
   const pointer = useEditorRef<{ x: number; y: number; valid: boolean } | null>('live-paint-pointer', () => null)
   const index = computed(() => Math.max(0, paintPresets.findIndex(preset => preset.color === color.value)))
   const adjacent = computed(() => [paintPresets[(index.value + paintPresets.length - 1) % paintPresets.length]!.color, color.value, paintPresets[(index.value + 1) % paintPresets.length]!.color])
   const cycle = (offset: number) => { color.value = paintPresets[(index.value + offset + paintPresets.length) % paintPresets.length]!.color }
-  return { color, pointer, adjacent, cycle, presets: paintPresets }
+  return { color, material, pointer, adjacent, cycle, presets: paintPresets }
 }

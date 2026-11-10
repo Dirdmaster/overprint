@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { useArtwork } from './useArtwork'
 import { useComposition } from '../project/useComposition'
 import { captureLibrarySnapshot, placeLibraryRevision, expandLibraryInstance, assertArtworkCapacity, listLibraryAssets, saveLibraryAsset, deleteLibraryAsset, type LibraryAsset } from '../../utils/library'
+import { isArtworkLocked } from '../../utils/artwork'
 export const useLibrary = () => {
   const { items, selection, selectionIds, checkpoint } = useArtwork()
   const { board } = useComposition()
@@ -37,6 +38,7 @@ export const useLibrary = () => {
   const detach = () => run(async () => {
     const wrapper = selectedInstance.value
     if (!wrapper) return
+    if (items.value.some(item => item.library?.instanceId === wrapper.library!.instanceId && isArtworkLocked(items.value, item.id))) throw new Error('Unlock this composition before detaching it.')
     const expanded = expandLibraryInstance(wrapper)
     const next = items.value.flatMap(item => item.library?.instanceId === wrapper.library!.instanceId ? expanded.filter(member => member.side === item.side) : [item])
     assertArtworkCapacity(next); checkpoint(); items.value = next; selection.value = expanded.find(item => !item.kind)?.id ?? null
@@ -44,8 +46,9 @@ export const useLibrary = () => {
   const update = (asset: LibraryAsset) => run(async () => {
     const wrapper = selectedInstance.value, original = items.value
     if (!wrapper || wrapper.library!.assetId !== asset.id) throw new Error('Select this linked instance again.')
+    if (original.some(item => item.library?.instanceId === wrapper.library!.instanceId && isArtworkLocked(original, item.id))) throw new Error('Unlock this composition before updating it.')
     const placed = await placeLibraryRevision(asset, true)
-    if (items.value !== original || selectedInstance.value !== wrapper) throw new Error('The project changed. Preview the update again.')
+    if (items.value !== original || selectedInstance.value !== wrapper || original.some(item => item.library?.instanceId === wrapper.library!.instanceId && isArtworkLocked(original, item.id))) throw new Error('The project changed. Preview the update again.')
     const scale = wrapper.width / wrapper.library!.snapshot.bounds.width
     const replacements = placed.map(item => ({ ...item, id: original.find(old => old.library?.instanceId === wrapper.library!.instanceId && old.side === item.side)?.id ?? item.id, library: { ...item.library!, instanceId: wrapper.library!.instanceId }, width: item.width * scale, height: item.height * scale, x: wrapper.x + wrapper.width / 2 - item.width * scale / 2, y: wrapper.y + wrapper.height / 2 - item.height * scale / 2, rotation: wrapper.rotation, visible: wrapper.visible }))
     const previousSides = original.filter(item => item.library?.instanceId === wrapper.library!.instanceId).map(item => item.side)

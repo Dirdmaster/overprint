@@ -46,6 +46,34 @@ test('accepts a board dropped on the canvas', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'Demo board front board preview' })).toBeVisible()
 })
 
+const droppedProject = {
+  version: 1,
+  board: { name: 'Dropped project', bounds: { x: 0, y: 0, width: 40, height: 25 }, outline: 'M0 0 L40 0 L40 25 L0 25 Z', holes: '', layers: {} },
+  artwork: [], side: 'front', silk: true, mask: '#202723', fabrication: false
+}
+
+test('opens a .overprint project dropped on the empty editor', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Import PCB', exact: true }).click({ trial: true })
+  await page.evaluate(value => {
+    const data = new DataTransfer()
+    data.items.add(new File([JSON.stringify(value)], 'dropped.overprint', { type: 'application/json' }))
+    document.querySelector('main')?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: data }))
+  }, droppedProject)
+  await expect(page.getByRole('status')).not.toContainText('Invalid board export')
+  await expect(page.getByRole('img', { name: 'Dropped project front board preview' })).toBeVisible()
+})
+
+test('opens a .overprint project chosen from the Import PCB dialog', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
+  await page.getByLabel('Choose board export').setInputFiles({
+    name: 'dropped.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(droppedProject))
+  })
+  await expect(page.getByRole('dialog', { name: 'Import PCB' })).not.toBeVisible()
+  await expect(page.getByRole('img', { name: 'Dropped project front board preview' })).toBeVisible()
+})
+
 test('overlapping KiCad polygons stay filled and fabrication starts hidden', async ({ page }) => {
   const { zipSync, strToU8 } = await import('fflate')
   const manifest = { format: 'overprint-board', version: 1, board: { name: 'Overlap', boundsMm: { x: 0, y: 0, width: 100, height: 100 } }, coordinates: { units: 'mm', backDisplay: 'mirror-x-about-board-center' } }

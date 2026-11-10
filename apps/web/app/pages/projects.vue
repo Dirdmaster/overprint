@@ -152,6 +152,12 @@ const remove = (id: string) =>
             <p class="mt-1 text-sm text-muted">Your boards and artwork, saved locally.</p>
           </div>
           <div class="flex flex-wrap gap-2">
+            <NuxtLink
+              to="/panel"
+              class="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-xs font-medium hover:bg-soft"
+            >
+              {{ $t('panel.new') }}
+            </NuxtLink>
             <button
               class="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-xs font-medium hover:bg-soft"
               :disabled="busy"
@@ -402,7 +408,7 @@ const remove = (id: string) =>
           >
             <p class="flex items-center gap-2">
               <HardDrive class="size-4" />
-              Projects and libraries are stored in this browser.
+              Projects, panels and libraries are stored in this browser.
             </p>
             <a
               href="#workspace-backup"

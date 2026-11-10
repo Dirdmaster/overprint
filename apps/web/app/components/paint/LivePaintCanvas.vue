@@ -10,16 +10,22 @@ import { useNativeSilk } from '../../composables/artwork/useNativeSilk'
 import { useArtwork } from '../../composables/artwork/useArtwork'
 import { shallowRef, computed, watch, onMounted, onBeforeUnmount, useTemplateRef, useId } from 'vue'
 import type { BoardPackage } from '../../utils/boardPackage'
-import { artworkRows } from '../../utils/artwork'
+import { artworkRows, isArtworkLocked } from '../../utils/artwork'
 import { createArtworkPaint, type ArtworkPaintHit } from '../../utils/artworkPaint'
 import { createPaintRegions, paintRegionSource, type PaintRegion } from '../../utils/paintRegions'
 import { isNativeSilk, nativeSilkSettings } from '../../utils/nativeSilk'
+import { validateGoldRegions } from '../../utils/enigPaint'
 const props = defineProps<{ board: BoardPackage; side: string; silk: boolean }>()
 const emit = defineEmits<{ error: [message: string] }>()
 const { items, canAdd, selection, checkpoint, destination, descendants } = useArtwork()
-const { color, presets, pointer, cycle } = useLivePaint()
+const { color, material, presets, pointer, cycle } = useLivePaint()
 const { setColor } = useNativeSilk()
-const paintingArtwork = computed(() => !!selection.value && !isNativeSilk(selection.value))
+const paintingArtwork = computed(
+  () =>
+    !!selection.value &&
+    !isNativeSilk(selection.value) &&
+    !items.value.find((item) => item.id === selection.value)?.gold
+)
 const surface = useTemplateRef('surface')
 const maskId = useId()
 const artworkHost = useTemplateRef('artworkHost')
@@ -29,7 +35,7 @@ const scoped = computed(() => {
   if (!current.value) return []
   const ids = new Set([current.value.id, ...descendants(current.value.id)])
   return artworkRows(items.value, props.side, true)
-    .filter((row) => row.visible && !row.item.kind && ids.has(row.item.id))
+    .filter((row) => row.visible && !row.locked && !row.item.kind && ids.has(row.item.id))
     .map((row) => row.item)
 })
 let artworkPaint: ReturnType<typeof createArtworkPaint> | undefined
@@ -88,7 +94,10 @@ const hit = (x: number, y: number, inverse: DOMMatrix) => {
   const ink = geometry.value.ink.find(({ shape }) =>
     context!.isPointInPath(shape, point.x, point.y, 'evenodd')
   )
-  if (ink) return { path: ink.path, bounds: props.board.bounds, inkPath: ink.path }
+  if (ink) {
+    if (material.value === 'enig') return createPaintRegions([ink.path])(point)
+    return { path: ink.path, bounds: props.board.bounds, inkPath: ink.path }
+  }
   return regionAt.value(point)
 }
 let stroke:
@@ -98,7 +107,64 @@ const fill = (region: Target) => {
   const key = 'key' in region ? region.key : (region.inkPath ?? region)
   if (!stroke || stroke.visited.has(key)) return
   stroke.visited.add(key)
+  if (material.value === 'enig') {
+    if (
+      'artworkId' in region &&
+      items.value.find((item) => item.id === region.artworkId)?.drawing
+    ) {
+      emit('error', 'Convert this editable artwork to SVG before painting it with ENIG.')
+      return
+    }
+    let target: PaintRegion
+    try {
+      target = 'artworkId' in region ? artworkPaint!.goldRegion(region, surface.value!) : region
+    } catch (error) {
+      emit('error', error instanceof Error ? error.message : 'This shape cannot become ENIG.')
+      return
+    }
+    const { x, y, width, height } = target.bounds
+    const source = paintRegionSource(target, '#cfac61', props.side)
+    const existing = items.value.find(
+      (item) => item.gold?.path === target.path && item.side === props.side
+    )
+    if (existing) return
+    if (!canAdd.value) {
+      emit('error', 'This project already has 100 layers, folders, and graphics.')
+      return
+    }
+    const item = {
+      id: crypto.randomUUID(),
+      name: 'ENIG gold',
+      source,
+      side: props.side,
+      visible: true,
+      x,
+      y,
+      width,
+      height,
+      rotation: 0,
+      parentId: destination(props.side),
+      gold: { path: target.path, bounds: target.bounds }
+    }
+    try {
+      validateGoldRegions(props.board, [...items.value, item], props.side)
+    } catch (error) {
+      emit(
+        'error',
+        error instanceof Error ? error.message : 'This gold region cannot be placed safely.'
+      )
+      return
+    }
+    if (!stroke.changed) {
+      checkpoint()
+      stroke.changed = true
+    }
+    items.value.push(item)
+    emit('error', '')
+    return
+  }
   if ('artworkId' in region) {
+    if (isArtworkLocked(items.value, region.artworkId)) return
     if (items.value.find((item) => item.id === region.artworkId)?.drawing) {
       emit(
         'error',
@@ -121,7 +187,7 @@ const fill = (region: Target) => {
       stroke.changed = true
     }
     items.value = items.value.map((item) =>
-      item.id === region.artworkId ? { ...item, source } : item
+      item.id === region.artworkId ? { ...item, source, gold: undefined } : item
     )
     emit('error', '')
     return
@@ -156,6 +222,7 @@ const fill = (region: Target) => {
       item.source.includes(`d="${region.path}"`)
   )?.item
   if (existing?.source === source) return
+  if (existing && isArtworkLocked(items.value, existing.id)) return
   if (!existing && !canAdd.value) {
     emit('error', 'This project already has 100 layers, folders, and graphics.')
     return
@@ -203,7 +270,7 @@ const refreshHover = () => {
     artworkPaint?.highlight(hovered.value, artworkHighlight.value, color.value)
   pointer.value = { ...cursor, valid: !!hovered.value }
 }
-watch(color, refreshHover, { flush: 'post' })
+watch([color, material], refreshHover, { flush: 'post' })
 const move = (event: PointerEvent) => {
   const matrix = surface.value?.getScreenCTM()
   if (!matrix) return

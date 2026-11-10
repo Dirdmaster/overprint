@@ -3,7 +3,7 @@ import { useArtwork } from '../../composables/artwork/useArtwork'
 import { useCanvasTools } from '../../composables/canvas/useCanvasTools'
 import ArtworkTransformHandles from './ArtworkTransformHandles.vue'
 import { computed, onMounted, onBeforeUnmount } from 'vue'
-import { artworkRows, type Artwork } from '../../utils/artwork'
+import { artworkRows, isArtworkLocked, type Artwork } from '../../utils/artwork'
 const props = defineProps<{ side: string; interactive?: boolean }>()
 const { items, selectionIds, selectedArtwork, select, checkpoint, patchItems } = useArtwork()
 const { active } = useCanvasTools()
@@ -34,7 +34,8 @@ const start = (
   mode: string,
   handle?: { x: number; y: number }
 ) => {
-  if (event.button !== 0 || active.value !== 'select') return
+  if (event.button !== 0 || active.value !== 'select' || isArtworkLocked(items.value, item.id))
+    return
   event.stopPropagation()
   event.preventDefault()
   if (mode === 'move' && event.shiftKey) {
@@ -64,6 +65,10 @@ const start = (
 }
 const move = (event: PointerEvent) => {
   if (!gesture || event.pointerId !== gesture.pointerId) return
+  if (gesture.moving.some((item) => isArtworkLocked(items.value, item.id))) {
+    finish()
+    return
+  }
   const { item, start, inverse, mode, handle } = gesture
   const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(inverse)
   if (!gesture.checkpointed) {
@@ -161,11 +166,13 @@ onBeforeUnmount(() => window.removeEventListener('blur', finish))
         :width="item.width"
         :height="item.height"
         fill="transparent"
-        :style="{ cursor: active === 'select' ? 'move' : undefined }"
+        :style="{
+          cursor: active === 'select' && !isArtworkLocked(items, item.id) ? 'move' : undefined
+        }"
         :stroke="selectionIds.includes(item.id) && active === 'select' ? '#4f87ff' : 'none'"
         stroke-width="1"
         vector-effect="non-scaling-stroke"
-        :pointer-events="active === 'select' ? 'all' : 'none'"
+        :pointer-events="active === 'select' && !isArtworkLocked(items, item.id) ? 'all' : 'none'"
         @pointerdown="start($event, item, 'move')"
         @pointermove.stop="move"
         @pointerup="finish"

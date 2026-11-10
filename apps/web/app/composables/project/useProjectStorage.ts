@@ -1,12 +1,13 @@
 import { loadComposition } from '~/utils/compositionStore'
 import { parseProject, type Composition } from '~/utils/project'
 import { createProject, migrateLegacyProject, deleteProject, getWorkspaceMeta, listProjects, loadProject, projectThumbnail, saveProject, setWorkspaceMeta, type WorkspaceProjectRecord } from '~/utils/workspaceStore'
+import { useWorkspaceNotice } from './useWorkspaceNotice'
 
 // Install once at the page root; all switches pass through the serialized save queue.
 export const useProjectStorage = () => {
   const { board, side, silk, maskColor, components, generation } = useComposition()
   const { items, selection, past, future } = useArtwork()
-  const status = ref('')
+  const { notice: status, show: showStatus, dismiss: dismissStatus } = useWorkspaceNotice()
   const projects = ref<WorkspaceProjectRecord[]>([])
   const active = ref<WorkspaceProjectRecord>()
   const busy = ref(false)
@@ -24,7 +25,19 @@ export const useProjectStorage = () => {
     selection.value = null; past.value = []; future.value = []
     applying = false
   }
-  const report = (error: unknown) => { status.value = error instanceof Error ? error.message : 'Could not save locally. Download your project to keep your work.' }
+  const clearActive = () => {
+    applying = true
+    active.value = undefined
+    board.value = undefined
+    items.value = []
+    selection.value = null
+    past.value = []
+    future.value = []
+    applying = false
+  }
+  const report = (error: unknown) => {
+    showStatus(error instanceof Error ? error.message : 'Could not save locally. Download your project to keep your work.', { persistent: true })
+  }
   const save = (explicit = false): Promise<boolean> => {
     clearTimeout(timer)
     if (!initialized.value || !board.value) return queue
@@ -41,7 +54,7 @@ export const useProjectStorage = () => {
         active.value = record ? await saveProject({ ...record, composition: JSON.stringify(value), thumbnail: projectThumbnail(value) }, record.revision) : await createProject(value.board.name, value)
         await setWorkspaceMeta('activeProjectId', active.value.id)
         await refresh()
-        if (explicit) status.value = 'All changes saved'
+        if (explicit) showStatus('All changes saved')
         return true
       } catch (error) { blocked = true; report(error); return false }
     })
@@ -64,7 +77,7 @@ export const useProjectStorage = () => {
       if (!(await save())) return false
       const record = await loadProject(id)
       if (!record) throw new Error('Project no longer exists. Refresh the gallery.')
-      await activate(record); status.value = 'Project opened'; return true
+      await activate(record); showStatus('Project opened'); return true
     } catch (error) { report(error); return false } finally { busy.value = false }
   }
   const open = async (file: File) => {
@@ -75,7 +88,7 @@ export const useProjectStorage = () => {
       const project = await parseProject(await file.text())
       if (!(await save())) return
       const record = await createProject(file.name.replace(/\.overprint$/i, ''), project)
-      await activate(record); await refresh(); status.value = 'Project opened'
+      await activate(record); await refresh(); showStatus('Project opened')
     } catch (error) { report(error) } finally { busy.value = false }
   }
   const rename = async (id: string, name: string) => {
@@ -103,7 +116,7 @@ export const useProjectStorage = () => {
       if (!record) return
       await deleteProject(id, record.revision)
       if (active.value?.id === id) {
-        active.value = undefined; applying = true; board.value = undefined; items.value = []; selection.value = null; past.value = []; future.value = []; applying = false
+        clearActive()
         await setWorkspaceMeta('activeProjectId', undefined)
       }
       await refresh()
@@ -114,13 +127,16 @@ export const useProjectStorage = () => {
     try {
       await queue
       const record = await createProject(`${active.value?.name ?? board.value.name} recovery`, snapshot())
-      await activate(record); await refresh(); status.value = 'Recovery copy saved'
+      await activate(record); await refresh(); showStatus('Recovery copy saved')
     } catch (error) { report(error) }
   }
   const download = () => {
     if (!board.value) return
     const text = JSON.stringify(snapshot())
-    if (new Blob([text]).size > 20_000_000) { status.value = 'Project exceeds the 20 MB file limit. Remove or simplify graphics before downloading.'; return }
+    if (new Blob([text]).size > 20_000_000) {
+      showStatus('Project exceeds the 20 MB file limit. Remove or simplify graphics before downloading.', { persistent: true })
+      return
+    }
     const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
     const link = document.createElement('a'); link.href = url; link.download = `${active.value?.name ?? board.value.name}.overprint`; link.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
@@ -142,8 +158,12 @@ export const useProjectStorage = () => {
         record = migratedId ? await loadProject(migratedId) : undefined
       }
       if (record) await activate(record)
+      else clearActive()
       await refresh()
-    } catch { blocked = true; status.value = 'Saved project could not be restored. It has been kept untouched. Download your current work or save a recovery copy.' }
+    } catch {
+      blocked = true
+      showStatus('Saved project could not be restored. It has been kept untouched. Download your current work or save a recovery copy.', { persistent: true })
+    }
     initialized.value = true
   })
   watch(generation, () => { active.value = undefined; blocked = false }, { flush: 'sync' })
@@ -152,5 +172,5 @@ export const useProjectStorage = () => {
     clearTimeout(timer); timer = setTimeout(() => void save(), 250)
   }, { deep: true, flush: 'sync' })
   onBeforeUnmount(() => { if (!leavingAfterSave) void save(); clearTimeout(timer); window.removeEventListener('keydown', keyboard); window.removeEventListener('pagehide', flush) })
-  return { initialized, status, projects, active, busy, refresh, openSaved, rename, duplicate, remove, recover, open, download, save, leaveSaved }
+  return { initialized, status, dismissStatus, projects, active, busy, refresh, openSaved, rename, duplicate, remove, recover, open, download, save, leaveSaved }
 }

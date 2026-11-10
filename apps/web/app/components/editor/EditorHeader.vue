@@ -8,6 +8,7 @@ defineProps<{
 }>()
 defineEmits<{
   projects: []
+  panel: []
   import: []
   save: []
   openProject: []
@@ -39,6 +40,12 @@ defineEmits<{
       >
         <RefreshCw :class="{ 'animate-spin motion-reduce:animate-none': syncing }" />
         {{ $t('editor.sync') }}
+      </button>
+      <button
+        class="header-action"
+        @click="$emit('panel')"
+      >
+        {{ $t('panel.create') }}
       </button>
       <OpenBoardButton
         @scan="$emit('scan')"

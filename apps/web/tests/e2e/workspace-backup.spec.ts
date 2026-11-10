@@ -21,10 +21,15 @@ test('workspace backup restores project copies and rejects damaged input without
   expect(saved.format).toBe('overprint-workspace')
   expect(saved.projects).toHaveLength(1)
   expect(saved.libraries).toHaveLength(0)
-  await page.getByLabel('Choose workspace backup').setInputFiles(path)
-  await expect(
-    page.getByText('1 project and 0 library compositions', { exact: true })
-  ).toBeVisible()
+  expect(saved.panels).toHaveLength(0)
+  const legacy = { ...saved }
+  delete legacy.panels
+  await page.getByLabel('Choose workspace backup').setInputFiles({
+    name: 'version-one.overprint-backup',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(legacy)),
+  })
+  await expect(page.getByText('1 project and 0 library compositions', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Import backup copies', exact: true }).click()
   await expect(projectRows(page)).toHaveCount(2)
   await page
@@ -145,7 +150,7 @@ test('full workspace stays exportable and rejects project creation and backup co
   // Seed a full browser-storage fixture without requiring a thousand UI interactions.
   await page.evaluate(async (record) => {
     const db = await new Promise<IDBDatabase>((resolve) => {
-      const r = indexedDB.open('overprint-workspace', 1)
+      const r = indexedDB.open('overprint-workspace')
       r.onsuccess = () => resolve(r.result)
     })
     await new Promise<void>((resolve, reject) => {

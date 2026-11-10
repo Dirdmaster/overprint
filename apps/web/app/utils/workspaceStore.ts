@@ -5,10 +5,13 @@ export const MAX_WORKSPACE_PROJECTS = 1000
 export type WorkspaceProjectRecord = { id: string; name: string; revision: number; updatedAt: number; composition: string; thumbnail: string }
 let connection: Promise<IDBDatabase> | undefined
 export const openWorkspaceDatabase = (): Promise<IDBDatabase> => connection ??= new Promise((resolve, reject) => {
-  const request = indexedDB.open('overprint-workspace', 1)
-  request.onupgradeneeded = () => {
-    for (const name of ['projects', 'meta']) request.result.createObjectStore(name)
-    request.result.createObjectStore('libraries', { keyPath: 'id' })
+  const request = indexedDB.open('overprint-workspace', 2)
+  request.onupgradeneeded = ({ oldVersion }) => {
+    if (oldVersion < 1) {
+      for (const name of ['projects', 'meta']) request.result.createObjectStore(name)
+      request.result.createObjectStore('libraries', { keyPath: 'id' })
+    }
+    if (oldVersion < 2) request.result.createObjectStore('panels').createIndex('gallery', ['updatedAt', 'name', 'id'])
   }
   request.onsuccess = () => {
     const db = request.result

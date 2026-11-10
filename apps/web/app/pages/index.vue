@@ -5,13 +5,20 @@ const { board, openBoard } = useComposition()
 const {
   initialized,
   status,
+  dismissStatus,
   open: openProjectFile,
   download,
   save,
+  active,
   leaveSaved,
   recover
 } = useProjectStorage()
 const route = useRoute()
+const createPanel = async () => {
+  if (await leaveSaved()) {
+    await navigateTo({ path: '/panel', query: { project: active.value?.id } })
+  }
+}
 const showProjects = async () => {
   if (await leaveSaved()) await navigateTo('/projects')
 }
@@ -45,9 +52,14 @@ const openProject = () => {
   projectPicker.value?.show()
 }
 const onDrop = (event: DragEvent) => {
-  if (!event.dataTransfer?.files.length) return
+  const files = event.dataTransfer?.files
+  if (!files?.length) return
+  if (files.length === 1 && /\.overprint$/i.test(files[0]!.name)) {
+    void openProjectFile(files[0]!)
+    return
+  }
   openImport()
-  importer.value?.receiveFiles(event.dataTransfer.files)
+  importer.value?.receiveFiles(files)
 }
 onMounted(() => {
   if (route.query.import === 'pcb') {
@@ -68,6 +80,7 @@ onMounted(() => {
     <EditorHeader
       v-if="board"
       @projects="showProjects"
+      @panel="createPanel"
       @import="openImport()"
       @save="download"
       @open-project="openProject"
@@ -123,9 +136,7 @@ onMounted(() => {
       />
     </main>
     <div
-      v-if="
-        status && !['All changes saved', 'Project opened', 'Recovery copy saved'].includes(status)
-      "
+      v-if="status?.persistent"
       class="flex flex-wrap justify-center gap-2 p-2"
     >
       <button
@@ -142,8 +153,8 @@ onMounted(() => {
       </button>
     </div>
     <ProjectStatusNotice
-      :message="status"
-      @dismiss="status = ''"
+      :message="status?.message ?? ''"
+      @dismiss="dismissStatus"
     />
     <ProjectFilePicker
       ref="projectPicker"
@@ -162,6 +173,7 @@ onMounted(() => {
       ref="importer"
       :confirm-replacement="confirmImport"
       @imported="acceptImport"
+      @project-selected="openProjectFile"
     />
   </NuxtLayout>
 </template>

@@ -5,7 +5,7 @@ import type { BoardPackage } from '~/utils/boardPackage'
 import { readBoardFile } from '~/utils/readBoardFile'
 const props = defineProps<{ confirmReplacement: () => Promise<boolean> }>()
 const { t } = useI18n()
-const emit = defineEmits<{ imported: [board: BoardPackage] }>()
+const emit = defineEmits<{ imported: [board: BoardPackage]; projectSelected: [file: File] }>()
 let request = 0
 let controller: AbortController | undefined
 const dialog = useTemplateRef('dialog')
@@ -29,6 +29,11 @@ const receiveFiles = async (files: FileList | null) => {
   const current = ++request
   if (files!.length !== 1) {
     feedback.value = t('kicad.import.oneFile')
+    return
+  }
+  if (/\.overprint$/i.test(file.name)) {
+    dialog.value?.close()
+    emit('projectSelected', file)
     return
   }
   controller = new AbortController()
@@ -149,7 +154,7 @@ defineExpose({ show, receiveFiles })
       <input
         ref="picker"
         type="file"
-        accept=".kicad_pcb,.overprint-board,.zip"
+        accept=".kicad_pcb,.overprint-board,.overprint,.zip"
         class="hidden"
         :aria-label="$t('kicad.import.chooseExport')"
         @change="onFileChange"

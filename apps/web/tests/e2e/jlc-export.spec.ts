@@ -94,12 +94,22 @@ test('downloads current artwork and native fabrication, then sends to a new quot
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
   const download = await downloadEvent
   const files = unzipSync(readFileSync((await download.path())!))
-  for (const [name, bytes] of Object.entries(nativeFiles())) {
-    const exported = files[name.slice(12)]!
+  const zipNames = [
+    'Gerber_TopLayer.GTL', 'Gerber_BottomLayer.GBL', 'Gerber_TopSolderMaskLayer.GTS', 'Gerber_BottomSolderMaskLayer.GBS',
+    'Gerber_TopSilkscreenLayer.GTO', 'Gerber_BottomSilkscreenLayer.GBO', 'Gerber_BoardOutlineLayer.GKO', 'drill-0.drl',
+  ]
+  for (const [index, [name, bytes]] of Object.entries(nativeFiles()).entries()) {
+    const exported = files[zipNames[index]!]!
     if (name.endsWith('.gbr')) {
       const text = strFromU8(exported)
-      expect(text).toMatch(/^G04 EasyEDA Pro v2\.2\.42\.2, /)
-      expect(strToU8(text.split('G04 Overprint compatibility export from KiCad*\n')[1]!)).toEqual(bytes)
+      expect(text).toMatch(/^G04 EasyEDA Pro v3\.2\.148, /)
+      const native = text.split('G04 Overprint compatibility export from KiCad*\n')[1]!
+      if (name.endsWith('_Silkscreen.gbr')) {
+        expect(native).toContain('KiCad silkscreen replaced by Overprint color ink')
+        expect(native).not.toMatch(/D0[13]\*/)
+      } else {
+        expect(strToU8(native.replace(/^%ADD10C,0\.01\d\d\*%\r\n/m, ''))).toEqual(bytes)
+      }
     } else expect(exported).toEqual(bytes)
   }
   for (const name of ['Fabrication_ColorfulTopSilkscreen.FCTS','Fabrication_ColorfulBottomSilkscreen.FCBS','Fabrication_ColorfulBoardOutlineLayer.FCBO']) expect(files[name]!.length).toBeGreaterThan(528)
@@ -124,21 +134,12 @@ test('downloads current artwork and native fabrication, then sends to a new quot
     const captured = (window as unknown as { colorSvgForTest: string[] }).colorSvgForTest
     const parse = (source: string) => new DOMParser().parseFromString(source, 'image/svg+xml')
     const top = parse(captured[0]!), bottom = parse(captured[1]!), outline = parse(captured[2]!)
-    const box = top.documentElement.getAttribute('viewBox')!.split(' ').map(Number)
-    const transform = bottom.querySelector('g')!.getAttribute('transform')!
-    // An off-center native point must land at its reflected bottom-view position.
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-    const group = document.createElementNS(svg.namespaceURI, 'g') as SVGGElement
-    group.setAttribute('transform', transform); svg.append(group)
-    const point = new DOMPoint(box[0]! + box[2]! * .2, box[1]! + box[3]! * .3)
-    const reflected = point.matrixTransform(group.transform.baseVal.consolidate()!.matrix)
     return {
       version: top.documentElement.getAttribute('eda-version'),
       sameBox: outline.documentElement.getAttribute('viewBox') === top.documentElement.getAttribute('viewBox'),
       outline: outline.querySelector('path')?.getAttribute('d'),
       fill: outline.querySelector('path')?.getAttribute('fill'),
-      reflectedX: reflected.x, expectedX: box[0]! + box[2]! * .8,
-      reflectedY: reflected.y, expectedY: point.y,
+      rearTransforms: bottom.querySelectorAll('[transform]').length,
     }
   })
   const original = JSON.parse(strFromU8(unzipSync(fixture.buffer)['geometry.json']!))
@@ -149,8 +150,7 @@ test('downloads current artwork and native fabrication, then sends to a new quot
   expect(geometry.sameBox).toBe(true)
   expect(geometry.outline).toBe(expectedOutline)
   expect(geometry.fill).toBe('none')
-  expect(geometry.reflectedX).toBeCloseTo(geometry.expectedX, 3)
-  expect(geometry.reflectedY).toBeCloseTo(geometry.expectedY, 3)
+  expect(geometry.rearTransforms).toBe(2)
 
   let received = false
   let uploadAttempts = 0

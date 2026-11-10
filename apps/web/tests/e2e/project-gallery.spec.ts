@@ -56,6 +56,10 @@ test('projects can be duplicated, renamed, reopened and deleted independently', 
   await action(row(page, 'Second design'), 'Delete')
   await row(page, 'Second design').getByRole('button', { name: 'Confirm deletion' }).click()
   await expect(rows(page)).toHaveCount(1)
+  await backToEditor(page)
+  await expect(page.getByRole('button', { name: 'Save project', exact: true })).toBeHidden()
+  await openProjects(page)
+  await expect(rows(page)).toHaveCount(1)
 })
 
 test('search and sort use saved project names', async ({ page }) => {
@@ -73,6 +77,24 @@ test('search and sort use saved project names', async ({ page }) => {
   await page.getByLabel('Search projects').clear()
   await page.getByLabel('Sort projects').selectOption('name')
   await expect(rows(page).first()).toContainText('Alpha')
+})
+
+test('project confirmations expire after the most recent action', async ({ page }) => {
+  await page.clock.install()
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open project', exact: true }).click()
+  await page.getByLabel('Choose project file').setInputFiles({
+    name: 'Design.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(legacyProject)),
+  })
+  const status = page.getByRole('status')
+  await expect(status).toHaveText('Project opened')
+  await page.clock.fastForward(2500)
+  await page.keyboard.press('Control+s')
+  await expect(status).toHaveText('All changes saved')
+  await page.clock.fastForward(2500)
+  await expect(status).toHaveText('All changes saved')
+  await page.clock.fastForward(2000)
+  await expect(status).toBeHidden({ timeout: 1000 })
 })
 
 test('migrates a legacy localStorage project once and keeps the original', async ({ page }) => {
@@ -106,6 +128,7 @@ test('conflicting tabs preserve the newer saved project and allow a recovery cop
   page,
   context
 }) => {
+  await page.clock.install()
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -113,12 +136,16 @@ test('conflicting tabs preserve the newer saved project and allow a recovery cop
   await page.keyboard.press('Control+s')
   await expect(page.getByRole('status')).toContainText('All changes saved')
   const other = await context.newPage()
+  await other.clock.install()
   await other.goto('/')
   await expect(other.getByRole('button', { name: 'Save project', exact: true })).toBeVisible()
-  await page.getByRole('status').click()
+  await page.clock.fastForward(5000)
+  await expect(page.getByRole('status')).toBeHidden()
   await page.keyboard.press('Control+s')
   await expect(page.getByRole('status')).toContainText('All changes saved')
   await other.keyboard.press('Control+s')
+  await expect(other.getByRole('status')).toContainText('changed in another tab')
+  await other.clock.fastForward(5000)
   await expect(other.getByRole('status')).toContainText('changed in another tab')
   await other.getByRole('button', { name: 'Save recovery copy', exact: true }).click()
   await expect(other.getByRole('status')).toContainText('Recovery copy saved')
