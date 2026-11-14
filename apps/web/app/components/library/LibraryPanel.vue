@@ -88,8 +88,8 @@ const thumbnails = async () => {
   )
   previews.value = Object.fromEntries(entries)
 }
-const show = async (event: MouseEvent) => {
-  ;(event.currentTarget as HTMLElement).focus()
+const show = async (event?: MouseEvent) => {
+  if (event?.currentTarget instanceof HTMLElement) event.currentTarget.focus()
   libraryDialog.value?.showModal()
   // A selected folder captures its graphics, while the picker always shows the actual artwork.
   const captured = new Set(selectionIds.value)

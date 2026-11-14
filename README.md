@@ -21,7 +21,7 @@ See the [artwork workflow guide](docs/editor-workflows.md) for drawing, palettes
 - Paint silkscreen regions and artwork with Live Paint.
 - Arrange designs with layers, folders, pad anchors, grid snapping and repeat previews.
 - Edit pen nodes and combine, subtract or intersect filled shapes.
-- Save named palettes and apply gradients, stripes or dots.
+- Save named colors in Live Paint and recolor selected fills or strokes.
 - Inspect print warnings on the board and review PCB changes before applying an update.
 - Save reusable front/back compositions as linked instances or editable copies. See [artwork libraries](docs/artwork-libraries.md).
 - Preview the board in 2D or with its 3D component models.

@@ -38,12 +38,12 @@ preview. Both sides use the same physical board coordinates.
 
 ## Color and review
 
-Palette and fills stores named project colors and replaces a color throughout
-artwork, including hidden and rear layers. Gradients, stripes and dots freeze to
-portable SVG while retaining their own appearance settings. Applying an appearance
-replaces editable text/shape/vector settings; Undo restores them. Linked and locked
-artwork must be detached or unlocked before changes. Printed color matching still
-requires physical samples. ENIG uses the separate Gold paint target.
+Use Color to change an existing fill or stroke on the selection. Save named
+swatches directly in Paint with the + button. The same swatches are available in
+fill and stroke pickers. Project-wide replacement includes hidden artwork and
+both artboards. Older gradient and pattern artwork remains viewable and
+exportable. Linked and locked artwork must be detached or unlocked before
+changes. ENIG uses the separate Gold paint mode.
 
 Print review checks filled artwork against board boundaries, pad openings and an
 advisory legend profile. It screens sampled ink for thin features, small counters
