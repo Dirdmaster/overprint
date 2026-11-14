@@ -79,13 +79,13 @@ test('ENIG Live Paint saves an editable region and exports paired copper and mas
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
   const files = unzipSync(readFileSync((await (await download).path())!))
-  for (const name of ['F_Cu.gbr', 'F_Mask.gbr']) {
+  for (const name of ['Gerber_TopLayer.GTL', 'Gerber_TopSolderMaskLayer.GTS']) {
     const gerber = strFromU8(files[name]!)
     expect(gerber).toContain('G36*')
     expect(gerber).toMatch(/X0008000000Y-0008000000D0[12]\*/)
   }
-  expect(strFromU8(files['B_Cu.gbr']!)).not.toContain('G36*')
-  expect(strFromU8(files['F_Silkscreen.gbr']!)).toContain('replaced by Overprint color ink and ENIG openings')
+  expect(strFromU8(files['Gerber_BottomLayer.GBL']!)).not.toContain('G36*')
+  expect(strFromU8(files['Gerber_TopSilkscreenLayer.GTO']!)).toContain('replaced by Overprint color ink and ENIG openings')
   const alpha = await page.evaluate(async () => {
     const svg = new DOMParser().parseFromString((window as any).goldInk, 'image/svg+xml')
     const image = new Image(); image.src = svg.querySelector('image')!.getAttribute('xlink:href')!; await image.decode()
@@ -111,8 +111,8 @@ test('ENIG exposes a native copper fill beneath a cutout without adding copper',
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
   const files = unzipSync(readFileSync((await (await download).path())!))
-  expect(strFromU8(files['F_Cu.gbr']!)).not.toContain('G36*')
-  expect(strFromU8(files['F_Mask.gbr']!)).toContain('G36*')
+  expect(strFromU8(files['Gerber_TopLayer.GTL']!)).not.toContain('G36*')
+  expect(strFromU8(files['Gerber_TopSolderMaskLayer.GTS']!)).toContain('G36*')
 })
 
 test('paints an enclosed silkscreen cutout, preserves its island, and saves with undo', async ({ page }) => {

@@ -80,6 +80,7 @@ attributes and surrounding elements are expanded for readability.
 - `artwork/`: artwork state, layer dragging, Live Paint and native silkscreen edits.
 - `canvas/`: canvas tools and assembled 3D preview controls.
 - `theme/`: theme preference and application-level theme listeners.
+- `panel/`: panel layout, pinned workspace documents and fabrication previews.
 
 The top-level `index.ts` explicitly re-exports the public composables for Nuxt's
 auto-import scanner. Add new public composables there; callers keep using names
@@ -91,7 +92,7 @@ register lifecycle listeners; consumers use the shared state composables.
 
 The web app uses `@nuxtjs/i18n`, with English as its only shipping locale and
 unprefixed URLs. Feature catalogs live in `apps/web/i18n/locales/en/`:
-`common.json`, `editor.json`, `kicad.json` and `export.json`. Each file owns its
+`common.json`, `editor.json`, `kicad.json`, `export.json` and `panel.json`. Each file owns its
 matching top-level namespace. Use meaningful keys such as
 `$t('common.importPcb')` in templates or `useI18n().t` inside setup/composables.
 Keep translated expressions reactive when they depend on a changing locale.

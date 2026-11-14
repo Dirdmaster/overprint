@@ -5,6 +5,7 @@ import re
 import sys
 
 BRANCH = re.compile(r'(feat|fix|chore|docs|refactor)/[1-9][0-9]*-[a-z0-9]+(?:-[a-z0-9]+)*')
+DEPENDABOT_ACTIONS = re.compile(r'dependabot/github_actions/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*')
 EXCEPTIONS = {'main', 'chore/release-versions'}
 
 
@@ -36,7 +37,11 @@ def main():
     except ValueError as error:
         print(error, file=sys.stderr)
         return 1
-    invalid = sorted({name for name in names if not valid_branch(name)})
+    # GitHub supplies this only for same-repository PRs authored by Dependabot.
+    # Local pre-push checks never use the CI exception.
+    trusted_dependabot = not args.push and os.environ.get('TRUSTED_DEPENDABOT_PR') == 'true'
+    invalid = sorted({name for name in names if not (
+        valid_branch(name) or (trusted_dependabot and DEPENDABOT_ACTIONS.fullmatch(name)))})
     if not invalid:
         return 0
     print('Branch naming check failed: ' + ', '.join(repr(name) for name in invalid), file=sys.stderr)

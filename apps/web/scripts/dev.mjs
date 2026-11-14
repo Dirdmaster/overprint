@@ -1,4 +1,5 @@
 await import('./copy-model-converter.mjs')
+await import('./copy-panel-cam.mjs')
 // Keep Bun as the task runner, but use Node for the local HTTP server.
 // Repeated large browser uploads can stall in Bun's HTTP request handling.
 if (process.versions.bun) throw new Error('Run the dev server with Node.js: node scripts/dev.mjs')

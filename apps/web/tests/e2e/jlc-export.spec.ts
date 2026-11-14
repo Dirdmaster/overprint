@@ -94,12 +94,22 @@ test('downloads current artwork and native fabrication, then sends to a new quot
   await page.getByRole('button', { name: 'Download ZIP', exact: true }).click()
   const download = await downloadEvent
   const files = unzipSync(readFileSync((await download.path())!))
-  for (const [name, bytes] of Object.entries(nativeFiles())) {
-    const exported = files[name.slice(12)]!
+  const zipNames = [
+    'Gerber_TopLayer.GTL', 'Gerber_BottomLayer.GBL', 'Gerber_TopSolderMaskLayer.GTS', 'Gerber_BottomSolderMaskLayer.GBS',
+    'Gerber_TopSilkscreenLayer.GTO', 'Gerber_BottomSilkscreenLayer.GBO', 'Gerber_BoardOutlineLayer.GKO', 'drill-0.drl',
+  ]
+  for (const [index, [name, bytes]] of Object.entries(nativeFiles()).entries()) {
+    const exported = files[zipNames[index]!]!
     if (name.endsWith('.gbr')) {
       const text = strFromU8(exported)
-      expect(text).toMatch(/^G04 EasyEDA Pro v2\.2\.42\.2, /)
-      expect(strToU8(text.split('G04 Overprint compatibility export from KiCad*\n')[1]!)).toEqual(bytes)
+      expect(text).toMatch(/^G04 EasyEDA Pro v3\.2\.148, /)
+      const native = text.split('G04 Overprint compatibility export from KiCad*\n')[1]!
+      if (name.endsWith('_Silkscreen.gbr')) {
+        expect(native).toContain('KiCad silkscreen replaced by Overprint color ink')
+        expect(native).not.toMatch(/D0[13]\*/)
+      } else {
+        expect(strToU8(native.replace(/^%ADD10C,0\.01\d\d\*%\r\n/m, ''))).toEqual(bytes)
+      }
     } else expect(exported).toEqual(bytes)
   }
   for (const name of ['Fabrication_ColorfulTopSilkscreen.FCTS','Fabrication_ColorfulBottomSilkscreen.FCBS','Fabrication_ColorfulBoardOutlineLayer.FCBO']) expect(files[name]!.length).toBeGreaterThan(528)
@@ -140,7 +150,7 @@ test('downloads current artwork and native fabrication, then sends to a new quot
   expect(geometry.sameBox).toBe(true)
   expect(geometry.outline).toBe(expectedOutline)
   expect(geometry.fill).toBe('none')
-  expect(geometry.rearTransforms).toBe(0)
+  expect(geometry.rearTransforms).toBe(2)
 
   let received = false
   let uploadAttempts = 0

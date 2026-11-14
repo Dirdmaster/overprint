@@ -61,9 +61,9 @@ The npm account must have publishing permission for the `@overprint` scope.
 For subsequent releases, review and commit the editor version, changelog and
 lockfile before pushing the matching tag. Pushing the tag publishes immediately
 after checks pass; it does not create a draft. The repository's publication
-approval rule therefore applies to the release tag push too. This workflow does
-not configure npm trust or extend the existing automated Changesets release PR
-to include editor version/changelog files.
+approval rule therefore applies to the release tag push too. The Changesets
+release PR includes editor versions and changelog entries. Configure npm trust
+before tagging the approved editor release.
 
 ## Build a source candidate
 

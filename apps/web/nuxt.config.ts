@@ -11,7 +11,7 @@ export default defineNuxtConfig({
     defaultLocale: 'en',
     strategy: 'no_prefix',
     detectBrowserLanguage: false,
-    locales: [{ code: 'en', language: 'en', name: 'English', files: ['en/common.json', 'en/editor.json', 'en/kicad.json', 'en/export.json'] }],
+    locales: [{ code: 'en', language: 'en', name: 'English', files: ['en/common.json', 'en/editor.json', 'en/kicad.json', 'en/export.json', 'en/panel.json'] }],
   },
   // Feature folders organize files; existing component names stay unprefixed.
   components: [{ path: '~/components', pathPrefix: false }],

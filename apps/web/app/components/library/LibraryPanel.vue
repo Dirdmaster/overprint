@@ -103,6 +103,12 @@ const show = async (event: MouseEvent) => {
   mode.value = assets.value.length ? 'saved' : 'capture'
   await thumbnails()
 }
+onMounted(async () => {
+  if (new URLSearchParams(window.location.search).get('library') === '1') {
+    await show()
+    window.history.replaceState(window.history.state, '', window.location.pathname)
+  }
+})
 const saveSelection = async (asset?: LibraryAsset) => {
   const previousIds = new Set(assets.value.map((value) => value.id))
   const captured = new Set(captureIds.value)
