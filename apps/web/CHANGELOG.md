@@ -1,5 +1,30 @@
 # @overprint/web
 
+## 0.1.0-alpha.3
+
+### Minor Changes
+
+- a324af5: Organize Layers into persistent, independently collapsible Front and Back artboards with compact artwork stacks and native ink entries. Activate an artboard by selecting its artwork, double-click its header to fit it, and move detached artwork or folders between artboards with undo while retaining their physical frames and descendants. Keep shared properties and history controls in one place.
+- a324af5: Retain readable stroke-text project compatibility while consolidating new text creation and the host API on the merged Google Fonts integration. Preserve portable filled outlines for previews and manufacturing exports.
+- a324af5: Default Live Paint to all visible layers so a layer selection is no longer required. Follow visual stacking across artwork, collapsed folders and native ink, protect locked and linked artwork without a target selector. One drag across several layers remains one undo step.
+- a324af5: Dock Paint controls in the inspector, combine project swatches with presets and recently used ink, and add I or Option/Alt sampling from visible artwork. Color fills retain editable shape, vector and text metadata, including frozen Google Fonts outlines. Painting follows the cursor without changing selection, and compact controls adapt to narrow screens.
+- a324af5: Make saved project colors directly available in Paint with a visible swatch grid, active-color indication, quick-save naming popover, and inline rename/delete management. Keep saved colors visible in compact mobile Paint, separate them from default swatches, and reuse the same named palette in selection color pickers and portable projects.
+- a324af5: Organize the inspector into Layers, Color, Layout, and Board tabs instead of stacking unrelated feature drawers beneath Layers. Put selection fill and stroke editing in Color, expose snapping and alignment in Layout, and group print checks and PCB updates with board settings. Keep undo and redo available in every panel and support keyboard tab navigation without losing selections or repeat previews.
+- a324af5: Replace the composition library's text-heavy capture list and asset forms with a visual artwork picker and saved composition gallery. Preview Front and Back artwork, select graphics with thumbnail checkboxes, search saved compositions, and place copies or linked instances from a shared detail panel. Keep revision, rename, and delete controls under Manage composition.
+- a324af5: Replace the effects-focused Color inspector with selection-scoped fill and stroke color editing. Show the artwork's actual colors, preserve geometry and editable metadata, support native silkscreen colors by artboard, and commit each color edit in one undo step. Keep saved colors and project-wide replacement separate and provide a direct Paint shortcut for individual regions.
+
+### Patch Changes
+
+- a324af5: Add pen paths, node editing and filled-shape Boolean operations; board-aware snapping and repeat previews; named Paint swatches and selection fill/stroke editing; clickable geometry print review and sourced manufacturing reports; and PCB update previews with recoverable local revisions. Preserve the merged Google Fonts, library, drawing and local-project workflows. Show both board faces by default and verify the editor with a reproducible native Mac browser runner.
+- a324af5: Group related canvas tools into accessible flyouts with remembered choices, press-and-hold and keyboard access. Adopt V/A/M/L/P/T/H tool shortcuts, persistent shape and pen tools, Shift-constrained drawing and movement, Option/Alt centered shapes, marquee selection and direct node editing. Pen paths preview the next segment and close at the first node. Show path controls only for a relevant selection and reserve A for Direct Selection while Live Paint retains arrow-key color cycling.
+  
+  Use an icon-only palette with corner group indicators, anchored flyouts and shortcut hints in tooltips and menus. Option/Alt-click cycles grouped tools. Reserve canvas space for the palette and remove the persistent hint card.
+- a324af5: Make both visible board sides directly paintable on the first click. Share one undo checkpoint across a drag spanning front and back, route hover and eyedropper previews to the face under the cursor, and handle color shortcuts once per editor.
+- a324af5: Let Live Paint highlight and recolor disconnected stripes within a single raw SVG compound path independently. Preserve original curve commands, nested holes, transforms and winding rules, with stable region identities across drag strokes, undo and saved projects.
+- a324af5: Remove Paint target and scope modes entirely. Paint always follows visible regions under the cursor across artwork and native ink, independent of selection. Simplify the controls to finish, color, swatches and the eyedropper.
+- a324af5: Fix thin SVG artwork disappearing in WebKit despite a valid Paint hover target. Give sub-unit SVG images an explicit intrinsic pixel viewport for canvas previews, placement, thumbnails and manufacturing rendering while preserving saved source, viewBox, physical dimensions and editable metadata. The local Mac runner now includes WebKit checks for thin artwork on both sides.
+- a324af5: Show front and back beside each other by default in the 2D workspace. Click a side to edit it, or use Front and Back to focus on one side.
+
 ## 0.1.0-alpha.2
 
 ### Minor Changes
