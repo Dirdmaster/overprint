@@ -181,6 +181,18 @@ Plain JavaScript uses `createEditorHistory(controller)`. Its `getState()` return
 
 This is one checkpoint in memory, separate from undo/redo. A new controller starts empty; loading a different board into the same controller keeps the checkpoint available, including its original board. Nothing is written to disk or sent to a server. Use `getDocument()` and `restore(document)` when your host needs persistent storage.
 
+
+### Editable text
+
+Use `controller.setTool('text')` for interactive placement with the Google Fonts
+picker. Hosts can also call `await controller.addText(definition, x, y)` with a
+`TextDefinition` containing a pinned Google font identity, then use
+`await controller.editText(id, patch)` and `controller.convertToSvg(id)`.
+Creation and edits are asynchronous because fonts load on demand. Conversion is
+undoable and preserves the frozen outline geometry.
+
+The canvas toolbar groups related tools and remembers the last selection. `setTool('directSelect')` exposes editable path nodes. See [canvas tools](../../docs/canvas-tools.md) for shortcuts and gestures.
+
 ## Google Fonts
 
 The text inspector uses a searchable Google Fonts picker. New text starts with Google Fonts Geist. To enable the catalogue in an embedded editor, the host must provide the same-origin `/api/fonts/catalog` and `/api/fonts/file` contracts described in [hosting](../../docs/hosting.md#google-fonts). The Overprint app supplies both endpoints; a static embed without them can still display and export saved outlines, but cannot create or edit font-based text. Keep the Google API key on the host server.

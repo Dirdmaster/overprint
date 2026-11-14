@@ -1,27 +1,8 @@
-import { glyph_data, shared_glyphs } from './newstroke-glyphs.ts'
+import { newstrokeGlyph } from '../newstroke.ts'
 import { atom, child, flag, number, type SExpr } from './sexpr.ts'
 import { offset, type Point, type Ring } from './geometry.ts'
 import { unsupported } from './shapes.ts'
 
-type Glyph = { width: number; strokes: Ring[] }
-const cache = new Map<string, Glyph>()
-const glyph = (character: string): Glyph => {
-  const cached = cache.get(character)
-  if (cached) return cached
-  const entry = glyph_data[character.codePointAt(0)! - 32]
-  const data = typeof entry === 'number' ? shared_glyphs[entry] : entry
-  if (!data) return unsupported(`the text character ${character}`)
-  const left = data.charCodeAt(0) - 82
-  const result: Glyph = { width: (data.charCodeAt(1) - 82 - left) / 21, strokes: [] }
-  let stroke: Ring = []
-  for (let i = 2; i < data.length; i += 2) {
-    if (data.slice(i, i + 2) === ' R') { stroke = []; continue }
-    if (!stroke.length) result.strokes.push(stroke)
-    stroke.push([(data.charCodeAt(i) - 82 - left) / 21, (data.charCodeAt(i + 1) - 90) / 21])
-  }
-  cache.set(character, result)
-  return result
-}
 /** Newstroke strokes remain filled polygons, so paint and export share the preview. */
 export const textPolygons = (node: SExpr, variables: Record<string, string>): Ring[] => {
   const effects = child(node, 'effects'), font = child(effects, 'font')
@@ -42,7 +23,7 @@ export const textPolygons = (node: SExpr, variables: Record<string, string>): Ri
   const baseline = height - thickness * 0.052 - (justify.includes('top') ? 0 : justify.includes('bottom') ? totalHeight : totalHeight / 2)
   const strokes: Ring[] = []
   for (const [index, line] of lines.entries()) {
-    const glyphs = [...line].map(c => c === '\t' ? { width: 2.4, strokes: [] } : glyph(c))
+    const glyphs = [...line].map(c => c === '\t' ? { width: 2.4, strokes: [] } : newstrokeGlyph(c))
     const length = glyphs.reduce((n, g) => n + g.width * width, 0)
     let cursor = justify.includes('left') ? thickness / 1.52 : justify.includes('right') ? -length - thickness / 1.52 : -length / 2
     for (const g of glyphs) {

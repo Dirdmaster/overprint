@@ -4,6 +4,7 @@ import { validateFabrication, type Fabrication } from './fabrication'
 
 export type Polygon = { outer: number[][]; holes: number[][][] }
 export type BoardPackage = {
+  anchors?: { x: number; y: number; kind: 'pad' | 'footprint'; name: string; side?: 'front' | 'back' }[]
   browserImport?: { warnings: string[] }
   syncSource?: { url: string; boardId: string }
   name: string
@@ -72,7 +73,8 @@ export const readBoardPackage = async (file: File): Promise<BoardPackage> => {
       if (model.file !== undefined && model.file !== 'models/components.glb') return fail()
       models = validateBoardModels({ ...model, encoding: model.file ? 'gzip-base64' : undefined, glb: model.file ? encodeGlb(files[model.file] ?? new Uint8Array()) : undefined })
     }
-    return { fabrication, models, name: String(manifest.board.name || 'Untitled').slice(0, 200), bounds: b,
+    const anchors: NonNullable<BoardPackage['anchors']> = [...geometry.pads.map((p: { positionMm?: number[]; number?: string }) => ({ kind: 'pad', name: String(p.number ?? 'Pad').slice(0, 200), position: p.positionMm })), ...geometry.footprints.map((p: { positionMm?: number[]; reference?: string; side?: string }) => ({ kind: 'footprint', name: String(p.reference ?? 'Footprint').slice(0, 200), side: p.side, position: p.positionMm }))].filter(p => Array.isArray(p.position) && p.position.length === 2 && p.position.every((n: number) => Number.isFinite(n) && Math.abs(n) < 100000)).slice(0, 20000).map(p => ({ kind: p.kind as 'pad' | 'footprint', name: p.name, x: p.position[0], y: p.position[1], ...(['front', 'back'].includes(p.side) ? { side: p.side } : {}) }))
+    return { fabrication, models, anchors, name: String(manifest.board.name || 'Untitled').slice(0, 200), bounds: b,
       outline: polygonPath(geometry.outlines), holes: geometry.holes.map((h: { polygons: unknown }) => polygonPath(h.polygons)).join(' '), layers }
   } catch (error) {
     if (error instanceof Error && /limit|exceeds|Unsupported|Invalid board|Invalid component/.test(error.message)) throw error

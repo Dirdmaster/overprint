@@ -1,5 +1,5 @@
-import type { CanvasTool } from '../../../apps/web/app/utils/drawing'
 import { watch } from 'vue'
+import { isShapeTool, type CanvasTool } from '../../../apps/web/app/utils/drawing'
 import type { editorSession } from './controller'
 import { normalizeHex } from '../../../apps/web/app/utils/paintColor'
 
@@ -97,7 +97,7 @@ export const createControls = (
     },
     setTool(value) {
       live()
-      if (!['select', 'hand', 'paint', 'rectangle', 'roundedRectangle', 'ellipse', 'line', 'text'].includes(value))
+      if (!['select', 'directSelect', 'hand', 'paint', 'text', 'pen'].includes(value) && !isShapeTool(value))
         throw new Error('Invalid tool.')
       tools.selected.value = value
     },

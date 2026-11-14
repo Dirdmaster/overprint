@@ -2,7 +2,7 @@ import { validateText, type TextDefinition } from './textDrawing'
 import type { Artwork } from './artwork'
 export const shapeTools = ['rectangle', 'roundedRectangle', 'ellipse', 'line'] as const
 export type ShapeTool = typeof shapeTools[number]
-export type CanvasTool = 'select' | 'hand' | 'paint' | 'text' | ShapeTool
+export type CanvasTool = 'select' | 'directSelect' | 'hand' | 'paint' | 'text' | 'pen' | ShapeTool
 export type ShapeDefinition = {
   type: 'shape'; shape: ShapeTool; width: number; height: number
   radius: number; fill: string; stroke: string; strokeWidth: number; lineReverse: boolean

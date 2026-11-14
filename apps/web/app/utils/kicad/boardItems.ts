@@ -12,6 +12,8 @@ export const collectBoardItems = (board: SExpr, geometry: BoardGeometry) => {
   const world = (rings: Ring[], origin: Point, angle: number) => rings.map(r => r.map(p => transform(p, origin, angle)))
   const readPad = (item: SExpr, footprint: SExpr) => {
     const origin = transform(position(item), position(footprint), rotation(footprint))
+    const reference = atom(children(footprint, 'property').find(p => atom(p, 1) === 'Reference') ?? [], 2)
+    geometry.addAnchor({ x: origin[0], y: origin[1], kind: 'pad', name: [reference, atom(item, 1) || 'Pad'].filter(Boolean).join('.') })
     // Pad angles are stored in board coordinates, even inside rotated footprints.
     const angle = rotation(item), shape = padShape(item)
     geometry.addHoles(world(padDrill(item), origin, angle))
@@ -22,6 +24,8 @@ export const collectBoardItems = (board: SExpr, geometry: BoardGeometry) => {
     if (flag(item, 'remove_unused_layers')) geometry.warn('Pads with unused copper layers removed are shown on their declared outer layers.')
   }
   const footprint = (node: SExpr) => {
+    const at = position(node)
+    geometry.addAnchor({ x: at[0], y: at[1], kind: 'footprint', name: atom(children(node, 'property').find(p => atom(p, 1) === 'Reference') ?? [], 2) || 'Footprint', side: atom(child(node, 'layer')).startsWith('B.') ? 'back' : 'front' })
     for (const item of children(node)) {
       const kind = atom(item, 0)
       if (kind === 'pad') {

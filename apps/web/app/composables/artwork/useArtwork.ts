@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import { useEditorRef } from '../editor/editorState'
 import { artworkCount, artworkRows, isArtworkLocked, MAX_ARTWORK_ITEMS, type Artwork } from '../../utils/artwork'
 import { isNativeSilk } from '../../utils/nativeSilk'
+import type { PaletteColor } from '../../utils/artworkAppearance'
 export const useArtwork = () => {
   const items = useEditorRef<Artwork[]>('artwork', () => [])
   const canAdd = computed(() => artworkCount(items.value) < MAX_ARTWORK_ITEMS)
@@ -20,10 +21,13 @@ export const useArtwork = () => {
   }
   const past = useEditorRef<Artwork[][]>('artwork-past', () => [])
   const future = useEditorRef<Artwork[][]>('artwork-future', () => [])
+  const palette = useEditorRef<PaletteColor[]>('composition-palette', () => [])
+  const palettePast = useEditorRef<PaletteColor[][]>('palette-past', () => [])
+  const paletteFuture = useEditorRef<PaletteColor[][]>('palette-future', () => [])
   const copy = (value: Artwork[]) => JSON.parse(JSON.stringify(value)) as Artwork[]
-  const checkpoint = () => { past.value = [...past.value.slice(-49), copy(items.value)]; future.value = [] }
-  const undo = () => { const previous = past.value.at(-1); if (!previous) return; future.value.push(copy(items.value)); items.value = previous; past.value.pop() }
-  const redo = () => { const next = future.value.at(-1); if (!next) return; past.value.push(copy(items.value)); items.value = next; future.value.pop() }
+  const checkpoint = () => { past.value = [...past.value.slice(-49), copy(items.value)]; palettePast.value = [...palettePast.value.slice(-49), palette.value.map(c => ({ ...c }))]; future.value = []; paletteFuture.value = [] }
+  const undo = () => { const previous = past.value.at(-1); if (!previous) return; future.value.push(copy(items.value)); paletteFuture.value.push(palette.value.map(c => ({ ...c }))); palette.value = palettePast.value.pop() ?? []; items.value = previous; past.value.pop() }
+  const redo = () => { const next = future.value.at(-1); if (!next) return; past.value.push(copy(items.value)); palettePast.value.push(palette.value.map(c => ({ ...c }))); palette.value = paletteFuture.value.pop() ?? []; items.value = next; future.value.pop() }
   const canPatchOwn = (id: string, patch: Partial<Artwork>) => {
     const item = items.value.find(item => item.id === id)
     if (!item || item.nativeSilk) return false
@@ -52,6 +56,10 @@ export const useArtwork = () => {
     return true
   }
   const edit = (id: string, patch: Partial<Artwork>) => { if (!canPatch(id, patch)) return; checkpoint(); patchItems([{ id, patch }]) }
+  const selectMany = (ids: string[], additive = false) => {
+    const eligible = new Set(visibleGraphics.value.map(item => item.id))
+    selected.value = [...new Set([...(additive ? selectionIds.value : []), ...ids])].filter(id => eligible.has(id))
+  }
   const descendants = (id: string): string[] => items.value.filter(item => item.parentId === id).flatMap(item => [item.id, ...descendants(item.id)])
   const protectedSubtree = (id: string) => [id, ...descendants(id)].some(value => isArtworkLocked(items.value, value))
   const removeIds = (values: string[]) => {
@@ -113,6 +121,18 @@ export const useArtwork = () => {
     items.value = next.map(item => position === 'inside' && item.id === targetId ? { ...item, collapsed: false } : item)
     selection.value = id
   }
-  const reset = () => { items.value = []; past.value = []; future.value = []; selection.value = null }
-  return { items, patchItems, canPatch, protectedSubtree, canAdd, selection, selectionIds, selectedArtwork, select, applyPositions, removeSelected, past, future, checkpoint, undo, redo, edit, remove, reorder, moveLayer, reset, create, destination, descendants, reparent }
+  const canMoveToSide = (id: string, side: string) => {
+    const item = items.value.find(item => item.id === id)
+    const ids = new Set([id, ...descendants(id)])
+    return ['front', 'back'].includes(side) && !!item && !item.nativeSilk && item.side !== side && !protectedSubtree(id) && !items.value.some(item => ids.has(item.id) && (item.library || item.gold))
+  }
+  const moveToSide = (id: string, side: string) => {
+    if (!canMoveToSide(id, side)) return false
+    const ids = new Set([id, ...descendants(id)])
+    checkpoint()
+    items.value = items.value.map(item => ids.has(item.id) ? { ...item, side, ...(item.id === id ? { parentId: undefined } : {}) } : item)
+    return true
+  }
+  const reset = () => { items.value = []; past.value = []; future.value = []; palettePast.value = []; paletteFuture.value = []; selection.value = null }
+  return { items, selectMany, patchItems, canPatch, protectedSubtree, canAdd, selection, selectionIds, selectedArtwork, select, applyPositions, removeSelected, past, future, checkpoint, undo, redo, edit, remove, reorder, moveLayer, reset, create, destination, descendants, reparent, moveToSide, canMoveToSide }
 }

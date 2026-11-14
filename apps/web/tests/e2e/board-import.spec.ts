@@ -7,6 +7,7 @@ test('imports a board package, navigates both sides, and preserves it on failure
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(fixture)
   await expect(page.getByRole('img', { name: 'Demo board front board preview' })).toBeVisible()
+  await page.getByRole('tab', { name: 'Board', exact: true }).click()
   await expect(page.getByLabel('56 × 100 mm')).toBeVisible()
   await page.screenshot({ path: 'test-results/board-desktop.png' })
   await page.getByRole('button', { name: 'Switch to dark mode' }).click()
@@ -109,7 +110,7 @@ test('middle mouse pans temporarily and restores the selected tool', async ({ pa
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(fixture)
   const canvas = page.getByRole('img', { name: 'Demo board front board preview' })
-  const select = page.getByRole('button', { name: 'Select (V / M)', exact: true })
+  const select = page.getByRole('button', { name: 'Select (V)', exact: true })
   const hand = page.getByRole('button', { name: 'Hand (hold Space)', exact: true })
   const bounds = (await canvas.boundingBox())!
   const before = await canvas.getAttribute('viewBox')
@@ -193,6 +194,7 @@ test('background picker supports presets, custom color, Escape and saved color',
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(fixture)
+  await page.getByRole('tab', { name: 'Board', exact: true }).click()
   const trigger = page.getByRole('button', { name: 'Printed background: Black', exact: true })
   await trigger.click()
   await expect(page.getByRole('button', { name: 'Black', exact: true })).toBeFocused()
@@ -214,6 +216,7 @@ test('background picker supports presets, custom color, Escape and saved color',
   await page.keyboard.press('ControlOrMeta+s')
   await expect(page.getByRole('status')).toContainText('All changes saved')
   await page.reload()
+  await page.getByRole('tab', { name: 'Board', exact: true }).click()
   await expect(custom).toBeVisible()
 })
 

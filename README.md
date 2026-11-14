@@ -10,13 +10,19 @@ Your circuit stays in KiCad. Overprint handles the artwork.
 
 ![Overprint: make your board less boring](apps/web/public/brand/social-card.png)
 
+See the [artwork workflow guide](docs/editor-workflows.md) for drawing, palettes, placement, print review and PCB revisions.
+
 ## What you can do
 
 - Place SVG artwork on either side of your board.
 - Draw editable shapes and outlined text with a searchable Google Fonts catalogue.
+- Use [grouped canvas tools](docs/canvas-tools.md) with familiar shortcuts, marquee selection and direct node editing.
 - Organize named local projects in a gallery and back up projects and libraries together.
 - Paint silkscreen regions and artwork with Live Paint.
-- Arrange designs with layers, folders and alignment tools.
+- Arrange designs with layers, folders, pad anchors, grid snapping and repeat previews.
+- Edit pen nodes and combine, subtract or intersect filled shapes.
+- Save named palettes and apply gradients, stripes or dots.
+- Inspect print warnings on the board and review PCB changes before applying an update.
 - Save reusable front/back compositions as linked instances or editable copies. See [artwork libraries](docs/artwork-libraries.md).
 - Preview the board in 2D or with its 3D component models.
 - Sync board changes from KiCad while keeping your artwork.

@@ -71,7 +71,7 @@ export const createEditor = (board: BoardPackage, options: EditorOptions = {}): 
     getDocument() {
       live()
       return copy({ version: 1, board: c.board.value!, artwork: a.items.value, side: c.side.value,
-        silk: c.silk.value, mask: c.maskColor.value, fabrication: c.components.value })
+        silk: c.silk.value, mask: c.maskColor.value, fabrication: c.components.value, palette: c.palette.value })
     },
     subscribe(listener) { live(); listeners.add(listener); return () => { listeners.delete(listener) } },
     async loadBoard(file) {
@@ -94,7 +94,7 @@ export const createEditor = (board: BoardPackage, options: EditorOptions = {}): 
       const parsed = await parseProject(JSON.stringify(document))
       if (!session.alive.value || generation !== nextGeneration) return false
       request?.abort(); a.reset(); c.board.value = parsed.board; a.items.value = parsed.artwork
-      c.side.value = parsed.side; c.silk.value = parsed.silk; c.maskColor.value = parsed.mask; c.components.value = parsed.fabrication
+      c.side.value = parsed.side; c.silk.value = parsed.silk; c.maskColor.value = parsed.mask; c.components.value = parsed.fabrication; c.palette.value = parsed.palette ?? []
       return true
     },
     async addGraphic(file) {
@@ -127,7 +127,7 @@ export const createEditor = (board: BoardPackage, options: EditorOptions = {}): 
     session.view.pan.value = { x: 0, y: 0 }
   }, { flush: 'sync' }))
   sessions.set(controller, session)
-  session.scope.run(() => watch([a.items, c.board, c.side, c.silk, c.maskColor, c.components], () => {
+  session.scope.run(() => watch([a.items, c.board, c.side, c.silk, c.maskColor, c.components, c.palette], () => {
     for (const listener of listeners) listener()
   }, { deep: true }))
   return controller

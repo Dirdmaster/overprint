@@ -8,7 +8,7 @@ The **Font family** picker searches Google Fonts in a compact keyboard-accessibl
 
 Google font metadata pins the family, variant, catalogue version, source identity, byte digest and embedded licence text or URL (or an explicit unavailable marker). Font bytes are not stored in projects. If a pinned font becomes unavailable or changes, existing outlines remain intact; select the font again deliberately or switch to another Google font to edit. Projects retain both editable metadata and frozen SVG outlines, so displaying and exporting saved text does not fetch fonts or regenerate its appearance.
 
-Shapes and text remain editable when saved in a [library composition](artwork-libraries.md). Place a copy for independent edits, or place a linked instance with a pinned revision. Preview and apply library updates explicitly. Detach a linked instance to edit its individual graphics. Convert an editable shape or text to SVG before painting its regions with Live Paint; undo can restore the editable version.
+Shapes and text remain editable when saved in a [library composition](artwork-libraries.md). Place a copy for independent edits, or place a linked instance with a pinned revision. Preview and apply library updates explicitly. Detach a linked instance to edit its individual graphics. Live Paint changes shape and text fills while preserving editability. Convert to SVG for individual counters or ENIG; undo can restore the editable version.
 
 ## Back up or move your workspace
 

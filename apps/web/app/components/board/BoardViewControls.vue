@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useCanvasView } from '../../composables/canvas/useCanvasView'
+const { showBoth, fit } = useCanvasView()
 import type { BoardModels } from '../../utils/boardModels'
 
 const props = withDefaults(
@@ -9,6 +11,15 @@ const props = withDefaults(
 defineEmits<{ removeModels: [] }>()
 const modelView = defineModel<boolean>('modelView', { required: true })
 const side = defineModel<string>('side', { required: true })
+const focusSide = (value: string) => {
+  side.value = value
+  showBoth.value = false
+  fit()
+}
+const showSides = () => {
+  showBoth.value = true
+  fit()
+}
 
 const modelHint = computed(() =>
   props.models?.glb
@@ -82,18 +93,32 @@ const modelSummary = computed(() =>
     </div>
   </details>
   <div
-    class="grid grid-cols-2 gap-1 p-2"
+    class="grid gap-1 p-2"
+    :class="modelView ? 'grid-cols-2' : 'grid-cols-3'"
     role="group"
     v-if="showBoardSide"
     aria-label="Board side"
   >
     <button
+      v-if="!modelView"
+      :aria-pressed="showBoth"
+      class="h-9 rounded-md px-3 text-xs font-medium"
+      :class="showBoth ? 'bg-accent text-on-accent' : 'bg-soft text-muted hover:text-ink'"
+      @click="showSides"
+    >
+      Both
+    </button>
+    <button
       v-for="value in ['front', 'back']"
       :key="value"
-      :aria-pressed="side === value"
+      :aria-pressed="side === value && (modelView || !showBoth)"
       class="h-9 rounded-md px-5 text-xs font-medium"
-      :class="side === value ? 'bg-accent text-on-accent' : 'bg-soft text-muted hover:text-ink'"
-      @click="side = value"
+      :class="
+        side === value && (modelView || !showBoth)
+          ? 'bg-accent text-on-accent'
+          : 'bg-soft text-muted hover:text-ink'
+      "
+      @click="focusSide(value)"
     >
       {{ value === 'front' ? 'Front' : 'Back' }}
     </button>

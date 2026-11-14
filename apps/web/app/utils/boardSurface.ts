@@ -1,3 +1,4 @@
+import { svgImageUrl } from './svgImage'
 import { artworkRows, type Artwork } from './artwork'
 import type { BoardPackage } from './boardPackage'
 import { nativeSilkInks } from './nativeSilk'
@@ -21,7 +22,7 @@ export const boardSurface = async (board: BoardPackage, artwork: Artwork[], side
   for (const { item, visible } of artworkRows(artwork, side, true)) {
     if (!visible || item.kind || item.gold) continue
     const image = new Image()
-    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.source)}`
+    image.src = svgImageUrl(item.source)
     await image.decode()
     context.save()
     context.translate(item.x + item.width / 2, item.y + item.height / 2)

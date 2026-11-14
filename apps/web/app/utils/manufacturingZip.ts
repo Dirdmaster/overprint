@@ -1,8 +1,10 @@
+import { svgImageUrl } from './svgImage'
 import { zipSync, strToU8, strFromU8 } from 'fflate'
 import { artworkRows } from './artwork'
 import type { Composition } from './project'
 import { validateFabrication } from './fabrication'
 import { encryptColorSvg } from './colorEnvelope'
+import { createPrintReport } from './preflight'
 import { withJlcColorHeader } from './gerberCompatibility'
 import { nativeSilkInks, hasNativeSilkEdits } from './nativeSilk'
 import { addGerberRegions, goldItemRings, goldPath, validateGoldRegions } from './enigPaint'
@@ -46,7 +48,7 @@ export const renderInk = async (project: Composition, side: string, region = pro
   }
   for (const { item, visible } of artworkRows(project.artwork, side, true)) {
     if (!visible || item.kind || item.gold) continue
-    const image = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.source)}`)
+    const image = await loadImage(svgImageUrl(item.source))
     ctx.save()
     const cx = item.x + item.width / 2, cy = item.y + item.height / 2
     ctx.translate(cx, cy); ctx.rotate(item.rotation * Math.PI / 180)
@@ -120,6 +122,7 @@ export const makeManufacturingZip = async (project: Composition) => {
     }
   }
   const date = new Date()
+  files['overprint-print-review.json'] = strToU8(JSON.stringify(await createPrintReport(project), null, 2))
   for (const name of Object.keys(files)) {
     if (name.endsWith('.gbr')) files[name] = strToU8(withJlcColorHeader(strFromU8(files[name]!), date))
   }

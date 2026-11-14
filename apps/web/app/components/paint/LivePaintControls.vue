@@ -1,133 +1,220 @@
 <script setup lang="ts">
-import { useEditorState } from '../../composables/editor/editorState'
-const { root: editorRoot } = useEditorState()
+import { computed, ref, watch } from 'vue'
+import { Check, Pipette, ChevronDown, ChevronUp, PaintBucket } from '@lucide/vue'
 import { useLivePaint } from '../../composables/artwork/useLivePaint'
-import { useArtwork } from '../../composables/artwork/useArtwork'
+import { useCanvasToolState } from '../../composables/canvas/useCanvasToolState'
+const { selected } = useCanvasToolState()
+import PaintSavedColors from './PaintSavedColors.vue'
+import { useComposition } from '../../composables/project/useComposition'
 import ColorSwatchPicker from '../color/ColorSwatchPicker.vue'
-import { computed } from 'vue'
-import { Check, PaintBucket } from '@lucide/vue'
-import { isNativeSilk } from '../../utils/nativeSilk'
 defineOptions({ inheritAttrs: false })
 const props = withDefaults(
   defineProps<{
     presets?: { name: string; color: string }[]
     customColors?: boolean
     showPaintTarget?: boolean
+    compact?: boolean
   }>(),
-  { customColors: true, showPaintTarget: true }
+  { customColors: true, showPaintTarget: true, compact: false }
 )
-const { color, material, presets: defaultPresets, pointer, adjacent } = useLivePaint()
-const presets = computed(() => props.presets ?? defaultPresets)
-const { items, selection } = useArtwork()
-const targetName = computed(() =>
-  isNativeSilk(selection.value)
-    ? 'KiCad silkscreen'
-    : (items.value.find((item) => item.id === selection.value)?.name ??
-      (selection.value ? 'Layer unavailable' : 'KiCad silkscreen'))
+const { color, material, presets, customPresets, picking, sampler, recent, feedback } =
+  useLivePaint()
+const { palette } = useComposition()
+const defaultSwatches = computed(() =>
+  presets.value.filter(
+    (entry) =>
+      !palette.value.some((saved) => saved.color.toLowerCase() === entry.color.toLowerCase())
+  )
 )
+const expanded = ref(false)
+const chooseMaterial = (value: 'ink' | 'enig') => {
+  material.value = value
+  picking.value = false
+  feedback.value = ''
+}
+watch(
+  color,
+  () => {
+    feedback.value = ''
+    picking.value = false
+  },
+  { flush: 'sync' }
+)
+watch(
+  () => props.presets,
+  (value) => {
+    customPresets.value = value
+  },
+  { immediate: true }
+)
+const customRecent = computed(() =>
+  recent.value.filter((color) => !presets.value.some((preset) => preset.color === color))
+)
+const pick = () => {
+  selected.value = 'paint'
+  material.value = 'ink'
+  picking.value = !picking.value
+  feedback.value = ''
+}
 </script>
-
 <template>
-  <div
+  <section
     v-bind="$attrs"
-    class="flex w-76 max-w-[calc(100vw-5.5rem)] flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-2 text-xs shadow-lg"
+    :class="
+      compact
+        ? 'w-76 max-w-[calc(100vw-6rem)] rounded-xl border border-line p-2 shadow-lg'
+        : 'border-b border-line p-4'
+    "
+    class="space-y-3 bg-surface text-xs"
     aria-label="Live paint settings"
-    title="Drag to fill · A/D or ←/→ colors"
   >
-    <ColorSwatchPicker
-      v-if="material === 'ink'"
-      v-model="color"
-      label="Fill color"
-      :presets="presets"
-      :custom="customColors"
-    />
-    <div
-      v-if="material === 'ink'"
-      class="flex flex-1 gap-1"
-      role="group"
-      aria-label="Paint swatches"
-    >
-      <button
-        v-for="preset in presets"
-        :key="preset.color"
-        class="flex h-6 flex-1 items-center justify-center rounded border border-black/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        :style="{ backgroundColor: preset.color }"
-        :title="preset.name"
-        :aria-label="`Paint ${preset.name}`"
-        :aria-pressed="color === preset.color"
-        @click="color = preset.color"
-      >
-        <Check
-          v-if="color === preset.color"
-          class="size-4 rounded bg-black/60 p-0.5 text-white"
-        />
-      </button>
-    </div>
-    <span
-      v-else
-      class="min-w-0 flex-1 font-medium text-ink"
-    >
-      Gold finish
-    </span>
-    <button
-      type="button"
-      class="h-8 shrink-0 rounded-md border border-line bg-soft px-2 font-medium text-ink"
-      :aria-label="material === 'ink' ? 'ENIG gold' : 'Color ink'"
-      @click="material = material === 'ink' ? 'enig' : 'ink'"
-    >
-      {{ material === 'ink' ? 'ENIG' : 'Ink' }}
-    </button>
-    <div
-      v-if="showPaintTarget"
-      class="flex w-full items-center gap-2 text-muted"
-    >
-      <span
-        class="min-w-0 flex-1 truncate"
-        :title="targetName"
-        aria-label="Paint target"
-      >
-        {{ material === 'enig' ? `Gold from ${targetName}` : targetName }}
-      </span>
-      <button
-        v-if="selection && !isNativeSilk(selection)"
-        class="shrink-0 rounded px-1 underline hover:text-ink"
-        aria-label="Paint KiCad silkscreen"
-        @click="selection = null"
-      >
-        Silkscreen
-      </button>
-    </div>
-  </div>
-  <Teleport :to="editorRoot || 'body'">
-    <div
-      v-if="pointer"
-      aria-hidden="true"
-      class="pointer-events-none fixed z-40 flex flex-col items-start gap-1"
-      :style="{
-        left: `min(${pointer.x + 14}px, calc(100vw - 70px))`,
-        top: `min(${pointer.y + 18}px, calc(100vh - 64px))`,
-        opacity: pointer.valid ? 1 : 0.45
-      }"
-    >
-      <div
-        v-if="material === 'enig'"
-        class="rounded bg-surface/90 px-2 py-1 font-semibold text-ink shadow-sm"
-      >
-        ENIG
+    <header class="flex items-center justify-between text-ink">
+      <h2 class="flex items-center gap-2 font-medium">
+        <PaintBucket class="size-4" />
+        Paint
+      </h2>
+      <div class="flex items-center gap-2">
+        <kbd
+          v-if="!compact"
+          class="text-muted"
+        >
+          K
+        </kbd>
+        <button
+          v-if="compact"
+          class="flex size-6 items-center justify-center text-muted"
+          :aria-expanded="expanded"
+          aria-label="More paint settings"
+          @click="expanded = !expanded"
+        >
+          <component
+            :is="expanded ? ChevronUp : ChevronDown"
+            class="size-4"
+          />
+        </button>
       </div>
-      <div
-        v-else
-        class="flex items-center gap-0.5 rounded bg-surface/90 p-1 shadow-sm"
+    </header>
+    <div
+      class="grid grid-cols-2 gap-1 rounded-lg bg-soft p-1"
+      role="group"
+      aria-label="Paint finish"
+    >
+      <button
+        class="flex h-8 items-center justify-center gap-2 rounded-md"
+        :class="material === 'ink' ? 'bg-surface text-ink shadow-sm' : 'text-muted'"
+        aria-label="Color ink"
+        :aria-pressed="material === 'ink'"
+        @click="chooseMaterial('ink')"
       >
         <span
-          v-for="(swatch, index) in adjacent"
-          :key="index"
-          class="rounded-sm border border-black/20"
-          :class="index === 1 ? 'size-4 ring-1 ring-ink' : 'size-3'"
-          :style="{ backgroundColor: swatch }"
+          class="size-3 rounded-full border border-black/15"
+          :style="{ backgroundColor: color }"
         />
-      </div>
-      <PaintBucket class="size-5 rounded bg-surface/90 p-0.5 text-ink shadow-sm" />
+        Color
+      </button>
+      <button
+        class="flex h-8 items-center justify-center gap-2 rounded-md"
+        :class="material === 'enig' ? 'bg-surface text-ink shadow-sm' : 'text-muted'"
+        aria-label="ENIG gold"
+        :aria-pressed="material === 'enig'"
+        @click="chooseMaterial('enig')"
+      >
+        <span class="size-3 rounded-full border border-black/15 bg-[#cfac61]" />
+        ENIG gold
+      </button>
     </div>
-  </Teleport>
+    <template v-if="material === 'ink'">
+      <div class="flex items-center gap-2">
+        <div class="min-w-0 flex-1">
+          <ColorSwatchPicker
+            v-model="color"
+            label="Fill color"
+            :presets="presets"
+            :custom="customColors"
+            block
+          />
+        </div>
+        <button
+          aria-label="Pick ink color (I)"
+          title="Pick ink color (I). Hold Option/Alt to sample temporarily."
+          :aria-pressed="picking"
+          class="flex size-8 shrink-0 items-center justify-center rounded-md border border-line"
+          :class="sampler ? 'bg-accent text-on-accent' : 'bg-soft text-muted'"
+          @click="pick"
+        >
+          <Pipette class="size-4" />
+        </button>
+      </div>
+      <PaintSavedColors />
+      <template v-if="!compact || expanded">
+        <div
+          v-if="defaultSwatches.length"
+          class="space-y-1.5"
+        >
+          <h3 class="text-muted">Default colors</h3>
+          <div
+            class="grid grid-cols-8 gap-1.5"
+            role="group"
+            aria-label="Paint swatches"
+          >
+            <button
+              v-for="preset in defaultSwatches"
+              :key="preset.color"
+              class="flex aspect-square items-center justify-center rounded-md border border-black/15"
+              :style="{ backgroundColor: preset.color }"
+              :title="preset.name"
+              :aria-label="`Paint ${preset.name}`"
+              :aria-pressed="color === preset.color"
+              @click="color = preset.color"
+            >
+              <Check
+                v-if="color === preset.color"
+                class="size-4 rounded-full bg-black/60 p-0.5 text-white"
+              />
+            </button>
+          </div>
+        </div>
+        <div
+          v-if="customRecent.length"
+          class="space-y-1.5"
+        >
+          <h3 class="text-muted">Recently used</h3>
+          <div
+            role="group"
+            aria-label="Recent ink colors"
+            class="grid grid-cols-8 gap-1.5"
+          >
+            <button
+              v-for="value in customRecent"
+              :key="value"
+              :style="{ backgroundColor: value }"
+              :aria-label="`Recent ink ${value}`"
+              :title="value"
+              class="aspect-square rounded-md border border-black/15"
+              @click="color = value"
+            />
+          </div>
+        </div>
+        <p
+          class="leading-relaxed text-muted"
+          aria-label="Paint feedback"
+          aria-live="polite"
+        >
+          {{
+            feedback ||
+            (sampler
+              ? 'Click a solid ink region to sample its color.'
+              : 'Click or drag to fill. Hold Option to sample; ← → changes swatches.')
+          }}
+        </p>
+      </template>
+    </template>
+    <p
+      v-else-if="!compact || expanded"
+      class="leading-relaxed text-muted"
+    >
+      Creates copper and solder-mask openings for an ENIG finish. Clearances are checked before
+      placing gold.
+    </p>
+  </section>
 </template>

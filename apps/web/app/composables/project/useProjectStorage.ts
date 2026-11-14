@@ -4,7 +4,7 @@ import { createProject, migrateLegacyProject, deleteProject, getWorkspaceMeta, l
 
 // Install once at the page root; all switches pass through the serialized save queue.
 export const useProjectStorage = () => {
-  const { board, side, silk, maskColor, components, generation } = useComposition()
+  const { board, side, silk, maskColor, components, palette, generation } = useComposition()
   const { items, selection, past, future } = useArtwork()
   const status = ref('')
   const projects = ref<WorkspaceProjectRecord[]>([])
@@ -16,10 +16,10 @@ export const useProjectStorage = () => {
   let timer: ReturnType<typeof setTimeout> | undefined
   let queue = Promise.resolve(true)
   const refresh = async () => { projects.value = (await listProjects()).sort((a, b) => b.updatedAt - a.updatedAt) }
-  const snapshot = (): Composition => JSON.parse(JSON.stringify({ version: 1, board: board.value!, artwork: items.value, side: side.value, silk: silk.value, mask: maskColor.value, fabrication: components.value }))
+  const snapshot = (): Composition => JSON.parse(JSON.stringify({ version: 1, board: board.value!, artwork: items.value, side: side.value, silk: silk.value, mask: maskColor.value, fabrication: components.value, palette: palette.value }))
   const apply = (p: Composition) => {
     applying = true
-    board.value = p.board; items.value = p.artwork; side.value = p.side; silk.value = p.silk; maskColor.value = p.mask; components.value = p.fabrication
+    board.value = p.board; items.value = p.artwork; side.value = p.side; silk.value = p.silk; maskColor.value = p.mask; components.value = p.fabrication; palette.value = p.palette ?? []
     selection.value = null; past.value = []; future.value = []
     applying = false
   }
@@ -141,7 +141,7 @@ export const useProjectStorage = () => {
     initialized.value = true
   })
   watch(generation, () => { active.value = undefined; blocked = false }, { flush: 'sync' })
-  watch([board, items, side, silk, maskColor, components], () => {
+  watch([board, items, side, silk, maskColor, components, palette], () => {
     if (!initialized.value || blocked || applying) return
     clearTimeout(timer); timer = setTimeout(() => void save(), 250)
   }, { deep: true, flush: 'sync' })

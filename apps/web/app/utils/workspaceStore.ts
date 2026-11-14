@@ -1,3 +1,4 @@
+import { svgImageAttributes } from './svgImage'
 import { artworkRows } from './artwork'
 import { nativeSilkInks } from './nativeSilk'
 import { assertProjectSize, type Composition } from './project'
@@ -45,7 +46,8 @@ export const projectThumbnail = (project: Composition) => {
   const silk = project.silk ? nativeSilkInks(project.board.layers[`${side}-silkscreen`] ?? [], project.artwork, side, '#ffffff').map(ink => `<path d="${ink.path}" fill="${ink.color}" fill-rule="evenodd"/>`).join('') : ''
   const artwork = artworkRows(project.artwork, side, true).filter(row => row.visible && !row.item.kind).map(({ item }) => {
     const cx = item.x + item.width / 2, cy = item.y + item.height / 2
-    return `<image href="data:image/svg+xml,${encodeURIComponent(item.source)}" x="${-item.width / 2}" y="${-item.height / 2}" width="${item.width}" height="${item.height}" transform="translate(${cx} ${cy}) rotate(${item.rotation})${side === 'back' ? ' scale(-1 1)' : ''}"/>`
+    const image = svgImageAttributes(item, side)
+    return `<g transform="rotate(${item.rotation} ${cx} ${cy})"><image href="${image.href}" x="${image.x}" y="${image.y}" width="${image.width}" height="${image.height}" transform="${image.transform ?? ''}"/></g>`
   }).join('')
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}"><defs><clipPath id="board"><path d="${outline} ${project.board.holes}" clip-rule="evenodd"/></clipPath></defs><g clip-path="url(#board)"${side === 'back' ? ` transform="translate(${2 * bounds.x + bounds.width} 0) scale(-1 1)"` : ''}><path d="${outline}" fill="${project.mask}"/>${silk}${artwork}</g></svg>`
   // Extremely detailed imported art must not double the workspace storage footprint.

@@ -1,21 +1,18 @@
 <script setup lang="ts">
 import { useArtwork } from '../../composables/artwork/useArtwork'
 import { useCanvasView } from '../../composables/canvas/useCanvasView'
+import { useMarqueeSelection } from '../../composables/canvas/useMarqueeSelection'
 import { useCanvasTools } from '../../composables/canvas/useCanvasTools'
 import { useComposition } from '../../composables/project/useComposition'
+import PaintCursor from '../paint/PaintCursor.vue'
 import LivePaintControls from '../paint/LivePaintControls.vue'
-import LivePaintCanvas from '../paint/LivePaintCanvas.vue'
-import TextCanvas from '../artwork/TextCanvas.vue'
-import DrawingCanvas from '../artwork/DrawingCanvas.vue'
-import ArtworkCanvas from '../artwork/ArtworkCanvas.vue'
-import NativeSilkscreen from '../board/NativeSilkscreen.vue'
+import BoardFace from '../board/BoardFace.vue'
 import BoardModelPreview from '../board/BoardModelPreview.vue'
 import BoardViewControls from '../board/BoardViewControls.vue'
-import BoardReference from '../board/BoardReference.vue'
 import BoardZoomControls from '../board/BoardZoomControls.vue'
 import BoardInspector from './BoardInspector.vue'
 import CanvasTools from './CanvasTools.vue'
-import { ref, computed, watch, onMounted, onBeforeUnmount, useTemplateRef, useId } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, useTemplateRef } from 'vue'
 import { readArtwork } from '../../utils/artwork'
 import { isNativeSilk, nativeSilkId } from '../../utils/nativeSilk'
 import type { EditorPresentation } from '../../utils/editorPresentation'
@@ -26,9 +23,11 @@ import {
   editorEventTarget
 } from '../../composables/editor/editorState'
 const editorState = useEditorState()
-const boardId = useId()
 const editorRoot = editorState.root
-const { modelView, zoom, pan } = useCanvasView()
+onMounted(() => {
+  if (editorState.globalShortcuts) editorRoot.value?.focus({ preventScroll: true })
+})
+const { modelView, showBoth, zoom, pan } = useCanvasView()
 const modelPreview = useTemplateRef('modelPreview')
 const props = withDefaults(
   defineProps<{ board: BoardPackage; canvasOnly?: boolean; ui?: EditorPresentation }>(),
@@ -39,6 +38,18 @@ const props = withDefaults(
 )
 const { items, canAdd, selection, checkpoint, undo, redo, removeSelected, destination } =
   useArtwork()
+const compactLayout = ref(false)
+let removeMediaListener: (() => void) | undefined
+onBeforeUnmount(() => removeMediaListener?.())
+onMounted(() => {
+  const query = window.matchMedia('(max-width: 767px)')
+  const update = () => {
+    compactLayout.value = query.matches
+  }
+  update()
+  query.addEventListener('change', update)
+  removeMediaListener = () => query.removeEventListener('change', update)
+})
 const graphicPicker = useTemplateRef('graphicPicker')
 const graphicError = ref('')
 let mounted = true
@@ -90,7 +101,11 @@ const artworkKey = (event: KeyboardEvent) => {
     event.preventDefault()
     event.shiftKey ? redo() : undo()
   }
-  if ((event.key === 'Delete' || event.key === 'Backspace') && selection.value) {
+  if (
+    (event.key === 'Delete' || event.key === 'Backspace') &&
+    selection.value &&
+    active.value !== 'pen'
+  ) {
     event.preventDefault()
     removeSelected()
   }
@@ -98,14 +113,20 @@ const artworkKey = (event: KeyboardEvent) => {
 onMounted(() => window.addEventListener('keydown', artworkKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', artworkKey))
 const { side, silk, maskColor, components, board: compositionBoard } = useComposition()
-watch(side, (value) => {
-  selection.value = isNativeSilk(selection.value) ? nativeSilkId(value) : null
-})
+watch(
+  side,
+  (value) => {
+    selection.value = isNativeSilk(selection.value) ? nativeSilkId(value) : null
+  },
+  { flush: 'sync' }
+)
 const removeModels = () => {
   compositionBoard.value = { ...props.board, models: undefined }
   modelView.value = false
 }
-const { active, holdingMiddle } = useCanvasTools()
+const { active, selected: selectedTool, holdingMiddle } = useCanvasTools()
+const marquee = useMarqueeSelection()
+watch(active, marquee.cancel)
 const fit = () => {
   if (modelView.value) {
     modelPreview.value?.fit()
@@ -128,11 +149,14 @@ const measure = () => {
   const canvas = viewport.value?.getBoundingClientRect()
   const panel = inspector.value?.getBoundingClientRect()
   if (!canvas?.width || !canvas.height) return
+  const tools = viewport.value?.querySelector('[role="toolbar"]')?.getBoundingClientRect()
+  const toolInset =
+    tools && props.ui.orientation !== 'horizontal' ? tools.right - canvas.left + 16 : 80
   const overlaps = panel && panel.top < canvas.bottom && panel.bottom > canvas.top
   area.value = {
     width: canvas.width,
     height: canvas.height,
-    left: !props.canvasOnly && canvas.width >= 768 ? 80 : 24,
+    left: !props.canvasOnly ? Math.max(80, toolInset) : 24,
     right: overlaps ? panel.left - canvas.left - 24 : canvas.width - 24
   }
 }
@@ -141,37 +165,46 @@ onMounted(() => {
   resizeObserver = new ResizeObserver(measure)
   if (viewport.value) resizeObserver.observe(viewport.value)
   if (inspector.value) resizeObserver.observe(inspector.value)
+  const tools = viewport.value?.querySelector('[role="toolbar"]')
+  if (tools) resizeObserver.observe(tools)
   measure()
 })
 onBeforeUnmount(() => resizeObserver?.disconnect())
+watch([modelView, () => props.ui.showShortcuts, () => props.ui.orientation], measure, {
+  flush: 'post'
+})
+const sideGap = computed(() => Math.max(8, props.board.bounds.width * 0.15))
+const visibleSides = computed(() => (showBoth.value ? ['front', 'back'] : [side.value]))
+const activateSide = (face: string, event: PointerEvent) => {
+  if (event.button !== 0 || active.value === 'hand') return
+  if (side.value !== face) side.value = face
+}
 const viewBox = computed(() => {
   const b = props.board.bounds
   const a = area.value
+  const width = showBoth.value ? b.width * 2 + sideGap.value : b.width
+  const height = b.height + (showBoth.value ? sideGap.value : 0)
   const scale =
     Math.max(
       0.001,
-      Math.min(Math.max(1, a.right - a.left) / b.width, Math.max(1, a.height - 48) / b.height)
+      Math.min(Math.max(1, a.right - a.left) / width, Math.max(1, a.height - 48) / height)
     ) *
     0.95 *
     zoom.value
-  const x = b.x + b.width / 2 - (a.left + a.right) / 2 / scale + pan.value.x
+  const x = b.x + width / 2 - (a.left + a.right) / 2 / scale + pan.value.x
   const y = b.y + b.height / 2 - a.height / 2 / scale + pan.value.y
   return `${x} ${y} ${a.width / scale} ${a.height / scale}`
 })
-const mirror = computed(() =>
-  side.value === 'back'
-    ? `translate(${2 * props.board.bounds.x + props.board.bounds.width} 0) scale(-1 1)`
-    : ''
-)
 const drag = ref<{ x: number; y: number; scale: number; pointerId: number; buttons: number }>()
 const canvasCursor = computed(() => {
   if (drag.value) return 'cursor-grabbing'
   if (active.value === 'hand') return 'cursor-grab'
-  if (active.value === 'paint') return 'cursor-crosshair'
+  if (active.value === 'paint' || active.value === 'text') return 'cursor-crosshair'
   return 'cursor-default'
 })
 const stop = () => {
   drag.value = undefined
+  marquee.cancel()
   holdingMiddle.value = false
 }
 onMounted(() => window.addEventListener('blur', stop))
@@ -180,8 +213,8 @@ onBeforeUnmount(() => {
   stop()
 })
 const start = (event: PointerEvent) => {
-  if (event.button === 0 && active.value === 'select') {
-    selection.value = null
+  if (event.button === 0 && ['select', 'directSelect'].includes(active.value)) {
+    marquee.start(event)
     return
   }
   if (drag.value || (event.button !== 1 && (event.button !== 0 || active.value !== 'hand'))) return
@@ -200,6 +233,7 @@ const start = (event: PointerEvent) => {
   svg.setPointerCapture(event.pointerId)
 }
 const move = (event: PointerEvent) => {
+  marquee.move(event)
   if (!drag.value || event.pointerId !== drag.value.pointerId) return
   if (!(event.buttons & drag.value.buttons)) {
     stop()
@@ -220,17 +254,46 @@ const changeZoom = (factor: number) => {
   zoom.value = Math.min(10, Math.max(0.2, zoom.value * factor))
 }
 onMounted(() => {
-  editorState.viewport.value = { fit, zoomBy: changeZoom }
+  editorState.viewport.value = {
+    fit,
+    zoomBy: changeZoom,
+    focus: (target) => {
+      modelView.value = false
+      const b = props.board.bounds,
+        width = showBoth.value ? b.width * 2 + sideGap.value : b.width
+      const cx =
+        target.side === 'back'
+          ? 2 * b.x +
+            b.width -
+            target.x -
+            target.width / 2 +
+            (showBoth.value ? b.width + sideGap.value : 0)
+          : target.x + target.width / 2
+      zoom.value = Math.min(
+        10,
+        Math.max(
+          1,
+          Math.min(
+            width / Math.max(0.1, target.width * 2),
+            b.height / Math.max(0.1, target.height * 2)
+          )
+        )
+      )
+      pan.value = { x: cx - b.x - width / 2, y: target.y + target.height / 2 - b.y - b.height / 2 }
+    }
+  }
 })
 onBeforeUnmount(() => {
   editorState.viewport.value = null
 })
+const finishPointer = (event: PointerEvent) => {
+  marquee.finish(event)
+  stop()
+}
 const onWheel = (event: WheelEvent) => changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1.1)
-// Controls keep native focus, including popup options inside an embedded shadow root.
 const focusCanvas = (event: PointerEvent) => {
-  const target = editorEventTarget(event)
   if (
-    target?.closest(
+    editorEventTarget(event)?.closest(
       'input, textarea, select, button, a[href], summary, [contenteditable="true"], [role="option"], [role="combobox"], [role="listbox"]'
     )
   )
@@ -263,9 +326,11 @@ const focusCanvas = (event: PointerEvent) => {
         :presets="ui.presets"
         :custom-colors="ui.customColors"
         :show-paint-target="ui.showPaintTarget"
-        v-if="!canvasOnly && !modelView && active === 'paint'"
+        v-if="!canvasOnly && !modelView && compactLayout && active === 'paint'"
+        compact
         class="absolute left-20 top-4 z-10"
       />
+      <PaintCursor v-if="!modelView && active === 'paint'" />
       <svg
         v-if="!modelView"
         tabindex="0"
@@ -276,102 +341,55 @@ const focusCanvas = (event: PointerEvent) => {
         :aria-label="`${board.name} ${side} board preview`"
         @pointerdown="start"
         @pointermove="move"
-        @pointerup="stop"
+        @pointerup="finishPointer"
         @pointercancel="stop"
         @lostpointercapture="stop"
         @auxclick.middle.prevent
         @wheel.prevent="onWheel"
       >
-        <defs>
-          <clipPath :id="`${boardId}-board-outline`">
-            <path
-              :d="board.outline"
-              fill-rule="evenodd"
-              clip-rule="evenodd"
-            />
-          </clipPath>
-          <clipPath :id="`${boardId}-exposed-mask`">
-            <path
-              v-for="(path, index) in board.layers[`${side}-mask`]"
-              :key="index"
-              :d="path"
-              fill-rule="evenodd"
-              clip-rule="evenodd"
-            />
-          </clipPath>
-          <mask
-            :id="`${boardId}-board-holes`"
-            maskUnits="userSpaceOnUse"
-            :x="board.bounds.x"
-            :y="board.bounds.y"
-            :width="board.bounds.width"
-            :height="board.bounds.height"
+        <g
+          v-for="(face, index) in visibleSides"
+          :key="face"
+          :data-board-side="face"
+          :data-active-side="face === side"
+          :transform="`translate(${index * (board.bounds.width + sideGap)} 0)`"
+          @pointerdown.capture="activateSide(face, $event)"
+        >
+          <text
+            v-if="showBoth"
+            :x="board.bounds.x + board.bounds.width / 2"
+            :y="board.bounds.y - sideGap / 3"
+            text-anchor="middle"
+            :fill="face === side ? 'var(--ink)' : 'var(--muted)'"
+            :font-size="sideGap / 3"
           >
-            <path
-              :d="board.outline"
-              fill="white"
-              fill-rule="evenodd"
-            />
-            <path
-              :d="board.holes"
-              fill="black"
-              fill-rule="evenodd"
-            />
-          </mask>
-        </defs>
-        <g :transform="mirror">
-          <g
-            :clip-path="`url(#${boardId}-board-outline)`"
-            :mask="`url(#${boardId}-board-holes)`"
-            fill-rule="evenodd"
-          >
-            <path
-              :d="board.outline"
-              :fill="maskColor"
-            />
-            <NativeSilkscreen
-              v-if="silk"
-              :board="board"
-              :side="side"
-            />
-            <ArtworkCanvas :side="side" />
-            <g :clip-path="`url(#${boardId}-exposed-mask)`">
-              <BoardReference
-                :paths="board.layers[`${side}-copper`] ?? []"
-                :bounds="board.bounds"
-                color="#cfac61"
-              />
-            </g>
-            <BoardReference
-              v-if="components"
-              :paths="board.layers[`${side}-fabrication`] ?? []"
-              :bounds="board.bounds"
-              color="#91a1a8"
-              opacity="0.65"
-            />
-          </g>
-          <ArtworkCanvas
-            :side="side"
-            interactive
-          />
-          <TextCanvas
-            v-if="active === 'text'"
-            :key="side"
-            :side="side"
-            @error="graphicError = $event"
-          />
-          <DrawingCanvas
-            :side="side"
-            @error="graphicError = $event"
-          />
-          <LivePaintCanvas
-            v-if="active === 'paint'"
+            {{ face === 'front' ? 'Front' : 'Back' }}
+          </text>
+          <BoardFace
             :board="board"
-            :side="side"
+            :side="face"
+            :background="maskColor"
             :silk="silk"
+            :fabrication="components"
+            :interactive="face === side"
+            :painting="active === 'paint'"
             @error="graphicError = $event"
           />
         </g>
+        <rect
+          v-if="marquee.bounds.value"
+          data-selection-marquee
+          :x="marquee.bounds.value.x"
+          :y="marquee.bounds.value.y"
+          :width="marquee.bounds.value.width"
+          :height="marquee.bounds.value.height"
+          fill="#4f87ff"
+          fill-opacity="0.08"
+          stroke="#4f87ff"
+          stroke-width="1"
+          vector-effect="non-scaling-stroke"
+          pointer-events="none"
+        />
       </svg>
       <BoardModelPreview
         v-if="modelView"
@@ -391,6 +409,7 @@ const focusCanvas = (event: PointerEvent) => {
       class="mx-4 flex min-h-0 md:pointer-events-none md:absolute md:bottom-0 md:right-4 md:top-0 md:mx-0 md:w-76"
     >
       <BoardInspector
+        :paint-controls="!compactLayout"
         :ui="ui"
         class="pointer-events-auto"
         :board="board"

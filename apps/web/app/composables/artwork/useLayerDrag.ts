@@ -1,13 +1,14 @@
+import { useEditorRef } from '../editor/editorState'
 import { useArtwork } from './useArtwork'
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount } from 'vue'
 import { isArtworkLocked, type Artwork } from '../../utils/artwork'
 
 type LayerDrop = { id: string | null; position: 'before' | 'after' | 'inside' }
 
 export const useLayerDrag = () => {
   const { items, descendants, protectedSubtree, moveLayer } = useArtwork()
-  const dragging = ref<string | null>(null)
-  const dropTarget = ref<LayerDrop | null>(null)
+  const dragging = useEditorRef<string | null>('layer-drag-id', () => null)
+  const dropTarget = useEditorRef<LayerDrop | null>('layer-drag-target', () => null)
   const clear = () => { dragging.value = null; dropTarget.value = null }
   const start = (event: DragEvent, item: Artwork) => {
     if (!event.dataTransfer || protectedSubtree(item.id)) return

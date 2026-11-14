@@ -1,17 +1,22 @@
 # Live Paint
 
-1. Select **KiCad → Silkscreen** in Layers to edit native printing, or select an SVG graphic to paint that artwork. Selecting an artwork folder or layer scopes painting to its visible graphics.
-2. Choose the paint bucket or press **K**.
-3. Pick a quick swatch, or open the color field for shade, hue, and HEX controls.
-4. Hover a region to preview its boundary. Click to fill it, or drag across several regions in one stroke. SVG artwork is painted even when the KiCad silkscreen reference is hidden; empty space and hidden layers never fall through to the PCB.
+1. Choose the paint bucket or press **K**. No layer selection is required.
+2. Hover the region you want to paint. Paint follows the top visible ink under the cursor, across artwork, collapsed folders and native KiCad silkscreen on either visible side. Hidden layers are ignored; locked, linked and unsupported artwork block painting through their visible footprint.
+3. Choose Color or ENIG gold, and pick a project swatch, preset or custom color. Click to fill or drag across multiple layers in one undoable stroke.
+
+The Paint controls are docked in the inspector. On narrow screens, expand the compact Paint panel for swatches. Paint has no target or scope setting. Custom colors appear in Recently used after a successful fill or sample. Artwork remains paintable when the KiCad silkscreen reference is hidden. Filled ink takes priority over a transparent SVG counter; when no visible ink is underneath, enclosed cutouts can also be filled.
 
 Choose **ENIG gold** in the Live Paint controls to turn an enclosed KiCad region, including one with cutouts, or an enclosed face in selected SVG artwork into a decorative gold layer. It can be moved, resized, undone and saved like other artwork. Overprint adds isolated copper and a matching solder-mask opening where the region is clear of existing copper. If one continuous native copper region already covers the entire shape, Overprint opens the solder mask over that copper without adding more copper. It clears color printing above gold in either case. Cutouts stay free of added copper and mask openings. Choose ENIG as the board surface finish when ordering. The original KiCad PCB is not modified.
 
 New decorative copper must remain at least 0.25 mm from existing copper. Both kinds of gold region must remain at least 0.25 mm from existing mask openings, holes, board edges and other gold regions. A region that partly overlaps native copper, or spans more than one copper feature, is rejected because Overprint cannot infer its electrical net. These checks run when painting and again before export, so moving a gold layer into an unsafe position blocks the ZIP. Gold painting supports enclosed native polygons, filled SVG paths, rectangles, circles, ellipses and polygons, including cutouts and enclosed hollow faces such as outlined teeth or eyes. SVG fill rules, transforms and enclosed islands are preserved; curved boundaries are sampled into polygons for gold. Each gold layer must form one connected region. Open contours, clipped or masked SVGs, and editable drawings that have not been converted to SVG cannot be converted directly. Export requires fabrication data from the KiCad plugin. Check the resulting copper and mask files in a Gerber viewer before ordering; gold appearance and production results are not yet physically qualified.
 
-The cursor shows the active color between its neighboring presets. Press **A / D** or **Left / Right** to cycle colors while painting. These shortcuts leave text fields and the color picker alone.
+The cursor shows the bucket and current color. Press **Left / Right** to cycle the project and preset swatches while painting. These shortcuts leave text fields and the color picker alone.
 
-Enclosed cutouts can be painted too. Filling a warning triangle preserves an exclamation mark inside it. Paint follows the current Front / Back side. Hold Space or the middle mouse button to pan, then return to painting; V or M returns to Select.
+Press **I**, click the eyedropper, or hold **Option / Alt** to sample solid ink from any visible artwork or native silkscreen on either visible side. Sampling does not edit artwork or add an undo step. It reads the original ink color, independent of the selected paint target. Blank board areas, holes, exposed pads, patterns, gradients, and clipped or masked artwork cannot be sampled. Press Escape to leave the eyedropper.
+
+Painting an editable shape, vector, or text updates its fill while preserving its parameters, font identity, physical bounds and undo history. Text recoloring uses saved outlines and does not download a font. This changes the editable object's fill as a whole. Convert to SVG to paint individual counters or cutouts separately, or to create ENIG.
+
+Enclosed cutouts can be painted too. Filling a warning triangle preserves an exclamation mark inside it. In Both view, hover and paint directly on either board without first choosing Front or Back. A drag can cross both boards and still undo in one step. Single-side view limits painting to the visible board. Hold Space or the middle mouse button to pan, then return to painting; V returns to Select.
 
 Painting existing KiCad ink replaces the imported path's color directly; it does not add an artwork overlay. **Base ink** changes the default color while preserving individually painted shapes. **Reset KiCad colors** restores the defaults for the current side and can be undone. Colors are stored in the Overprint project; the source PCB geometry remains unchanged.
 
@@ -21,8 +26,10 @@ Preview, assembled preview and color manufacturing output use the native color e
 
 ## Current limits
 
-- Native painting targets closed polygon contours. Selected SVG painting targets existing filled vector elements and closed compound-path cutouts, retaining curves. A connected filled shape is recolored as one shape; new regions formed by intersecting paths, raster flood fills, stroke-only paths and clipped/masked SVG graphics are not supported.
+- Native painting targets closed polygon contours. Selected SVG painting targets existing filled vector elements and closed compound-path cutouts, retaining curves. Disconnected closed contours in a raw SVG compound path can be painted separately, such as each stripe in the woven showcase mark. Their original curve commands, fill rules and transforms are retained; nested contours stay together to preserve holes and islands. Near-touching or very complex contours may stay grouped conservatively. A connected filled shape is recolored as one shape; new regions formed by intersecting paths, raster flood fills, stroke-only paths and clipped/masked SVG graphics are not supported.
 - The highlight shows the chosen contour and its enclosed islands, clipped around board holes and exposed-pad clearances. These clearances also apply to manufacturing output; clicking directly in either does not create a fill.
 - A fill is artwork at fixed board coordinates. Re-importing moved silkscreen does not move an existing fill automatically.
 - Native colors match exact imported paths. Unchanged shapes keep their colors through Sync PCB; changed or removed paths do not receive stale individual colors. Base ink remains the side's default.
 - Screen colors are not calibrated physical print samples. See [export limitations](export.md) before ordering.
+
+Thin SVGs use an explicit image viewport for WebKit without changing the saved artwork or physical board size. The canvas, placement previews, thumbnails, 3D surface and manufacturing rasterizer share that image handling. The Mac E2E runner checks thin front/back artwork in Chromium and WebKit, including decoded pixels at both ends and the center.

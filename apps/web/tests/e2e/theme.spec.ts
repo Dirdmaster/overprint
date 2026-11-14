@@ -20,7 +20,7 @@ for (const modifier of ['Meta', 'Control']) {
   test(`${modifier}+D toggles theme once and persists it`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/')
-    await page.getByRole('button', { name: 'Select (V / M)', exact: true }).click()
+    await page.getByRole('button', { name: 'Select (V)', exact: true }).click()
     await page.keyboard.press(`${modifier}+d`)
     await expect(page.getByRole('button', { name: 'Switch to light mode' })).toBeVisible()
     await page.reload()

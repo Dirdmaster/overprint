@@ -61,6 +61,30 @@ bunx --no-install playwright install chromium
 bun run test
 ```
 
+### Browser regression checks on your Mac
+
+Run the full web and embeddable-editor browser suites directly on macOS:
+
+```sh
+bun run test:e2e:local
+```
+
+This installs the frozen lockfile and Playwright Chromium and WebKit, builds the
+plugin ZIP and editor bundle, then runs both suites with two workers and zero
+retries. Thin artwork, two-sided painting, artboard layers, the composition library, saved Paint colors and inspector navigation also run in WebKit to cover the Mac in-app browser. It
+starts its own servers on ports 14317 and 14346 and refuses an occupied port;
+stop that server before rerunning. No Turbo test cache or existing dev server is
+used. Every test receives a fresh browser context. Locale, timezone and default
+viewport are fixed. Use the Bun version above and record your Node version when
+comparing runs across machines; this remains a native Mac run, not Linux CI parity.
+
+Each run writes `.scratch/e2e/<timestamp>/` with Git/runtime metadata, suite exit
+codes, JSON results, HTML reports, and traces/screenshots for failures. Open a
+suite's `report/index.html` to inspect failures. Reports can contain local board
+content, so keep them out of commits. A failing run exits nonzero, even if the
+other suite passes. Additional Playwright arguments are forwarded to both suites,
+for example `bun run test:e2e:local --repeat-each=2`.
+
 Lefthook installs during `bun install` in a Git checkout. Pre-commit checks staged Vue formatting; pre-push validates branch names before running type, server and release-tooling checks. Use `bun run format` to format Vue files. Archives and CI skip hook installation.
 
 For relay/runtime changes, also build and run `bun run test:standalone` and `bun run test:cloudflare`; see [hosting](docs/hosting.md). For plugin changes, run native tests following [the KiCad guide](packages/kicad/README.md).

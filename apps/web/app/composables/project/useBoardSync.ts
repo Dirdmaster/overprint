@@ -1,4 +1,5 @@
 import { readBoardPackage, type BoardPackage } from '~/utils/boardPackage'
+import { useBoardRefresh } from './useBoardRefresh'
 
 type Pairing = { version: 1; url: string; token: string; origin: string }
 type Session = Pairing & { boardId: string; boardName: string; expiresAt: string }
@@ -24,6 +25,7 @@ const readBody = async (response: Response, limit: number) => {
 }
 
 export const useBoardSync = () => {
+  const refresh = useBoardRefresh()
   const { board, openBoard } = useComposition()
   const isCurrentBoard = (candidate: { url: string; boardId?: string }) => !!candidate.boardId && board.value?.syncSource?.url === candidate.url && board.value.syncSource.boardId === candidate.boardId
   const session = shallowRef<Session>()
@@ -151,7 +153,8 @@ export const useBoardSync = () => {
       signal.throwIfAborted()
       if (board.value !== before || session.value !== current) throw new Error('The board changed while opening. Try again.')
       openBoard(imported)
-    } else board.value = imported
+    } else if (before && (before.outline !== imported.outline || before.holes !== imported.holes || JSON.stringify(before.bounds) !== JSON.stringify(imported.bounds) || JSON.stringify(before.layers) !== JSON.stringify(imported.layers) || JSON.stringify(before.anchors ?? []) !== JSON.stringify(imported.anchors ?? []) || JSON.stringify(before.models) !== JSON.stringify(imported.models))) { syncedBoard.value = refresh.stage(imported); return }
+    else board.value = imported
     syncedBoard.value = board.value
   })
   onBeforeUnmount(disconnect)

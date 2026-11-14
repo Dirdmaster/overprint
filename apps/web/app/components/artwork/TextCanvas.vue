@@ -3,18 +3,23 @@ import { ref } from 'vue'
 import { useTextDrawing } from '../../composables/artwork/useTextDrawing'
 import { useCanvasToolState } from '../../composables/canvas/useCanvasToolState'
 import { newText } from '../../utils/textDrawing'
+import { usePlacement } from '../../composables/artwork/usePlacement'
 const props = defineProps<{ side: string }>()
 const emit = defineEmits<{ error: [message: string] }>()
 const { addText } = useTextDrawing()
 const { selected } = useCanvasToolState()
 const pending = ref(false)
+const placement = usePlacement()
 const place = async (event: PointerEvent) => {
   if (event.button !== 0 || pending.value) return
   event.preventDefault()
   event.stopPropagation()
   const matrix = (event.currentTarget as SVGGraphicsElement).getScreenCTM()
   if (!matrix) return
-  const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
+  const point = placement.snap(
+    new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse()),
+    props.side
+  )
   pending.value = true
   try {
     const id = await addText(await newText(), props.side, point.x, point.y)

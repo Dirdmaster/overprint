@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "board": {
+    "name": "Existing artwork",
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 60,
+      "height": 40
+    },
+    "outline": "M0 0L60 0L60 40L0 40Z",
+    "holes": "",
+    "layers": {}
+  },
+  "artwork": [
+    {
+      "id": "legacy-pattern",
+      "name": "Existing artwork",
+      "source": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 40 28\"><defs><pattern id=\"overprint-appearance\" patternUnits=\"userSpaceOnUse\" width=\"2.4\" height=\"2.4\" patternTransform=\"rotate(45)\"><rect width=\"2.4\" height=\"2.4\" fill=\"#c6f36b\"/><rect width=\"1.2\" height=\"2.4\" fill=\"#9d85ff\"/></pattern></defs><path d=\"M0 0H10L30 28H20Z M15 0H25L40 21V28H35Z M0 12V26L2 28H12Z\" fill=\"url(#overprint-appearance)\"/><path d=\"M0 28V21L30 0H40L0 28Z\" fill=\"url(#overprint-appearance)\"/></svg>",
+      "x": 10,
+      "y": 10,
+      "width": 20,
+      "height": 14,
+      "side": "front",
+      "rotation": 0,
+      "visible": true,
+      "appearance": {
+        "version": 1,
+        "kind": "stripes",
+        "colors": [
+          "#c6f36b",
+          "#9d85ff"
+        ],
+        "scale": 2.4,
+        "angle": 45,
+        "base": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 40 28\"><path d=\"M0 0H10L30 28H20Z M15 0H25L40 21V28H35Z M0 12V26L2 28H12Z\" fill=\"#c6f36b\"/><path d=\"M0 28V21L30 0H40L0 28Z\" fill=\"#9d85ff\"/></svg>"
+      }
+    }
+  ],
+  "palette": [],
+  "side": "front",
+  "silk": false,
+  "mask": "#202723",
+  "fabrication": false
+}
