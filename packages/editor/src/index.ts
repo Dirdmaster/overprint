@@ -12,6 +12,7 @@ export type {
 export type { BoardPackage } from '../../../apps/web/app/utils/boardPackage'
 export type { EditorPart } from './parts'
 export type { EditorViewState, EditorTool } from './controls'
+export type { ArtworkText } from '../../../apps/web/app/utils/artworkText'
 export type { Artwork } from '../../../apps/web/app/utils/artwork'
 /** Call in the browser before mounting <overprint-editor controller={controller}>. */
 export const registerEditor = (): void => {

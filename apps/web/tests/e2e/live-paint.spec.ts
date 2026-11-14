@@ -29,7 +29,7 @@ const open = async (page: Page, data = project) => {
 }
 
 const point = async (page: Page, x: number, y: number) => page.getByRole('img', { name: /Paint test .* board preview/ }).evaluate((svg, [x, y]) => {
-  const group = svg.querySelector(':scope > g') as SVGGraphicsElement
+  const group = svg.querySelector('[data-active-side="true"] [data-board-coordinates]') as SVGGraphicsElement
   const p = new DOMPoint(x, y).matrixTransform(group.getScreenCTM()!)
   return { x: p.x, y: p.y }
 }, [x, y])
@@ -160,6 +160,7 @@ test('recolors one region, respects board holes and open paths, and temporarily 
   await paint(page, 10, 15)
   await page.getByRole('button', { name: 'Fill color: Yellow' }).click()
   await page.getByRole('button', { name: 'Red', exact: true }).click()
+  await page.keyboard.press('Escape')
   await paint(page, 10, 15)
   await expect(page.locator('[data-artwork-layer] image')).toHaveCount(1)
   expect((await save(page)).artwork[0].name).toBe('Red fill')
@@ -170,7 +171,7 @@ test('recolors one region, respects board holes and open paths, and temporarily 
   await expect(page.getByRole('button', { name: 'Live paint (K)' })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('checkbox', { name: 'Silkscreen', exact: true }).click()
   await paint(page, 10, 15)
-  await expect(page.getByRole('alert')).toHaveText('Show Silkscreen to paint its regions.')
+  await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.locator('[data-artwork-layer] image')).toHaveCount(1)
 })
 
@@ -229,7 +230,7 @@ test('chooses a custom color, keeps editing keys local, and paints that exact va
   await expect(page.getByRole('button', { name: 'Live paint (K)' })).toHaveAttribute('aria-pressed', 'true')
 })
 
-test('cycles colors with arrows and A/D after choosing a swatch without stealing input keys', async ({ page }) => {
+test('cycles colors with arrows after choosing a swatch without stealing input keys', async ({ page }) => {
   await open(page)
   await page.keyboard.press('k')
   await page.getByRole('button', { name: 'Fill color: Yellow', exact: true }).click()
@@ -237,7 +238,7 @@ test('cycles colors with arrows and A/D after choosing a swatch without stealing
   await page.keyboard.press('Escape')
   await page.keyboard.press('ArrowRight')
   await expect(page.getByRole('button', { name: 'Fill color: White', exact: true })).toBeVisible()
-  for (const [key, color] of [['a', 'Red'], ['d', 'White'], ['ArrowLeft', 'Red'], ['Shift+D', 'White']]) {
+  for (const [key, color] of [['ArrowLeft', 'Red'], ['ArrowRight', 'White'], ['ArrowLeft', 'Red'], ['Shift+ArrowRight', 'White']]) {
     await page.keyboard.press(key!)
     await expect(page.getByRole('button', { name: `Fill color: ${color}`, exact: true })).toBeVisible()
   }
@@ -249,7 +250,7 @@ test('cycles colors with arrows and A/D after choosing a swatch without stealing
   await expect(hex).toHaveValue('ad')
   await expect(page.getByRole('button', { name: 'Fill color: White', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
-  await page.getByRole('button', { name: 'Select (V / M)', exact: true }).click()
+  await page.getByRole('button', { name: 'Select (V)', exact: true }).click()
   await page.keyboard.press('a'); await page.keyboard.press('d'); await page.keyboard.press('ArrowRight')
   await page.keyboard.press('k')
   await expect(page.getByRole('button', { name: 'Fill color: White', exact: true })).toBeVisible()

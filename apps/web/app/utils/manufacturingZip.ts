@@ -1,3 +1,4 @@
+import { svgImageUrl } from './svgImage'
 import { zipSync, strToU8, strFromU8 } from 'fflate'
 import ClipperLib from 'clipper-lib'
 import { artworkRows } from './artwork'
@@ -6,6 +7,7 @@ import type { Fabrication } from './fabrication'
 import type { BoardPackage } from './boardPackage'
 import { validateFabrication } from './fabrication'
 import { encryptColorSvg } from './colorEnvelope'
+import { createPrintReport } from './preflight'
 import { colorRegistration } from './colorRegistration'
 import { jlcFabricationFilename, withJlcColorHeader } from './gerberCompatibility'
 import { nativeSilkInks, hasNativeSilkEdits } from './nativeSilk'
@@ -45,7 +47,7 @@ const paintInk = async (ctx: CanvasRenderingContext2D, placement: InkPlacement, 
   }
   for (const { item, visible } of artworkRows(project.artwork, side, true)) {
     if (!visible || item.kind || item.gold) continue
-    const image = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.source)}`)
+    const image = await loadImage(svgImageUrl(item.source))
     ctx.save()
     const cx = item.x + item.width / 2, cy = item.y + item.height / 2
     ctx.translate(cx, cy); ctx.rotate(item.rotation * Math.PI / 180)
@@ -188,6 +190,7 @@ export const makeManufacturingZip = async (project: Composition, panelInk?: Pane
     }
   }
   const date = new Date()
+  files['overprint-print-review.json'] = strToU8(JSON.stringify(await createPrintReport(project), null, 2))
   const named = Object.entries(files).map(([name, bytes]) => {
     const gerber = name.endsWith('.gbr')
     const text = gerber || name.endsWith('.drl') ? strFromU8(bytes) : ''

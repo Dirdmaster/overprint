@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { Search, X, Images } from '@lucide/vue'
+import LibraryCapturePicker from './LibraryCapturePicker.vue'
+import LibraryAssetBrowser from './LibraryAssetBrowser.vue'
+import { artworkRows } from '../../utils/artwork'
+import { svgImageUrl } from '../../utils/svgImage'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useLibrary } from '../../composables/artwork/useLibrary'
 import { useArtwork } from '../../composables/artwork/useArtwork'
@@ -23,9 +28,19 @@ const updateDialog = ref<HTMLDialogElement>()
 const search = ref(''),
   name = ref(''),
   captureIds = ref<string[]>([])
-const previews = ref<Record<string, string>>({}),
+const mode = ref<'saved' | 'capture'>('saved')
+const selectedAssetId = ref<string>()
+const selectedAsset = computed(
+  () => filtered.value.find((asset) => asset.id === selectedAssetId.value) ?? filtered.value[0]
+)
+const previews = ref<Record<string, { side: string; source: string }[]>>({}),
   pending = ref<LibraryAsset>()
 const deleting = ref<LibraryAsset>()
+const requestDelete = (asset: LibraryAsset, trigger: HTMLElement) => {
+  // Safari does not focus buttons on mouse click. Give the nested dialog a return target.
+  trigger.focus()
+  deleting.value = asset
+}
 watch(deleting, async (value) => {
   await nextTick()
   if (value) deleteDialog.value?.showModal()
@@ -55,20 +70,37 @@ const available = computed(
 const filtered = computed(() =>
   assets.value.filter((asset) => asset.name.toLowerCase().includes(search.value.toLowerCase()))
 )
-const graphics = computed(() => items.value.filter((item) => !item.nativeSilk))
+const graphics = computed(() => items.value.filter((item) => !item.nativeSilk && !item.kind))
 const thumbnails = async () => {
-  for (const asset of assets.value) {
-    const snapshot = asset.revisions.at(-1)!.snapshot
-    previews.value[asset.id] = await snapshotSvg(
-      snapshot,
-      snapshot.artwork.some((item) => item.side === 'front' && !item.kind) ? 'front' : 'back'
-    )
-  }
+  const entries = await Promise.all(
+    assets.value.map(async (asset) => {
+      const snapshot = asset.revisions.at(-1)!.snapshot
+      const sides = ['front', 'back'].filter((side) =>
+        snapshot.artwork.some((item) => item.side === side && !item.kind)
+      )
+      return [
+        asset.id,
+        await Promise.all(
+          sides.map(async (side) => ({ side, source: await snapshotSvg(snapshot, side) }))
+        )
+      ] as const
+    })
+  )
+  previews.value = Object.fromEntries(entries)
 }
-const show = async () => {
+const show = async (event?: MouseEvent) => {
+  if (event?.currentTarget instanceof HTMLElement) event.currentTarget.focus()
   libraryDialog.value?.showModal()
-  captureIds.value = [...selectionIds.value]
+  // A selected folder captures its graphics, while the picker always shows the actual artwork.
+  const captured = new Set(selectionIds.value)
+  for (const side of ['front', 'back']) {
+    for (const { item } of artworkRows(items.value, side, true)) {
+      if (item.parentId && captured.has(item.parentId)) captured.add(item.id)
+    }
+  }
+  captureIds.value = graphics.value.filter((item) => captured.has(item.id)).map((item) => item.id)
   await refresh()
+  mode.value = assets.value.length ? 'saved' : 'capture'
   await thumbnails()
 }
 onMounted(async () => {
@@ -78,10 +110,32 @@ onMounted(async () => {
   }
 })
 const saveSelection = async (asset?: LibraryAsset) => {
-  await save(asset?.name ?? name.value, captureIds.value, asset)
+  const previousIds = new Set(assets.value.map((value) => value.id))
+  const captured = new Set(captureIds.value)
+  // Preserve complete folders and layers without capturing unchecked siblings.
+  for (const side of ['front', 'back']) {
+    for (const { item } of artworkRows(items.value, side, true).reverse()) {
+      if (!item.kind) continue
+      const children = items.value.filter((child) => child.parentId === item.id)
+      if (children.length && children.every((child) => captured.has(child.id)))
+        captured.add(item.id)
+    }
+  }
+  await save(asset?.name ?? name.value, [...captured], asset)
+  if (error.value) return
+  selectedAssetId.value = asset?.id ?? assets.value.find((value) => !previousIds.has(value.id))?.id
   await thumbnails()
+  search.value = ''
+  mode.value = 'saved'
 }
-const preview = async () => {
+const selectAll = () => {
+  captureIds.value = graphics.value.map((item) => item.id)
+}
+const clearSelection = () => {
+  captureIds.value = []
+}
+const preview = async (event: MouseEvent) => {
+  ;(event.currentTarget as HTMLElement).focus()
   await refresh()
   if (!selectedInstance.value) return
   if (!currentAsset.value) {
@@ -101,7 +155,7 @@ const applyUpdate = async () => {
   if (pending.value) await update(pending.value)
   pending.value = undefined
 }
-const imageUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+const imageUrl = svgImageUrl
 </script>
 <template>
   <section
@@ -146,132 +200,125 @@ const imageUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIC
   <dialog
     ref="libraryDialog"
     aria-label="Composition library"
-    class="m-auto max-h-[85svh] w-3xl max-w-[calc(100%-2rem)] overflow-auto rounded-xl bg-surface p-5 text-ink shadow-xl backdrop:bg-black/50"
+    class="m-auto max-h-[85svh] w-5xl max-w-[calc(100%-2rem)] overflow-auto rounded-2xl border border-line bg-surface text-ink shadow-xl backdrop:bg-black/50"
   >
-    <header class="flex items-center justify-between gap-4">
-      <h2 class="text-lg font-semibold">Composition library</h2>
+    <header class="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+      <div>
+        <h2 class="text-lg font-semibold">Composition library</h2>
+        <p class="mt-1 text-xs text-muted">Your reusable artwork, saved on this device.</p>
+      </div>
       <button
-        class="rounded bg-soft p-2"
+        class="icon-button"
         aria-label="Close library"
         @click="libraryDialog?.close()"
       >
-        Close
+        <X :size="18" />
       </button>
     </header>
-    <p class="my-3 text-sm text-muted">
-      Saved on this device. Linked placements stay pinned until you preview and apply an update.
-    </p>
-    <div class="grid gap-4 sm:grid-cols-2">
-      <section class="space-y-3 rounded-lg border border-line p-3">
-        <label class="block">
-          Composition name
-          <input
-            v-model="name"
-            aria-label="Composition name"
-            maxlength="200"
-            class="mt-1 w-full rounded bg-soft p-2"
-          />
-        </label>
-        <fieldset class="max-h-48 space-y-1 overflow-auto">
-          <legend class="mb-2 font-medium">Capture artwork from either side</legend>
-          <label
-            v-for="item in graphics"
-            :key="item.id"
-            class="flex items-center gap-2"
-          >
-            <input
-              v-model="captureIds"
-              type="checkbox"
-              :value="item.id"
-              :aria-label="`Capture ${item.name} ${item.side}`"
-            />
-            {{ item.name }} · {{ item.side }}
-          </label>
-        </fieldset>
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
+      <div
+        class="flex gap-1 rounded-lg bg-soft p-1"
+        aria-label="Library views"
+      >
         <button
-          class="rounded bg-accent px-3 py-2 text-white disabled:opacity-40"
-          :disabled="busy || !captureIds.length"
-          @click="saveSelection()"
+          class="rounded-md px-3 py-1.5 text-sm"
+          :class="mode === 'saved' ? 'bg-surface text-ink shadow-sm' : 'text-muted'"
+          :aria-pressed="mode === 'saved'"
+          @click="mode = 'saved'"
         >
-          Save selection
+          Saved
+          <span class="ml-1 text-xs text-muted">{{ assets.length }}</span>
         </button>
-      </section>
-      <section class="space-y-3">
-        <label class="block">
-          Search library
-          <input
-            v-model="search"
-            aria-label="Search library"
-            class="mt-1 w-full rounded bg-soft p-2"
-          />
-        </label>
-        <article
-          v-for="asset in filtered"
-          :key="asset.id"
-          class="space-y-2 rounded-lg border border-line p-3"
+        <button
+          class="rounded-md px-3 py-1.5 text-sm"
+          :class="mode === 'capture' ? 'bg-surface text-ink shadow-sm' : 'text-muted'"
+          :aria-pressed="mode === 'capture'"
+          @click="mode = 'capture'"
         >
-          <img
-            v-if="previews[asset.id]"
-            :src="imageUrl(previews[asset.id]!)"
-            :alt="`${asset.name} thumbnail`"
-            class="h-20 w-full rounded bg-soft object-contain"
-          />
-          <h3 class="font-semibold">{{ asset.name }}</h3>
-          <p class="text-muted">
-            {{ asset.revisions.length }} revision{{ asset.revisions.length === 1 ? '' : 's' }}
-          </p>
-          <label class="block">
-            Rename
-            <input
-              :value="asset.name"
-              :aria-label="`Rename ${asset.name}`"
-              maxlength="200"
-              class="mt-1 w-full rounded bg-soft p-2"
-              @change="rename(asset, ($event.target as HTMLInputElement).value)"
-            />
-          </label>
-          <div class="flex flex-wrap gap-2">
-            <button
-              class="rounded bg-soft p-2"
-              :disabled="busy"
-              :aria-label="`Place linked ${asset.name}`"
-              @click="place(asset, true)"
-            >
-              Place linked
-            </button>
-            <button
-              class="rounded bg-soft p-2"
-              :disabled="busy"
-              :aria-label="`Place copy ${asset.name}`"
-              @click="place(asset, false)"
-            >
-              Place copy
-            </button>
-            <button
-              class="rounded bg-soft p-2"
-              :disabled="busy"
-              :aria-label="`Delete library ${asset.name}`"
-              @click="deleting = asset"
-            >
-              Delete
-            </button>
-            <button
-              class="rounded bg-soft p-2"
-              :disabled="busy || !captureIds.length"
-              :aria-label="`Save new revision of ${asset.name}`"
-              @click="saveSelection(asset)"
-            >
-              Save new revision
-            </button>
-          </div>
-        </article>
-        <p
-          v-if="!filtered.length"
-          class="text-muted"
+          <span>From this board</span>
+        </button>
+      </div>
+      <label
+        v-if="mode === 'saved'"
+        class="flex min-w-0 flex-1 basis-full items-center gap-2 rounded-lg bg-soft px-3 py-2 sm:max-w-64 sm:basis-auto"
+      >
+        <Search
+          :size="16"
+          class="shrink-0 text-muted"
+        />
+        <input
+          v-model="search"
+          aria-label="Search library"
+          placeholder="Search artwork"
+          class="min-w-0 w-full bg-transparent text-sm outline-none"
+        />
+      </label>
+      <div
+        v-else
+        class="flex items-center gap-3 text-xs"
+      >
+        <button
+          class="text-muted hover:text-ink"
+          @click="selectAll"
         >
-          No saved compositions.
-        </p>
-      </section>
+          Select all
+        </button>
+        <button
+          class="text-muted hover:text-ink"
+          :disabled="!captureIds.length"
+          @click="clearSelection"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+    <LibraryCapturePicker
+      v-if="mode === 'capture'"
+      v-model:capture-ids="captureIds"
+      v-model:name="name"
+      :graphics="graphics"
+      :busy="busy"
+      @save="saveSelection()"
+    />
+    <LibraryAssetBrowser
+      v-else-if="filtered.length"
+      :assets="filtered"
+      :selected-asset="selectedAsset"
+      :previews="previews"
+      :busy="busy"
+      :can-save-revision="!!captureIds.length"
+      @select="selectedAssetId = $event"
+      @place="place"
+      @rename="rename"
+      @revision="saveSelection"
+      @remove="requestDelete"
+    />
+    <div
+      v-else
+      class="flex flex-col items-center px-5 py-16 text-center"
+    >
+      <Images
+        :size="36"
+        class="mb-4 text-muted"
+        :stroke-width="1.25"
+      />
+      <h3 class="font-medium">
+        {{ search ? 'No matching artwork' : 'Your artwork, ready to reuse' }}
+      </h3>
+      <p class="mt-2 max-w-sm text-sm leading-relaxed text-muted">
+        {{
+          search
+            ? 'Try another name to find your composition.'
+            : 'Pick graphics from your board and save your first composition.'
+        }}
+      </p>
+      <button
+        v-if="!search"
+        class="primary-button mt-5 min-h-10"
+        @click="mode = 'capture'"
+      >
+        Choose board artwork
+      </button>
     </div>
     <p
       v-if="error"

@@ -83,7 +83,8 @@ const change = (
       {{ error }}
     </p>
     <p class="text-xs text-muted">
-      Convert to SVG before Live Paint. Conversion removes shape parameters and can be undone.
+      Paint changes fill while keeping this shape editable. Convert to SVG for separate cutouts or
+      ENIG.
     </p>
     <button
       class="rounded bg-soft p-2"

@@ -6,6 +6,7 @@ const MAX_POINTS = 1_000_000
 
 /** Collect validated geometry and assemble the final board package. */
 export const createBoardGeometry = () => {
+  const anchors: NonNullable<BoardPackage['anchors']> = []
   const layers: Record<string, Ring[][]> = Object.fromEntries(Object.values(layerNames).map(name => [name, []]))
   const edges: Ring[] = [], holes: Ring[] = [], warnings = new Set<string>()
   let count = 0
@@ -30,12 +31,13 @@ export const createBoardGeometry = () => {
     if (bounds.width <= 0 || bounds.height <= 0) throw new Error('The board outline has no area.')
     // Spatial batches keep detailed imported artwork fast while preserving complete shapes.
     const output = Object.fromEntries(Object.entries(layers).map(([key, rings]) => [key, unionShapePaths(rings)]))
-    const result: BoardPackage = { name: filename.replace(/\.kicad_pcb$/i, '').slice(0, 200) || 'Untitled', bounds, outline: path(outlines), holes: path(union(holes)), layers: output,
+    const result: BoardPackage = { anchors, name: filename.replace(/\.kicad_pcb$/i, '').slice(0, 200) || 'Untitled', bounds, outline: path(outlines), holes: path(union(holes)), layers: output,
       browserImport: { warnings: [...warnings] } }
     if (new TextEncoder().encode(JSON.stringify(result)).length > 15_000_000) throw new Error('Extracted KiCad geometry exceeds the 15 MB limit.')
     return result
   }
   return {
+    addAnchor: (anchor: NonNullable<BoardPackage['anchors']>[number]) => { if (anchors.length < 20000) anchors.push(anchor) },
     supportsLayer: (layer: string) => Boolean(layerNames[layer]),
     addLayer,
     addEdges: (rings: Ring[]) => { edges.push(...budget(rings)) },

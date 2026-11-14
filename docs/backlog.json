@@ -1,0 +1,280 @@
+{
+  "asOf": "2026-10-28",
+  "source": "GitHub open issues and open pull requests, plus requests in this session",
+  "currentWork": [
+    {
+      "title": "Reproducible local Mac E2E regression command",
+      "status": "implemented locally",
+      "acceptance": [
+        "One command prepares a clean checkout",
+        "Run the complete web and embedded editor browser suites",
+        "Fresh dedicated servers, pinned lockfile browser, two workers, no retries",
+        "Keep per-run metadata, HTML/JSON reports and failure traces"
+      ]
+    },
+    {
+      "title": "Show both board sides beside each other by default",
+      "status": "implemented locally",
+      "acceptance": [
+        "Front left, back right with correct rear mirroring",
+        "Select a side to edit without changing the other side",
+        "Front/Back focus controls and Both overview",
+        "Desktop/mobile, persistence and editing regression coverage"
+      ]
+    },
+    {
+      "title": "Preserve merged Google Fonts typography and saved-text compatibility",
+      "status": "implemented locally",
+      "acceptance": [
+        "New text creation and host API use the merged Google Fonts integration",
+        "Saved portable outlines display and export offline",
+        "Earlier stroke-text project files remain readable without offering a duplicate creator"
+      ]
+    },
+    {
+      "title": "Grouped tools and familiar drawing interactions",
+      "status": "implemented locally; 198 Mac E2E tests passed",
+      "acceptance": [
+        "Grouped flyouts remember the selected tool; arrow, hold, right-click and keyboard access",
+        "V/A object and node selection, M/L shapes, P pen, T text, H hand and temporary Space",
+        "Persistent shapes and pen; Shift constraints and Option/Alt centered drawing",
+        "Marquee selection, node nudging and single-step undo",
+        "Pen segment preview, first-point closure and open-path completion",
+        "Contextual path controls and keyboard/input isolation on desktop/mobile"
+      ]
+    }
+  ],
+  "openIssues": [
+    {
+      "number": 21,
+      "title": "Import embedded KiCad component models without a plugin",
+      "url": "https://github.com/Dirdmaster/overprint/issues/21",
+      "status": "implementation merged upstream; issue closure not reconciled",
+      "scope": "Browser-local KiCad 10 embedded STEP/WRL import, native transform oracle, progress/cancellation, failure limits, persistence and real converter browser coverage."
+    },
+    {
+      "number": 11,
+      "title": "Refresh A6 capability fan copy and Weavers footers",
+      "url": "https://github.com/Dirdmaster/overprint/issues/11",
+      "status": "open",
+      "scope": "Remove filler, apply Weavers footer to all 16 faces, preserve geometry/test labels, refresh Blender and share export."
+    },
+    {
+      "number": 3,
+      "title": "Adopt Changesets for reviewed workspace releases",
+      "url": "https://github.com/Dirdmaster/overprint/issues/3",
+      "status": "needs reconciliation",
+      "scope": "Changesets already exists in this checkout. Audit outstanding release acceptance criteria before closing."
+    }
+  ],
+  "openPullRequests": [
+    {
+      "number": 39,
+      "title": "Give local projects a dedicated workspace page (#31)",
+      "url": "https://github.com/Dirdmaster/overprint/pull/39"
+    },
+    {
+      "number": 27,
+      "title": "fix(ci): accept trusted Dependabot action branches",
+      "url": "https://github.com/Dirdmaster/overprint/pull/27"
+    },
+    {
+      "number": 26,
+      "title": "chore(deps): bump actions/setup-node from 7.0.0 to 7.1.0",
+      "url": "https://github.com/Dirdmaster/overprint/pull/26"
+    },
+    {
+      "number": 25,
+      "title": "chore(deps): bump actions/upload-artifact from 7.0.1 to 7.0.2",
+      "url": "https://github.com/Dirdmaster/overprint/pull/25"
+    },
+    {
+      "number": 24,
+      "title": "chore(deps): bump actions/download-artifact from 8.0.1 to 8.0.2",
+      "url": "https://github.com/Dirdmaster/overprint/pull/24"
+    }
+  ],
+  "dependencies": [
+    "PR #27 addresses the branch validator blocking dependency PRs #24, #25 and #26; validate it before those updates."
+  ],
+  "cancelled": [
+    {
+      "issues": [
+        7,
+        8,
+        9,
+        10
+      ],
+      "pullRequest": 29,
+      "title": "Owner-assigned repository agent on a VM",
+      "state": "closed as not planned",
+      "reason": "User explicitly cancelled the VM agent on 2026-10-28."
+    }
+  ],
+  "limitations": [
+    "Snapshot of current GitHub backlog, not automatic acceptance or merge of any PR.",
+    "This worktree does not contain the pending Projects page PR #39.",
+    "Prior conversation plans are not silently treated as current open tickets."
+  ],
+  "featureRoadmap": [
+    {
+      "priority": 1,
+      "title": "Editable PCB typography",
+      "status": "implemented locally; regression checks passed",
+      "value": "Create labels, pin legends and branded board typography without an external SVG editor.",
+      "acceptance": [
+        "Text stays editable after save/reopen and undo/redo.",
+        "Support font selection, size, alignment, spacing and multiline labels.",
+        "Use the merged Google Fonts catalogue with pinned font identities and portable frozen outlines, including mirrored rear artwork.",
+        "Show geometry-based print warnings using a named manufacturer profile."
+      ],
+      "regressionGate": "Compare preview and exported geometry, round-trip text and fonts, both sides and undo.",
+      "implemented": [
+        "Merged Google Fonts search, previews, styles and pinned font provenance preserved",
+        "Saved outlines display and export without font downloads",
+        "Geometry-based text and thin-ink print review"
+      ],
+      "remaining": []
+    },
+    {
+      "priority": 2,
+      "title": "Drawing and shape editing",
+      "status": "implemented locally; regression checks passed",
+      "value": "Create board artwork directly in Overprint.",
+      "acceptance": [
+        "Rectangle, ellipse, line and pen tools with editable fill/stroke.",
+        "Select and edit nodes, combine/subtract/intersect shapes.",
+        "Snap to grid and board edges, with keyboard constraints.",
+        "Preserve editable geometry and undo grouping across project download/reopen."
+      ],
+      "regressionGate": "Synthetic geometry, pointer/keyboard drawing, Boolean holes, rear transforms and exported silhouettes.",
+      "implemented": [
+        "Editable rectangles, rounded rectangles, ellipses and lines",
+        "Pen paths, canvas node dragging and numeric node editing",
+        "Union, subtract and intersect filled paths with holes",
+        "Board/grid snapping and one-step undo"
+      ],
+      "remaining": []
+    },
+    {
+      "priority": 3,
+      "title": "Reusable artwork library and board templates",
+      "status": "implemented locally; regression checks passed",
+      "value": "Reuse logos, pin legends and complete visual styles across boards.",
+      "acceptance": [
+        "Review PR #39 and its existing library integration first.",
+        "Save a selection or a two-sided composition with a thumbnail.",
+        "Instances record their source revision and offer a preview before applying an update.",
+        "Detach instances and export/import the complete library without an account.",
+        "Never silently change existing board artwork."
+      ],
+      "regressionGate": "Source revision update/detach, two-side placement, portable backup, storage failure recovery.",
+      "implemented": [
+        "Existing local project gallery and revision-pinned library reconciled from main",
+        "Selection and two-sided composition snapshots, thumbnails and explicit update previews",
+        "Detach instances and portable project/library backups"
+      ],
+      "remaining": []
+    },
+    {
+      "priority": 4,
+      "title": "Print preflight with clickable problem overlays",
+      "status": "implemented locally; regression checks passed",
+      "value": "Help users find artwork that may not print as intended before ordering.",
+      "acceptance": [
+        "Show thin strokes, small text, pad overlap and edge proximity on the actual board.",
+        "Click a finding to select and zoom to the geometry.",
+        "Separate unsupported export cases from advisory profile warnings.",
+        "Include a review report with manufacturing exports without claiming physical print qualification."
+      ],
+      "regressionGate": "Known synthetic problem geometry, clear overlays on both sides, report/export agreement.",
+      "implemented": [
+        "Advisory manufacturer legend profile with measured ink and gap checks",
+        "Clickable board overlays select and focus artwork",
+        "Fresh sourced JSON report included in manufacturing ZIP"
+      ],
+      "remaining": []
+    },
+    {
+      "priority": 5,
+      "title": "Smart placement and board-aware guides",
+      "status": "implemented locally; regression checks passed",
+      "value": "Lay out pin labels, repeated marks and artwork accurately with less manual work.",
+      "acceptance": [
+        "Snap to pads, footprint anchors, board center and edges.",
+        "Repeat a selection along a line or around a circle with numeric spacing.",
+        "Show actual millimeter distances and respect mirrored back coordinates.",
+        "Preview the change before committing one undo step."
+      ],
+      "regressionGate": "Numeric placement at nonzero board origins, rotated items, rear coordinates and single-step undo.",
+      "implemented": [
+        "Pad and footprint anchors, center, board edges and origin-relative grid",
+        "Numeric line/circle repeat with cancelable ghost preview",
+        "Rear coordinate handling and one-step apply/undo"
+      ],
+      "remaining": []
+    },
+    {
+      "priority": 6,
+      "title": "Palette and finish design workflow",
+      "status": "implemented locally; regression checks passed",
+      "value": "Develop consistent visual styles that can be reused on multiple boards.",
+      "acceptance": [
+        "Named project palettes with global color replacement and undo.",
+        "Consistent gradient/pattern previews and export rendering.",
+        "Explicitly distinguish decorative previews from supported manufacturing outputs.",
+        "Keep physical color matching dependent on printed samples."
+      ],
+      "regressionGate": "Recolor nested artwork, hidden layers, front/back parity and exported pixel samples.",
+      "implemented": [
+        "Named project palettes and global color replacement across hidden and rear artwork",
+        "Editable gradients, stripe and dot fills with frozen SVG output",
+        "Undo, persistence and explicit conversion before Live Paint"
+      ],
+      "remaining": []
+    },
+    {
+      "priority": 7,
+      "title": "Review PCB refresh changes before applying",
+      "status": "implemented locally; regression checks passed",
+      "value": "Keep artwork aligned as the circuit changes in KiCad.",
+      "acceptance": [
+        "Compare old/new outlines, pads and component positions.",
+        "Show the effect on artwork and flag affected placements.",
+        "Apply or cancel refresh without losing the previous board or artwork.",
+        "Save a recoverable project revision before applying."
+      ],
+      "regressionGate": "Moved/removed pads, outline changes, cancellation, corrupt imports and revision restore.",
+      "implemented": [
+        "Preview outline, pad and anchor changes with before/after artwork",
+        "Apply/cancel validation and automatic recoverable local project revision",
+        "Restore the previous revision while retaining a recovery copy"
+      ],
+      "remaining": []
+    }
+  ],
+  "deliveryOrder": [
+    "Complete the local E2E command and both-side default first.",
+    "Audit pending project/library PR #39 and issue #3 before duplicating existing work.",
+    "Implement typography, then shape editing and reusable artwork in bounded slices.",
+    "Require new browser acceptance coverage and the full local regression run for every editor feature."
+  ],
+  "validation": {
+    "localCommand": "bun run test:e2e:local",
+    "platform": "macOS arm64",
+    "bun": "1.3.14",
+    "node": "26.3.1",
+    "playwright": "1.63.0",
+    "webTestsPassed": 173,
+    "editorTestsPassed": 25,
+    "retries": 0,
+    "reportDirectory": ".scratch/e2e/2026-10-28T15-34-44.958Z",
+    "scope": "All editor features plus grouped tools, familiar shortcuts, marquee and direct selection, persistent drawing and modifier gestures.",
+    "serverTestsPassed": 76,
+    "editorUnitTestsPassed": 12,
+    "typecheck": "passed",
+    "format": "passed",
+    "productionBuild": "passed",
+    "operationsTestsPassed": 14
+  }
+}

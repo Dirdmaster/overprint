@@ -22,13 +22,13 @@ test('keyboard shortcuts stay inside the focused editor and ignore host input', 
   const [first, second] = [page.locator('overprint-editor').nth(0), page.locator('overprint-editor').nth(1)]
   await first.getByRole('button', { name: 'Live paint (K)', exact: true }).click()
   await expect(first.getByRole('button', { name: 'Live paint (K)' })).toHaveAttribute('aria-pressed', 'true')
-  await expect(second.getByRole('button', { name: 'Select (V / M)' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(second.getByRole('button', { name: 'Select (V)' })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('textbox', { name: 'Host input' }).fill('typing')
   await page.keyboard.press('v')
   await expect(first.getByRole('button', { name: 'Live paint (K)' })).toHaveAttribute('aria-pressed', 'true')
   await first.getByRole('img', { name: 'Interaction test front board preview' }).focus()
   await page.keyboard.press('v')
-  await expect(first.getByRole('button', { name: 'Select (V / M)' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(first.getByRole('button', { name: 'Select (V)' })).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('Live Paint hits real geometry inside the shadow root and saves native paint', async ({ page }) => {
@@ -110,6 +110,30 @@ for (const interrupt of ['replace', 'dispose']) {
     expect(result.state.error).toBe('Checkpoint restore was cancelled.')
   })
 }
+
+test('host Google Fonts API preserves outlines, validates edits and isolates instances', async ({ page }) => {
+  await routeGeist(page)
+  await page.goto('/tests/index.html')
+  const result = await page.evaluate(async () => {
+    const [first, second] = (window as any).controllers
+    const catalogue = await (await fetch('/api/fonts/catalog?q=Geist&offset=0')).json()
+    const f = catalogue.families[0], variant = f.variants[0]
+    const id = await first.addText({ type: 'text', font: 'google-fonts-v1', weight: 400, google: { family: f.family, version: f.version, variant: variant.variant, id: variant.id }, content: 'API 3.3V', size: 3, fill: '#ffffff', align: 'left', letterSpacing: 0, lineHeight: 1.2 }, 10, 20)
+    await first.editText(id, { fill: '#e63136', size: 4 })
+    const doc = first.getDocument()
+    let rejected = false
+    try { await first.editText(id, { size: -1 }) } catch { rejected = true }
+    const preserved = JSON.stringify(first.getDocument()) === JSON.stringify(doc)
+    first.convertToSvg(id)
+    const converted = first.getDocument().artwork[0].drawing === undefined
+    first.undo()
+    const restored = await first.restore(first.getDocument())
+    return { rejected, preserved, converted, restored, drawing: first.getDocument().artwork[0].drawing, source: first.getDocument().artwork[0].source, isolated: second.getDocument().artwork.length === 0 }
+  })
+  expect(result).toMatchObject({ rejected: true, preserved: true, converted: true, restored: true, isolated: true, drawing: { font: 'google-fonts-v1', content: 'API 3.3V', size: 4, fill: '#e63136' } })
+  expect(result.source).toContain('<path')
+  expect(result.source).not.toContain('<text')
+})
 
 test('shape commands retain physical geometry, bounded lines and editable project metadata', async ({ page }) => {
   await page.goto('/tests/index.html')

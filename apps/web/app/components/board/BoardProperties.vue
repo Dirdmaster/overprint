@@ -16,8 +16,8 @@ const presets = [
 </script>
 
 <template>
-  <section class="px-4 pb-8 pt-4">
-    <h2 class="mb-5 font-medium">Properties</h2>
+  <section class="border-b border-line p-4">
+    <h2 class="mb-5 font-medium">Board</h2>
     <p class="mb-1.5 text-muted">Board geometry</p>
     <h3 class="truncate text-sm font-medium">{{ board.name }}</h3>
     <div

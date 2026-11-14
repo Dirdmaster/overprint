@@ -150,8 +150,8 @@ const apply = async (event?: Event) => {
       {{ error }}
     </p>
     <p class="text-xs text-muted">
-      Latin text and selected symbols. Font size is the em size, not printed letter height. Convert
-      to SVG before Live Paint; conversion can be undone.
+      Latin text and selected symbols. Font size is the em size, not printed letter height. Paint
+      keeps text editable. Convert to SVG for separate counters or ENIG.
     </p>
     <button
       type="button"

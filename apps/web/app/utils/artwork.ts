@@ -1,20 +1,25 @@
+import type { ArtworkText } from './artworkText'
+import type { VectorDefinition } from './vectorArtwork'
+import type { AppearanceDefinition } from './artworkAppearance'
 import type { DrawingDefinition } from './drawing'
 import type { LibraryLink } from './library'
 import { flattenSvgStyles } from './svgStyles'
 
 export type Artwork = {
+  text?: ArtworkText
+  vector?: VectorDefinition
+  appearance?: AppearanceDefinition
   drawing?: DrawingDefinition
   library?: LibraryLink
   gold?: { path: string; bounds: { x: number; y: number; width: number; height: number } }
+  locked?: boolean
   nativeSilk?: { baseColor?: string; colors: Record<string, string> }
-  kind?: 'layer' | 'folder'; parentId?: string; collapsed?: boolean; locked?: boolean
+  kind?: 'layer' | 'folder'; parentId?: string; collapsed?: boolean
   id: string; name: string; side: string; source: string
   x: number; y: number; width: number; height: number; rotation: number; visible: boolean
 }
 
 export const MAX_ARTWORK_ITEMS = 100
-export const artworkCount = (items: Artwork[]) => items.filter(item => !item?.nativeSilk).length
-
 export const isArtworkLocked = (items: Artwork[], id: string, includeSelf = true): boolean => {
   const byId = new Map(items.map(item => [item.id, item]))
   let item = byId.get(id)
@@ -27,6 +32,7 @@ export const isArtworkLocked = (items: Artwork[], id: string, includeSelf = true
   }
   return false
 }
+export const artworkCount = (items: Artwork[]) => items.filter(item => !item?.nativeSilk).length
 
 export const readArtwork = async (file: File) => {
   if (file.size > 2_000_000) throw new Error('SVG exceeds 2 MB. Simplify the graphic before importing.')
@@ -34,7 +40,7 @@ export const readArtwork = async (file: File) => {
   if (/<!DOCTYPE|<!ENTITY/i.test(source)) throw new Error('Remove document declarations from the SVG.')
   const doc = new DOMParser().parseFromString(source, 'image/svg+xml')
   if (doc.querySelector('parsererror') || doc.documentElement.localName !== 'svg') throw new Error('Choose a valid SVG graphic.')
-  const allowed = new Set(['svg', 'g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'defs', 'linearGradient', 'radialGradient', 'stop', 'clipPath', 'mask', 'title', 'desc'])
+  const allowed = new Set(['svg', 'g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'defs', 'linearGradient', 'radialGradient', 'stop', 'pattern', 'clipPath', 'mask', 'title', 'desc'])
   if (doc.querySelectorAll('*').length > 10000) throw new Error('SVG has too many shapes. Simplify it before importing.')
   // Exporters include nonvisual RDF/license data. Discard the entire subtree
   // rather than allowing arbitrary metadata elements into persisted artwork.

@@ -6,6 +6,7 @@ const color = defineModel<string>({ required: true })
 const props = defineProps<{
   label: string
   presets: { name: string; color: string }[]
+  block?: boolean
   custom?: boolean
 }>()
 const trigger = useTemplateRef('trigger')
@@ -62,6 +63,7 @@ const navigate = (event: KeyboardEvent) => {
 <template>
   <button
     ref="trigger"
+    :class="{ 'w-full': block }"
     class="flex h-8 min-w-28 items-center gap-2 rounded-md border border-line bg-soft px-2 text-left"
     :aria-label="`${label}: ${selected?.name ?? color}`"
     aria-haspopup="dialog"
@@ -72,7 +74,7 @@ const navigate = (event: KeyboardEvent) => {
       class="size-5 shrink-0 rounded-sm border border-black/15"
       :style="{ backgroundColor: color }"
     />
-    <span class="flex-1">{{ selected?.name ?? color }}</span>
+    <span class="min-w-0 flex-1 truncate">{{ selected?.name ?? color }}</span>
     <ChevronDown class="size-3.5 text-muted" />
   </button>
   <div

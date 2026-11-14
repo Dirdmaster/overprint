@@ -2,10 +2,12 @@ import type { Artwork } from './artwork'
 import { createSvgCutouts, closedSvgPaths } from './svgCutouts'
 import ClipperLib from 'clipper-lib'
 import { goldPath } from './enigPaint'
+import { solidPaintColor } from './paintColor'
+import { svgPaintParts } from './svgPaintParts'
 
 const shapes = 'path, rect, circle, ellipse, polygon, polyline'
 const ns = 'http://www.w3.org/2000/svg'
-export type ArtworkPaintHit = { key: string; artworkId: string; index: number; cutout?: string }
+export type ArtworkPaintHit = { key: string; artworkId: string; index: number; cutout?: string; blocked?: string }
 
 // Mount only validated artwork sources (readArtwork also validates saved projects).
 // The browser supplies curve geometry and nested/viewBox transforms. IDs are
@@ -13,10 +15,10 @@ export type ArtworkPaintHit = { key: string; artworkId: string; index: number; c
 export const createArtworkPaint = (host: SVGGElement, artwork: Artwork[], side: string, prefix: string) => {
   const entries = artwork.map(item => {
     const doc = new DOMParser().parseFromString(item.source, 'image/svg+xml')
-    const original = [...doc.querySelectorAll<SVGGeometryElement>(shapes)].filter(node => !node.closest('defs, clipPath, mask'))
+    let original = [...doc.querySelectorAll<SVGGeometryElement>(shapes)].filter(node => !node.closest('defs, clipPath, mask'))
     const root = document.importNode(doc.documentElement, true) as unknown as SVGSVGElement
     if (!root.hasAttribute('viewBox')) root.setAttribute('viewBox', `0 0 ${Number(root.getAttribute('width')?.replace(/px$/, ''))} ${Number(root.getAttribute('height')?.replace(/px$/, ''))}`)
-    const nodes = [...root.querySelectorAll<SVGGeometryElement>(shapes)].filter(node => !node.closest('defs, clipPath, mask'))
+    let nodes = [...root.querySelectorAll<SVGGeometryElement>(shapes)].filter(node => !node.closest('defs, clipPath, mask'))
     const ids = new Map([...root.querySelectorAll('[id]'), root].filter(node => node.id).map(node => [node.id, `${prefix}-${item.id}-${node.id}`]))
     for (const node of [root, ...root.querySelectorAll('*')]) {
       if (node.id) node.id = ids.get(node.id)!
@@ -28,17 +30,43 @@ export const createArtworkPaint = (host: SVGGElement, artwork: Artwork[], side: 
     group.setAttribute('transform', `rotate(${item.rotation} ${item.x + item.width / 2} ${item.y + item.height / 2})${side === 'back' ? ` translate(${2 * item.x + item.width} 0) scale(-1 1)` : ''}`)
     group.append(root); host.append(group)
     const unsupported = [...root.querySelectorAll('*'), root].some(node => ['mask', 'clip-path'].some(attr => node.hasAttribute(attr) && node.getAttribute(attr) !== 'none'))
+    // Only raw SVGs are partitioned. Editable objects keep their metadata and
+    // whole-object fill contract; conversion opts them into region painting.
+    if (!unsupported && !item.drawing && !item.vector && !item.text && !item.appearance) {
+      const parts = nodes.map(svgPaintParts)
+      if (parts.some(Boolean)) {
+        nodes.forEach((node, index) => {
+          const key = original[index]!.getAttribute('data-overprint-paint-region') ?? `shape:${index}`
+          if (!node.hasAttribute('data-overprint-cutout')) {
+            node.setAttribute('data-overprint-paint-region', key)
+            original[index]!.setAttribute('data-overprint-paint-region', key)
+          }
+          if (!parts[index]) return
+          for (const source of [original[index]!, node]) {
+            for (const [part, d] of parts[index]!.entries()) {
+              const clone = source.cloneNode(part === 0) as SVGGeometryElement
+              clone.setAttribute('d', d)
+              clone.setAttribute('data-overprint-paint-region', `${key}:part:${part}`)
+              if (part) clone.removeAttribute('id')
+              source.before(clone)
+            }
+            source.remove()
+          }
+        })
+        original = [...doc.querySelectorAll<SVGGeometryElement>(shapes)].filter(node => !node.closest('defs, clipPath, mask'))
+        nodes = [...root.querySelectorAll<SVGGeometryElement>(shapes)].filter(node => !node.closest('defs, clipPath, mask'))
+      }
+    }
     const cutouts = new Map<SVGGeometryElement, ReturnType<typeof createSvgCutouts>>()
     let shapeIndex = 0
     // Inserting faces must not renumber regions already visited during a drag.
     const keys = nodes.map(node => {
       const face = node.getAttribute('data-overprint-cutout')
-      return face === null ? `shape:${shapeIndex++}` : face === 'true' ? `face:${node.getAttribute('d')}:${node.getAttribute('transform')}` : face
+      return node.getAttribute('data-overprint-paint-region') ?? (face === null ? `shape:${shapeIndex++}` : face === 'true' ? `face:${node.getAttribute('d')}:${node.getAttribute('transform')}` : face)
     })
     return { item, doc, original, nodes, root, group, unsupported, cutouts, keys }
   })
-  const hit = (x: number, y: number): ArtworkPaintHit | undefined => {
-    if (entries.some(entry => entry.unsupported)) return
+  const hit = (x: number, y: number, includeCutouts = true): ArtworkPaintHit | undefined => {
     // Mirror the artwork renderer's painter order: the last visible shape wins.
     for (const entry of [...entries].reverse()) {
       const viewport = entry.root.getBoundingClientRect()
@@ -47,6 +75,7 @@ export const createArtworkPaint = (host: SVGGElement, artwork: Artwork[], side: 
       if (!rootMatrix) continue
       const local = new DOMPoint(x, y).matrixTransform(rootMatrix.inverse())
       if (local.x < box.x || local.x > box.x + box.width || local.y < box.y || local.y > box.y + box.height) continue
+      if (entry.unsupported) return { key: `${entry.item.id}:unsupported`, artworkId: entry.item.id, index: 0, blocked: 'Painting clipped or masked SVG graphics is not supported yet.' }
       for (let index = entry.nodes.length - 1; index >= 0; index--) {
         const node = entry.nodes[index]!, style = getComputedStyle(node)
         if (style.fill === 'none' || Number(style.fillOpacity) === 0 || style.visibility !== 'visible') continue
@@ -60,11 +89,21 @@ export const createArtworkPaint = (host: SVGGElement, artwork: Artwork[], side: 
         if (!matrix) continue
         const point = new DOMPoint(x, y).matrixTransform(matrix.inverse())
         if (node.isPointInFill(point)) return { key: `${entry.item.id}:${entry.keys[index]}`, artworkId: entry.item.id, index }
+        if (!includeCutouts) continue
         if (!entry.cutouts.has(node)) entry.cutouts.set(node, createSvgCutouts(node))
         const cutout = entry.cutouts.get(node)!(point)
         if (cutout) return { key: `${entry.item.id}:${entry.keys[index]}:hole:${cutout}`, artworkId: entry.item.id, index, cutout }
       }
     }
+  }
+  const sample = (target: ArtworkPaintHit) => {
+    if (target.cutout || target.blocked) return
+    const entry = entries.find(entry => entry.item.id === target.artworkId)
+    const node = entry?.nodes[target.index]
+    if (!node || entry?.item.gold || Number(getComputedStyle(node).fillOpacity) !== 1) return
+    for (let ancestor: Element | null = node; ancestor && ancestor !== host; ancestor = ancestor.parentElement)
+      if (Number(getComputedStyle(ancestor).opacity) !== 1) return
+    return solidPaintColor(getComputedStyle(node).fill)
   }
   const recolor = (target: ArtworkPaintHit, color: string) => {
     const entry = entries.find(entry => entry.item.id === target.artworkId)
@@ -170,5 +209,5 @@ export const createArtworkPaint = (host: SVGGElement, artwork: Artwork[], side: 
       overlay.append(clone)
     }
   }
-  return { hit, recolor, goldRegion, highlight, unsupported: entries.some(entry => entry.unsupported), dispose: () => entries.forEach(entry => entry.group.remove()) }
+  return { hit, sample, recolor, goldRegion, highlight, unsupported: entries.some(entry => entry.unsupported), dispose: () => entries.forEach(entry => entry.group.remove()) }
 }

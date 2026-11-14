@@ -16,3 +16,13 @@ export const hexToHsv = (hex: string) => {
   const hue = !delta ? 0 : max === r ? ((g - b) / delta + 6) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4
   return { h: hue * 60, s: max ? delta / max : 0, v: max }
 }
+
+// Sampling reads solid SVG ink definitions, never composited screen pixels.
+export const solidPaintColor = (value: string) => {
+  const hex = normalizeHex(value)
+  if (hex) return hex
+  if (!/^rgba?\(/i.test(value) || value.includes('%')) return
+  const channels = value.match(/-?\d+(?:\.\d+)?/g)?.map(Number)
+  if (!channels || ![3, 4].includes(channels.length) || channels.slice(0, 3).some(n => !Number.isFinite(n) || n < 0 || n > 255) || (channels.length === 4 && channels[3] !== 1)) return
+  return '#' + channels.slice(0, 3).map(n => Math.round(n).toString(16).padStart(2, '0')).join('')
+}

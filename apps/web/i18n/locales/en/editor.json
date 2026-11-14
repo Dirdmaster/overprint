@@ -15,7 +15,7 @@
     "openFromKicad": "Open from KiCad",
     "tools": {
       "label": "Canvas tools",
-      "select": "Select (V / M)",
+      "select": "Select (V)",
       "hand": "Hand (hold Space)",
       "paint": "Live paint (K)"
     },

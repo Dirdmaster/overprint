@@ -3,7 +3,7 @@ import { inject, ref, shallowRef, type InjectionKey, type Ref } from 'vue'
 export const createEditorState = (globalShortcuts = false) => ({
   globalShortcuts,
   roots: new Set<HTMLElement>(),
-  viewport: shallowRef<{ fit: () => void; zoomBy: (factor: number) => void } | null>(null),
+  viewport: shallowRef<{ fit: () => void; zoomBy: (factor: number) => void; focus?: (bounds: { x: number; y: number; width: number; height: number; side?: string }) => void } | null>(null),
   values: new Map<string, Ref>(),
   root: shallowRef<HTMLElement | null>(null),
 })

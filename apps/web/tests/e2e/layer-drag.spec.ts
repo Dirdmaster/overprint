@@ -12,10 +12,12 @@ const open = async (page: Page) => {
   await page.getByLabel('Choose project file').setInputFiles({ name: 'drag.overprint', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) })
   await expect(page.getByRole('button', { name: 'Red', exact: true })).toBeVisible()
 }
-const order = (page: Page) => page.locator('[data-layer-row]').evaluateAll(rows => rows.map(row => row.getAttribute('data-layer-row')))
-const canvasOrder = (page: Page) => page.locator('[data-artwork-layer] image').evaluateAll(images => images.map(image => image.parentElement!.getAttribute('data-artwork-layer')))
+const order = (page: Page) => page.locator('[data-artboard-layers="front"] [data-layer-row]').evaluateAll(rows => rows.map(row => row.getAttribute('data-layer-row')))
+const canvasOrder = (page: Page) => page.locator('[data-active-side="true"] [data-artwork-layer] image').evaluateAll(images => images.map(image => image.parentElement!.getAttribute('data-artwork-layer')))
 const drag = async (page: Page, source: string, target: string, y: number) => {
-  await page.getByRole('button', { name: source, exact: true }).dragTo(page.locator(`[data-layer-row="${target}"]`), { targetPosition: { x: 110, y } })
+  const row = page.locator(`[data-layer-row="${target}"]`)
+  const box = (await row.boundingBox())!
+  await page.getByRole('button', { name: source, exact: true }).dragTo(row, { targetPosition: { x: 110, y: Math.min(y, box.height - 2) } })
 }
 const saved = async (page: Page) => {
   const download = page.waitForEvent('download')
@@ -51,6 +53,7 @@ test('dragging into a collapsed folder opens it and allows moving back to root',
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
   expect(await order(page)).toEqual(['Folder', 'Blue', 'Red'])
   await page.getByRole('button', { name: 'Redo', exact: true }).click()
+  await page.getByRole('button', { name: 'Red', exact: true }).scrollIntoViewIfNeeded()
   const source = (await page.getByRole('button', { name: 'Red', exact: true }).boundingBox())!
   await page.mouse.move(source.x + 30, source.y + 10)
   await page.mouse.down()

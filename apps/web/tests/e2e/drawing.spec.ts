@@ -5,6 +5,7 @@ test('draw, edit, undo and reload a rounded rectangle without losing geometry', 
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
+  await page.getByRole('button', { name: 'More shape tools', exact: true }).click()
   await page.getByRole('button', { name: 'Draw rounded rectangle', exact: true }).click()
   const canvas = page.locator('svg[role="img"]')
   const box = await canvas.evaluate(svg => {
@@ -35,6 +36,7 @@ test('draw, edit, undo and reload a rounded rectangle without losing geometry', 
   await page.reload()
   await page.getByRole('button', { name: 'Rounded rectangle', exact: true }).click()
   await expect(page.getByLabel('Corner radius (mm)')).toHaveValue('2')
+  await page.getByRole('button', { name: 'More shape tools', exact: true }).click()
   await page.getByRole('button', { name: 'Draw ellipse', exact: true }).click()
   await page.mouse.move(box.x + 220, box.y + 200)
   await page.mouse.down()
@@ -44,7 +46,7 @@ test('draw, edit, undo and reload a rounded rectangle without losing geometry', 
   await expect(page.locator('[data-artwork-layer] image')).toHaveCount(1)
 })
 
-test('drawing on the back uses the same positive bounds and requires conversion before Live Paint', async ({ page }) => {
+test('painting a back drawing preserves its editable dimensions and supports undo', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Import PCB', exact: true }).click()
   await page.getByLabel('Choose board export').setInputFiles(demoBoard)
@@ -61,11 +63,12 @@ test('drawing on the back uses the same positive bounds and requires conversion 
   await page.mouse.move(point.xx, point.yy)
   await page.mouse.up()
   await page.getByRole('button', { name: 'Live paint (K)' }).click()
+  await page.getByRole('button', { name: 'Paint Blue', exact: true }).click()
   await page.mouse.click((point.x + point.xx) / 2, (point.y + point.yy) / 2)
-  await expect(page.getByRole('alert')).toContainText('Convert this editable artwork')
+  await expect(page.locator('[data-artwork-layer] image')).toHaveAttribute('href', /3586e8/)
+  await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.getByLabel('Shape width (mm)', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Convert to SVG', exact: true }).click()
-  await expect(page.getByLabel('Shape width (mm)', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await expect(page.locator('[data-artwork-layer] image')).toHaveAttribute('href', /ffd426/)
   await expect(page.getByLabel('Shape width (mm)', { exact: true })).toBeVisible()
 })

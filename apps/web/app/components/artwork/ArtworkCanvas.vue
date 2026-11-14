@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { svgImageAttributes } from '../../utils/svgImage'
+import { usePlacement } from '../../composables/artwork/usePlacement'
 import { useArtwork } from '../../composables/artwork/useArtwork'
 import { useCanvasTools } from '../../composables/canvas/useCanvasTools'
 import ArtworkTransformHandles from './ArtworkTransformHandles.vue'
@@ -7,6 +9,7 @@ import { artworkRows, isArtworkLocked, type Artwork } from '../../utils/artwork'
 const props = defineProps<{ side: string; interactive?: boolean }>()
 const { items, selectionIds, selectedArtwork, select, checkpoint, patchItems } = useArtwork()
 const { active } = useCanvasTools()
+const placement = usePlacement()
 const visible = computed(() =>
   artworkRows(items.value, props.side, true)
     .filter((row) => row.visible && !row.item.kind)
@@ -17,6 +20,7 @@ let gesture:
       item: Artwork
       moving: Artwork[]
       checkpointed: boolean
+      toggleOnClick: boolean
       start: DOMPoint
       inverse: DOMMatrix
       mode: string
@@ -25,7 +29,9 @@ let gesture:
       pointerId: number
     }
   | undefined
-const finish = () => {
+const finish = (event?: Event) => {
+  if (event?.type === 'pointerup' && gesture?.toggleOnClick && !gesture.checkpointed)
+    select(gesture.item.id, true)
   gesture = undefined
 }
 const start = (
@@ -34,14 +40,21 @@ const start = (
   mode: string,
   handle?: { x: number; y: number }
 ) => {
-  if (event.button !== 0 || active.value !== 'select' || isArtworkLocked(items.value, item.id))
+  if (
+    event.button !== 0 ||
+    !['select', 'directSelect'].includes(active.value) ||
+    isArtworkLocked(items.value, item.id)
+  )
     return
   event.stopPropagation()
   event.preventDefault()
-  if (mode === 'move' && event.shiftKey) {
-    select(item.id, true)
+  if (active.value === 'directSelect') {
+    select(item.id, event.shiftKey)
     return
   }
+  const toggleOnClick = mode === 'move' && event.shiftKey && selectionIds.value.includes(item.id)
+  if (mode === 'move' && event.shiftKey && !selectionIds.value.includes(item.id))
+    select(item.id, true)
   const target = event.currentTarget as SVGGraphicsElement
   const container = target.closest('[data-artwork-layer]')
     ?.parentElement as unknown as SVGGraphicsElement
@@ -54,6 +67,7 @@ const start = (
       .filter((value) => value.side === props.side)
       .map((value) => ({ ...value })),
     checkpointed: false,
+    toggleOnClick,
     start: new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse()),
     inverse: matrix.inverse(),
     mode,
@@ -79,14 +93,23 @@ const move = (event: PointerEvent) => {
   if (mode === 'move') {
     const moving = gesture.moving
     // Clamp the whole selection as one translation, preserving relative spacing.
-    const dx = Math.max(
+    let dx = Math.max(
       -10000 - Math.min(...moving.map((value) => value.x)),
       Math.min(10000 - Math.max(...moving.map((value) => value.x)), point.x - start.x)
     )
-    const dy = Math.max(
+    let dy = Math.max(
       -10000 - Math.min(...moving.map((value) => value.y)),
       Math.min(10000 - Math.max(...moving.map((value) => value.y)), point.y - start.y)
     )
+    const constrainedAxis = event.shiftKey ? (Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y') : undefined
+    if (constrainedAxis === 'x') dy = 0
+    if (constrainedAxis === 'y') dx = 0
+    const anchor = { x: item.x + item.width / 2 + dx, y: item.y + item.height / 2 + dy }
+    const snapped = placement.snap(anchor, props.side)
+    dx += snapped.x - anchor.x
+    dy += snapped.y - anchor.y
+    if (constrainedAxis === 'x') dy = 0
+    if (constrainedAxis === 'y') dx = 0
     const changes = new Map(
       moving.map((value) => [value.id, { ...value, x: value.x + dx, y: value.y + dy }])
     )
@@ -149,14 +172,7 @@ onBeforeUnmount(() => window.removeEventListener('blur', finish))
   >
     <image
       v-if="!interactive"
-      :href="`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.source)}`"
-      :x="item.x"
-      :y="item.y"
-      :width="item.width"
-      :height="item.height"
-      :transform="
-        side === 'back' ? `translate(${2 * item.x + item.width} 0) scale(-1 1)` : undefined
-      "
+      v-bind="svgImageAttributes(item, side)"
       pointer-events="none"
     />
     <template v-else>
@@ -169,13 +185,21 @@ onBeforeUnmount(() => window.removeEventListener('blur', finish))
         :style="{
           cursor: active === 'select' && !isArtworkLocked(items, item.id) ? 'move' : undefined
         }"
-        :stroke="selectionIds.includes(item.id) && active === 'select' ? '#4f87ff' : 'none'"
+        :stroke="
+          selectionIds.includes(item.id) && ['select', 'directSelect'].includes(active)
+            ? '#4f87ff'
+            : 'none'
+        "
         stroke-width="1"
         vector-effect="non-scaling-stroke"
-        :pointer-events="active === 'select' && !isArtworkLocked(items, item.id) ? 'all' : 'none'"
+        :pointer-events="
+          ['select', 'directSelect'].includes(active) && !isArtworkLocked(items, item.id)
+            ? 'all'
+            : 'none'
+        "
         @pointerdown="start($event, item, 'move')"
         @pointermove.stop="move"
-        @pointerup="finish"
+        @pointerup="finish($event)"
         @pointercancel="finish"
         @lostpointercapture="finish"
       />

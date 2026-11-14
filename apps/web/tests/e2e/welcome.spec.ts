@@ -48,7 +48,7 @@ test('remembers a chosen theme after reload', async ({ page }) => {
 
 test('keeps one canvas tool selected and restores it after held Space', async ({ page }) => {
   await page.goto('/')
-  const select = page.getByRole('button', { name: 'Select (V / M)', exact: true })
+  const select = page.getByRole('button', { name: 'Select (V)', exact: true })
   const hand = page.getByRole('button', { name: 'Hand (hold Space)', exact: true })
   await hand.click()
   await expect(hand).toHaveAttribute('aria-pressed', 'true')

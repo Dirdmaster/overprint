@@ -20,7 +20,7 @@ const open = async (page: Page) => {
 }
 const paint = async (page: Page, x = 3, y = 3) => {
   const point = await page.getByRole('img', { name: /Native ink .* board preview/ }).evaluate((svg, [x, y]) => {
-    const group = svg.querySelector(':scope > g') as SVGGraphicsElement
+    const group = svg.querySelector('[data-active-side="true"] [data-board-coordinates]') as SVGGraphicsElement
     const p = new DOMPoint(x, y).matrixTransform(group.getScreenCTM()!)
     return { x: p.x, y: p.y }
   }, [x, y])
@@ -31,7 +31,7 @@ const save = async (page: Page) => {
   await page.getByRole('button', { name: 'Save project', exact: true }).click()
   return JSON.parse(readFileSync((await (await download).path())!, 'utf8'))
 }
-const ink = (page: Page) => page.locator('[data-native-silkscreen] > path')
+const ink = (page: Page) => page.locator('[data-active-side="true"] [data-native-silkscreen] > path')
 
 test('assembled preview updates native ink colors', async ({ page }) => {
   await page.goto('/')
